@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #006400; /* Verde Gramado */
+  --color-accent: #FFD700; /* Dourado */
+  --color-bg-light: #F8F9FA;
+  --color-text-dark: #1E293B;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg-light);
+  color: var(--color-text-dark);
+}

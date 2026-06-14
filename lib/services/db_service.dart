@@ -46,4 +46,21 @@ class DbService {
   Future<void> saveApiKeys(Map<String, String> keys) async {
     await _db.collection('settings').doc('api_keys').set(keys, SetOptions(merge: true));
   }
+
+  Future<Map<String, dynamic>> getPrizeRules() async {
+    final docSnap = await _db.collection('settings').doc('prize_rules').get();
+    if (docSnap.exists) {
+      return docSnap.data()!;
+    }
+    return {
+      'prize_value': 0.0,
+      'total_prizes': 0,
+      'batch_size': 0,
+    };
+  }
+
+  Future<void> savePrizeRules(Map<String, dynamic> rules) async {
+    await _db.collection('settings').doc('prize_rules').set(rules, SetOptions(merge: true));
+  }
 }
+
