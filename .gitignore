@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/web/.agents
+/web/.claude
+/website/.agents
+/website/.claude
