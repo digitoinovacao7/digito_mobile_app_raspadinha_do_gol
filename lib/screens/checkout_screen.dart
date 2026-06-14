@@ -23,7 +23,7 @@ class CheckoutScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Sua jogada gratuita já foi utilizada neste evento.\nPara desbloquear uma nova raspadinha agora mesmo, realize o pagamento de R\$ 0,99.',
+                'Sua jogada gratuita já foi utilizada neste evento.\nPara desbloquear uma nova raspadinha agora mesmo, realize o pagamento de R\$ 1,00.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),

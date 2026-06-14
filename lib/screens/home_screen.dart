@@ -62,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                     ),
-                    child: Text(freePlays > 0 ? 'Jogar Agora (Grátis)!' : 'Desbloquear (R\$ 0,99)'),
+                    child: Text(freePlays > 0 ? 'Jogar Agora (Grátis)!' : 'Desbloquear (R\$ 1,00)'),
                   )
                 else
                   const Text(
