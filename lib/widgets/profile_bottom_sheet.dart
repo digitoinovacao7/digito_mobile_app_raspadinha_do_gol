@@ -11,8 +11,10 @@ class ProfileBottomSheet extends ConsumerWidget {
 
   Future<void> _launchUrl(String path) async {
     final url = Uri.parse('https://raspadinhadogol.web.app$path');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not launch $url: $e');
     }
   }
 
