@@ -38,6 +38,7 @@ dependencies:
   scratcher: ^2.5.0
   confetti: ^0.8.0
   google_fonts: ^8.1.0
+  cloud_functions: ^6.3.2
   dio: ^5.9.2
   firebase_core: ^4.10.0
   firebase_auth: ^6.5.2
