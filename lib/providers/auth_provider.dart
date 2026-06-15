@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
+import '../services/db_service.dart';
 import '../models/app_user.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -13,3 +14,8 @@ final authStateProvider = StreamProvider((ref) {
 
 // Um provider para guardar o AppUser (dados do nosso db, como role e balance)
 final currentUserProvider = StateProvider<AppUser?>((ref) => null);
+
+final appUserFutureProvider = FutureProvider.family<AppUser?, String>((ref, uid) async {
+  final dbService = DbService();
+  return await dbService.getUser(uid);
+});

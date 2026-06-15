@@ -97,10 +97,27 @@ class FootballService {
           );
 
           _matchStreamController.add(matchState);
+        } else {
+          _matchStreamController.add(MatchState(
+            fixtureId: -1,
+            homeTeam: '',
+            awayTeam: '',
+          ));
         }
+      } else {
+        _matchStreamController.add(MatchState(
+          fixtureId: -1,
+          homeTeam: '',
+          awayTeam: '',
+        ));
       }
     } catch (e) {
       print('Erro ao buscar dados da api-football: $e');
+      _matchStreamController.add(MatchState(
+        fixtureId: -1,
+        homeTeam: '',
+        awayTeam: '',
+      ));
     }
   }
 

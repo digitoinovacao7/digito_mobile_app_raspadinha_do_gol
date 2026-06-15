@@ -4,43 +4,32 @@ export function Home() {
   return (
     <>
       {/* Hero Section */}
-      <section className="w-full bg-primary text-white py-20 px-4 relative overflow-hidden flex flex-col md:flex-row items-center justify-center min-h-[80vh]">
-        <div className="absolute inset-0 bg-black/40 z-0"></div> {/* Overlay darker for better contrast */}
+      <section className="w-full bg-primary text-white py-20 px-4 relative overflow-hidden flex flex-col items-center justify-center min-h-[80vh]">
+        {/* Background Image */}
+        <img src="/hero-football.png?v=2" alt="Hero Background" className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
+        <div className="absolute inset-0 bg-black/60 z-0"></div> {/* Overlay darker for better contrast */}
         
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 w-full">
-          {/* Left Content */}
-          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
-            <div className="mb-8 drop-shadow-2xl">
-              <img 
-                src="/logo_transparent.png" 
-                alt="Raspadinha do Gol" 
-                className="w-48 h-48 object-contain" 
-              />
-            </div>
-            <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
-              Sua torcida vale <span className="text-accent drop-shadow-md">PIX na hora!</span>
-            </h2>
-            <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-xl">
-              Assista aos jogos ao vivo e ganhe raspadinhas exclusivas a cada gol, no intervalo e no fim da partida. Encontrou 3 bolas de futebol? O PIX cai na sua conta!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-              <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
-                Quero Participar
-              </a>
-              <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
-                Ver Regulamento
-              </Link>
-            </div>
+        <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center text-center w-full">
+          <div className="mb-8 drop-shadow-2xl">
+            <img 
+              src="/logo_transparent.png" 
+              alt="Raspadinha do Gol" 
+              className="w-48 h-48 object-contain" 
+            />
           </div>
-
-          {/* Right Content - Hero Image */}
-          <div className="flex-1 flex justify-center items-center w-full max-w-md md:max-w-full">
-             <img 
-               src="/hero-football.png" 
-               alt="Bola de Futebol Premium 3D" 
-               className="w-full h-auto drop-shadow-[0_20px_50px_rgba(255,215,0,0.4)] animate-bounce"
-               style={{ animationDuration: '4s' }}
-             />
+          <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
+            Sua torcida vale <span className="text-accent drop-shadow-md">PIX na hora!</span>
+          </h2>
+          <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
+            Assista aos jogos ao vivo e ganhe raspadinhas exclusivas a cada gol, no intervalo e no fim da partida. Encontrou 3 bolas de futebol? O PIX cai na sua conta!
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto">
+            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
+              Quero Participar
+            </a>
+            <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
+              Ver Regulamento
+            </Link>
           </div>
         </div>
       </section>
