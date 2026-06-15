@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/main_layout.dart';
-import '../screens/admin_screen.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -42,17 +41,13 @@ class _AppUserLoader extends ConsumerWidget {
           // Atualiza o currentUserProvider para os outros componentes usarem
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final current = ref.read(currentUserProvider);
-            if (current?.id != appUser.id || current?.balance != appUser.balance) {
+            if (current?.id != appUser.id || current?.tokens != appUser.tokens) {
                ref.read(currentUserProvider.notifier).state = appUser;
             }
           });
 
-          // Redireciona baseado no papel (role)
-          if (appUser.isAdmin) {
-            return const AdminScreen();
-          } else {
-            return const MainLayout();
-          }
+          // Todos os usuários acessam o MainLayout no app. Admin usa a plataforma web.
+          return const MainLayout();
         } else {
           // Usuário no Firebase mas não encontrado no Firestore (banco deletado?)
           return Scaffold(

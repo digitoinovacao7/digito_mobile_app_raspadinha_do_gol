@@ -12,11 +12,14 @@ class WithdrawScreen extends ConsumerStatefulWidget {
 class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   final TextEditingController _pixKeyController = TextEditingController();
 
+  // Taxa de conversão: 100 Tokens = R$ 1,00
+  static const int tokensPerReal = 100;
+
   void _requestWithdraw() {
     final user = ref.read(currentUserProvider);
-    if (user == null || user.balance <= 0) {
+    if (user == null || user.tokens < tokensPerReal) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saldo insuficiente para saque.')),
+        const SnackBar(content: Text('Mínimo para saque é de 100 Tokens.')),
       );
       return;
     }
@@ -28,15 +31,17 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       return;
     }
 
+    final double withdrawValue = user.tokens / tokensPerReal;
+
     // Aqui integraria com a API real de pagamento para enviar o PIX
     // Zerar saldo simulado:
-    ref.read(currentUserProvider.notifier).state = user.copyWith(balance: 0.0);
+    ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: 0);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Saque Solicitado!'),
-        content: const Text('O valor será depositado na sua conta em instantes.'),
+        content: Text('O valor de R\$ ${withdrawValue.toStringAsFixed(2)} será depositado na sua conta via PIX em instantes.'),
         actions: [
           TextButton(
             onPressed: () {
@@ -53,27 +58,42 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final int currentTokens = user?.tokens ?? 0;
+    final double valueInReais = currentTokens / tokensPerReal;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sacar Prêmios')),
+      appBar: AppBar(title: const Text('Sacar via PIX')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Saldo Disponível:',
+              'Seus Tokens:',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'R\$ ${user?.balance.toStringAsFixed(2) ?? '0.00'}',
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+              '🟡 $currentTokens',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: Colors.amber[800],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Valor em Reais (100 Tokens = R\$ 1,00):',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              'R\$ ${valueInReais.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: Colors.green[700],
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 48),
-            const Text('Informe sua chave PIX para receber o prêmio:'),
+            const Text('Informe sua chave PIX para receber o valor:'),
             const SizedBox(height: 12),
             TextField(
               controller: _pixKeyController,
@@ -84,11 +104,11 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed: _requestWithdraw,
+              onPressed: currentTokens >= tokensPerReal ? _requestWithdraw : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text('Solicitar Saque'),
+              child: const Text('Solicitar Saque PIX'),
             ),
           ],
         ),

@@ -48,7 +48,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: Text(
-                'Saldo: R\$ ${user?.balance.toStringAsFixed(2) ?? '0.00'}',
+                'Tokens: 🟡 ${user?.tokens ?? 0}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),

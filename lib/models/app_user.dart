@@ -3,14 +3,14 @@ class AppUser {
   final String email;
   final String name;
   final String role; // 'user' or 'admin'
-  final double balance;
+  final int tokens;
 
   AppUser({
     required this.id,
     required this.email,
     required this.name,
     this.role = 'user',
-    this.balance = 0.0,
+    this.tokens = 0,
   });
 
   bool get isAdmin => role == 'admin';
@@ -21,7 +21,7 @@ class AppUser {
       email: map['email'] ?? '',
       name: map['name'] ?? '',
       role: map['role'] ?? 'user',
-      balance: (map['balance'] ?? 0.0).toDouble(),
+      tokens: map['tokens'] ?? 0,
     );
   }
 
@@ -30,7 +30,7 @@ class AppUser {
       'email': email,
       'name': name,
       'role': role,
-      'balance': balance,
+      'tokens': tokens,
     };
   }
 
@@ -39,14 +39,14 @@ class AppUser {
     String? email,
     String? name,
     String? role,
-    double? balance,
+    int? tokens,
   }) {
     return AppUser(
       id: id ?? this.id,
       email: email ?? this.email,
       name: name ?? this.name,
       role: role ?? this.role,
-      balance: balance ?? this.balance,
+      tokens: tokens ?? this.tokens,
     );
   }
 }

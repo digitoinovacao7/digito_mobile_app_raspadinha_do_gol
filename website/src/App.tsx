@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Regulamento, Privacidade, Termos, JogoResponsavel } from './pages/StaticPages';
+import { Admin } from './pages/Admin';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="privacidade" element={<Privacidade />} />
           <Route path="termos" element={<Termos />} />
           <Route path="jogo-responsavel" element={<JogoResponsavel />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </BrowserRouter>
