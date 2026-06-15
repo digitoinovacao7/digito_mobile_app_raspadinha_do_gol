@@ -10,12 +10,11 @@ export function Home() {
         <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 w-full">
           {/* Left Content */}
           <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
-            <div className="bg-white rounded-3xl p-1 mb-8 shadow-2xl">
+            <div className="mb-8 drop-shadow-2xl">
               <img 
-                src="/logo.png" 
+                src="/logo_transparent.png" 
                 alt="Raspadinha do Gol" 
-                className="w-48 h-48 mix-blend-multiply rounded-2xl" 
-                style={{ mixBlendMode: 'multiply' }}
+                className="w-48 h-48 object-contain" 
               />
             </div>
             <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
@@ -28,7 +27,7 @@ export function Home() {
               <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
                 Quero Participar
               </a>
-              <Link to="/regulamento" className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
+              <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
                 Ver Regulamento
               </Link>
             </div>
