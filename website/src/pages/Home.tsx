@@ -78,8 +78,8 @@ export function Home() {
 
             <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">3</div>
-              <h4 className="text-xl font-bold mb-4">Raspe e Ganhe PIX</h4>
-              <p className="text-gray-600">Revele 3 bolas de futebol no grid 3x3 e solicite o seu prêmio via PIX instantaneamente.</p>
+              <h4 className="text-xl font-bold mb-4">Acumule Tokens e Troque por PIX</h4>
+              <p className="text-gray-600">Revele prêmios na sua raspadinha, junte uma quantidade de tokens e troque por um PIX instantaneamente.</p>
             </div>
           </div>
         </div>

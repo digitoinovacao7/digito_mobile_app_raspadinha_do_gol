@@ -13,7 +13,7 @@ class AppUser {
     this.tokens = 0,
   });
 
-  bool get isAdmin => role == 'admin';
+  bool get isAdmin => role.trim().toLowerCase() == 'admin';
 
   factory AppUser.fromMap(Map<String, dynamic> map, String id) {
     return AppUser(

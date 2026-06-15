@@ -57,6 +57,27 @@ class ProfileBottomSheet extends ConsumerWidget {
                             color: Colors.grey[600],
                           ),
                     ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: user?.isAdmin == true ? Colors.red.shade100 : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Role: ${user?.role ?? "user"}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: user?.isAdmin == true ? Colors.red.shade800 : Colors.grey.shade800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'ID: ${user?.id}',
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                    ),
                   ],
                 ),
               ),

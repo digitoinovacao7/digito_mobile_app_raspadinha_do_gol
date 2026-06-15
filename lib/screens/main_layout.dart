@@ -5,6 +5,7 @@ import '../widgets/profile_bottom_sheet.dart';
 import '../core/theme.dart';
 import 'home_screen.dart';
 import 'my_scratchcards_screen.dart';
+import 'admin_screen.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
@@ -44,6 +45,17 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       appBar: AppBar(
         title: const Text('Raspadinha do Gol'),
         actions: [
+          if (user?.isAdmin == true)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings),
+              tooltip: 'Painel Admin',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminScreen()),
+                );
+              },
+            ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),

@@ -42,14 +42,13 @@ class _AppUserLoader extends ConsumerWidget {
           // Atualiza o currentUserProvider para os outros componentes usarem
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final current = ref.read(currentUserProvider);
-            if (current?.id != appUser.id || current?.tokens != appUser.tokens) {
+            if (current?.id != appUser.id || current?.tokens != appUser.tokens || current?.role != appUser.role) {
                ref.read(currentUserProvider.notifier).state = appUser;
             }
           });
 
-          if (appUser.isAdmin) {
-            return const AdminScreen();
-          }
+          // Tanto users normais quanto admins vão para o MainLayout.
+          // O Admin terá um botão extra no MainLayout.
           return const MainLayout();
         } else {
           // Usuário no Firebase mas não encontrado no Firestore (banco deletado?)
