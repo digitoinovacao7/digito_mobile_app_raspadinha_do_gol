@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../core/theme.dart';
-import 'home_screen.dart';
-import 'admin_screen.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -103,12 +101,7 @@ class LoginScreen extends ConsumerWidget {
                             
                             if (user != null) {
                               ref.read(currentUserProvider.notifier).state = user;
-                              
-                              if (user.isAdmin) {
-                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminScreen()));
-                              } else {
-                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-                              }
+                              // O AuthWrapper cuidará da navegação automaticamente
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Falha ao fazer login.')),
