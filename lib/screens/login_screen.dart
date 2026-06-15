@@ -101,6 +101,7 @@ class LoginScreen extends ConsumerWidget {
                             
                             if (user != null) {
                               ref.read(currentUserProvider.notifier).state = user;
+                              ref.invalidate(appUserFutureProvider(user.id));
                               // O AuthWrapper cuidará da navegação automaticamente
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(

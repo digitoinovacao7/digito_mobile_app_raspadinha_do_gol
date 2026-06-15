@@ -47,7 +47,9 @@ class _AppUserLoader extends ConsumerWidget {
             }
           });
 
-          // Todos os usuários acessam o MainLayout no app. Admin usa a plataforma web.
+          if (appUser.isAdmin) {
+            return const AdminScreen();
+          }
           return const MainLayout();
         } else {
           // Usuário no Firebase mas não encontrado no Firestore (banco deletado?)
