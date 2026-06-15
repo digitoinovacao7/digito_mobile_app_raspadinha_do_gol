@@ -30,5 +30,32 @@
         }
       ]
     }
-  ]
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "raspadinhadogol",
+          "appId": "1:882930210875:android:94cb4eb454bd2fb36ba41e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "raspadinhadogol",
+          "configurations": {
+            "android": "1:882930210875:android:94cb4eb454bd2fb36ba41e",
+            "ios": "1:882930210875:ios:899ea05f26611ab26ba41e",
+            "macos": "1:882930210875:ios:899ea05f26611ab26ba41e",
+            "web": "1:882930210875:web:13a47402546b833a6ba41e",
+            "windows": "1:882930210875:web:fe7eafcc19e1d48b6ba41e"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
 }

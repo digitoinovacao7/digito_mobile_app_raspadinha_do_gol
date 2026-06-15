@@ -45,7 +45,14 @@ class FootballService {
   }
 
   Future<void> _fetchFixtureStatus(int fixtureId) async {
-    if (_apiKey == null || _apiKey!.isEmpty) return;
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      _matchStreamController.add(MatchState(
+        fixtureId: -1, // ID -1 indica que não há jogo configurado ou api key faltando
+        homeTeam: '',
+        awayTeam: '',
+      ));
+      return;
+    }
 
     try {
       final response = await _dio.get(

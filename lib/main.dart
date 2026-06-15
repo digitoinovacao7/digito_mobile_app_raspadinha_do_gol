@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/theme.dart';
 import 'screens/login_screen.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // O usuário deverá rodar 'flutterfire configure' no terminal e importar o firebase_options.dart 
-  // antes de poder rodar o app real na plataforma, por enquanto apenas inicializamos genericamente.
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
-    print('Firebase App não configurado. Por favor rode `flutterfire configure`.');
+    print('Erro ao inicializar Firebase: $e');
   }
 
   runApp(const ProviderScope(child: MyApp()));

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../core/theme.dart';
 import 'home_screen.dart';
@@ -64,6 +65,19 @@ class LoginScreen extends ConsumerWidget {
                     );
                   }
                 },
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () async {
+                  final url = Uri.parse('https://raspadinhadogol.web.app');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: const Text(
+                  'raspadinhadogol.web.app',
+                  style: TextStyle(color: Colors.white70, decoration: TextDecoration.underline),
+                ),
               ),
             ],
           ),

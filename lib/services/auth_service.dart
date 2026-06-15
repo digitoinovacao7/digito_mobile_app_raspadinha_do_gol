@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'db_service.dart';
@@ -5,7 +6,9 @@ import '../models/app_user.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb ? '882930210875-l7n892cmo87fqnkh63feod09m12ok2fq.apps.googleusercontent.com' : null,
+  );
   final DbService _dbService = DbService();
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();

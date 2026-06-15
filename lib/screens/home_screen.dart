@@ -32,6 +32,19 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: matchState.when(
         data: (match) {
+          if (match.fixtureId == -1) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'Ainda nenhum jogo configurado. Aguarde por favor.',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

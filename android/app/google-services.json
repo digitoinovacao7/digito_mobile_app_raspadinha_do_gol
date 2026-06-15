@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "882930210875",
+    "project_id": "raspadinhadogol",
+    "storage_bucket": "raspadinhadogol.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882930210875:android:94cb4eb454bd2fb36ba41e",
+        "android_client_info": {
+          "package_name": "br.com.digitoinovacao.raspadinha_do_gol"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "882930210875-69is9s7i1i595q031ro915b9f1674b6o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.com.digitoinovacao.raspadinha_do_gol",
+            "certificate_hash": "10b2453f14ba0a35f2bbec4634cba6073b9cfcb9"
+          }
+        },
+        {
+          "client_id": "882930210875-l7n892cmo87fqnkh63feod09m12ok2fq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAy1_1CoGv8VFMRC-36n-9kc3bYjIRFZoE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "882930210875-l7n892cmo87fqnkh63feod09m12ok2fq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "882930210875-29qhg8smsu6c9mabns686ca575thhfn1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "br.com.digitoinovacao.raspadinhaDoGol"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
