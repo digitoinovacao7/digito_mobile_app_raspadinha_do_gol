@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class WithdrawScreen extends ConsumerStatefulWidget {
-  const WithdrawScreen({Key? key}) : super(key: key);
+  final int tokensPerReal;
+
+  const WithdrawScreen({Key? key, required this.tokensPerReal}) : super(key: key);
 
   @override
   ConsumerState<WithdrawScreen> createState() => _WithdrawScreenState();
@@ -12,14 +14,11 @@ class WithdrawScreen extends ConsumerStatefulWidget {
 class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   final TextEditingController _pixKeyController = TextEditingController();
 
-  // Taxa de conversão: 100 Tokens = R$ 1,00
-  static const int tokensPerReal = 100;
-
   void _requestWithdraw() {
     final user = ref.read(currentUserProvider);
-    if (user == null || user.tokens < tokensPerReal) {
+    if (user == null || user.tokens < widget.tokensPerReal) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mínimo para saque é de 100 Tokens.')),
+        SnackBar(content: Text('Mínimo para saque é de ${widget.tokensPerReal} Tokens.')),
       );
       return;
     }
@@ -31,7 +30,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       return;
     }
 
-    final double withdrawValue = user.tokens / tokensPerReal;
+    final double withdrawValue = user.tokens / widget.tokensPerReal;
 
     // Aqui integraria com a API real de pagamento para enviar o PIX
     // Zerar saldo simulado:
@@ -59,7 +58,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final int currentTokens = user?.tokens ?? 0;
-    final double valueInReais = currentTokens / tokensPerReal;
+    final double valueInReais = currentTokens / widget.tokensPerReal;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sacar via PIX')),
@@ -82,7 +81,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Valor em Reais (100 Tokens = R\$ 1,00):',
+              'Valor em Reais (${widget.tokensPerReal} Tokens = R\$ 1,00):',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
@@ -104,7 +103,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed: currentTokens >= tokensPerReal ? _requestWithdraw : null,
+              onPressed: currentTokens >= widget.tokensPerReal ? _requestWithdraw : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),

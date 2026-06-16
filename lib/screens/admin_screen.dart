@@ -20,10 +20,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _geminiApiController = TextEditingController();
   final _scratchcardCostController = TextEditingController();
   final _quizRewardController = TextEditingController();
+  final _tokensToRealRateController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
   final _newPrizeOddsCtrl = TextEditingController();
   final _newPrizeImageCtrl = TextEditingController();
+  final _newPrizeTokenCostCtrl = TextEditingController();
   String _newPrizeType = 'produto'; // 'produto' ou 'pix'
   String _newPrizeScope = 'global'; // 'global', 'league', 'match'
   int? _selectedLeagueId;
@@ -61,6 +63,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           final economy = data['economy'] as Map<String, dynamic>;
           _scratchcardCostController.text = economy['scratchcard_token_cost']?.toString() ?? '1000';
           _quizRewardController.text = economy['quiz_reward']?.toString() ?? '250';
+          _tokensToRealRateController.text = economy['tokens_per_real']?.toString() ?? '100';
         }
       }
       
@@ -87,9 +90,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _geminiApiController.dispose();
     _scratchcardCostController.dispose();
     _quizRewardController.dispose();
+    _tokensToRealRateController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeOddsCtrl.dispose();
     _newPrizeImageCtrl.dispose();
+    _newPrizeTokenCostCtrl.dispose();
     super.dispose();
   }
 
@@ -107,6 +112,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'economy': {
           'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
           'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
+          'tokens_per_real': int.tryParse(_tokensToRealRateController.text) ?? 100,
         }
       }, SetOptions(merge: true));
 
@@ -256,7 +262,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.0),
                         child: Text(
-                          'Defina quantos Tokens são necessários para liberar 1 Raspadinha, e quantos Tokens o usuário ganha a cada acerto no Quiz.',
+                          'Defina quantos Tokens são necessários para liberar 1 Raspadinha, quantos Tokens o usuário ganha a cada acerto no Quiz, e a conversão de PIX.',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),
@@ -266,17 +272,26 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           Expanded(
                             child: _buildTextField(
                               controller: _scratchcardCostController,
-                              label: 'Custo da Raspadinha (em Tokens)',
+                              label: 'Custo da Raspadinha',
                               hint: 'Ex: 1000',
                               keyboardType: TextInputType.number,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: _buildTextField(
                               controller: _quizRewardController,
-                              label: 'Prêmio por Acerto no Quiz',
+                              label: 'Prêmio por Acerto',
                               hint: 'Ex: 250',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _tokensToRealRateController,
+                              label: 'Tokens para R\$ 1,00',
+                              hint: 'Ex: 100',
                               keyboardType: TextInputType.number,
                             ),
                           ),
@@ -430,6 +445,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildTextField(
+                controller: _newPrizeTokenCostCtrl,
+                label: 'Custo na Loja (em Tokens, 0 = Só Raspadinha)',
+                hint: 'Ex: 5000',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildTextField(
                 controller: _newPrizeImageCtrl,
                 label: 'URL da Imagem (Opcional)',
                 hint: 'Ex: https://site.com/foto.png',
@@ -474,6 +498,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   Future<void> _saveNewPrize() async {
     final name = _newPrizeNameCtrl.text.trim();
     final odds = int.tryParse(_newPrizeOddsCtrl.text.trim()) ?? 0;
+    final tokenCost = int.tryParse(_newPrizeTokenCostCtrl.text.trim()) ?? 0;
     final image = _newPrizeImageCtrl.text.trim();
 
     if (name.isEmpty || odds <= 0) {
@@ -503,6 +528,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'leagueId': _newPrizeScope == 'global' ? null : _selectedLeagueId,
         'fixtureId': _newPrizeScope == 'match' ? _selectedFixtureId : null,
         'odds': odds,
+        'token_cost': tokenCost,
         'image_url': image,
         'active': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -510,6 +536,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       
       _newPrizeNameCtrl.clear();
       _newPrizeOddsCtrl.clear();
+      _newPrizeTokenCostCtrl.clear();
       _newPrizeImageCtrl.clear();
       setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; _fetchedMatches = []; });
       

@@ -23,40 +23,58 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     MyScratchcardsScreen(),
   ];
 
-  void _onTabTapped(int index) {
-    if (index == 2) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => const ProfileBottomSheet(),
-      );
-    } else {
-      setState(() {
-        _currentIndex = index;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final isAdmin = user?.isAdmin == true;
+
+    final List<BottomNavigationBarItem> navItems = [
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.sports_soccer),
+        label: 'Jogo Ao Vivo',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.style),
+        label: 'Raspadinhas',
+      ),
+      if (isAdmin)
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.admin_panel_settings),
+          label: 'Admin',
+        ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.person),
+        label: 'Perfil',
+      ),
+    ];
+
+    void onTabTapped(int index) {
+      final isProfileIndex = index == navItems.length - 1;
+      final isAdminIndex = isAdmin && index == 2;
+
+      if (isProfileIndex) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const ProfileBottomSheet(),
+        );
+      } else if (isAdminIndex) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminScreen()),
+        );
+      } else {
+        setState(() {
+          _currentIndex = index;
+        });
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Raspadinha do Gol'),
         actions: [
-          if (user?.isAdmin == true)
-            IconButton(
-              icon: const Icon(Icons.admin_panel_settings),
-              tooltip: 'Painel Admin',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminScreen()),
-                );
-              },
-            ),
           Center(
             child: InkWell(
               onTap: () {
@@ -80,29 +98,16 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         ],
       ),
       body: IndexedStack(
-        index: _currentIndex,
+        index: _currentIndex > 1 ? 0 : _currentIndex, // Safe fallback
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex == 2 ? 0 : _currentIndex, // Se abrir perfil, mantém visual no anterior
-        onTap: _onTabTapped,
+        currentIndex: (_currentIndex >= navItems.length - 1) ? 0 : _currentIndex, 
+        onTap: onTabTapped,
         selectedItemColor: AppTheme.primaryGreen,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sports_soccer),
-            label: 'Jogo Ao Vivo',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.style),
-            label: 'Raspadinhas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
+        items: navItems,
       ),
     );
   }

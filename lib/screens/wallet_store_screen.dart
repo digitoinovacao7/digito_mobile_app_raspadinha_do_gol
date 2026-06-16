@@ -148,35 +148,49 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
               controller: _tabController,
               children: [
                 // ABA 1: PIX
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.pix, size: 80, color: Colors.teal),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Transforme Tokens em Dinheiro Vivo!',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('system_config').doc('general').get(),
+                  builder: (context, snapshot) {
+                    int tokensPerReal = 100; // Default
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
+                      if (data != null && data.containsKey('economy')) {
+                        final economy = data['economy'] as Map<String, dynamic>;
+                        tokensPerReal = economy['tokens_per_real'] ?? 100;
+                      }
+                    }
+                    
+                    return Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.pix, size: 80, color: Colors.teal),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Transforme Tokens em Dinheiro Vivo!',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'A cada $tokensPerReal Tokens você pode resgatar R\$ 1,00 direto na sua chave PIX de forma instantânea.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 32),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => WithdrawScreen(tokensPerReal: tokensPerReal)));
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                            ),
+                            child: const Text('Fazer Saque PIX'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'A cada 100 Tokens você pode resgatar R\$ 1,00 direto na sua chave PIX de forma instantânea.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                        ),
-                        child: const Text('Fazer Saque PIX'),
-                      ),
-                    ],
-                  ),
+                    );
+                  }
                 ),
                 
                 // ABA 2: STORE
