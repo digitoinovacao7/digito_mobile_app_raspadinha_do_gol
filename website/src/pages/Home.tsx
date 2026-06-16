@@ -1,14 +1,39 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { PrizesSlider } from '../components/PrizesSlider';
 
+const heroImages = [
+  "/hero-football.png?v=2",
+  "https://images.unsplash.com/photo-1518605368461-1ee7e16353d2?q=80&w=2560&auto=format&fit=crop", // Stadium crowd
+  "https://images.unsplash.com/photo-1574629810360-7efbb928929e?q=80&w=2560&auto=format&fit=crop"  // Player kicking ball
+];
+
 export function Home() {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % heroImages.length);
+    }, 5000); // Change image every 5 seconds
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <>
       {/* Hero Section */}
-      <section className="w-full bg-primary text-white py-20 px-4 relative overflow-hidden flex flex-col items-center justify-center min-h-[80vh]">
-        {/* Background Image */}
-        <img src="/hero-football.png?v=2" alt="Hero Background" className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
-        <div className="absolute inset-0 bg-black/60 z-0"></div> {/* Overlay darker for better contrast */}
+      <section className="w-full bg-primary text-white pt-32 pb-20 px-4 relative overflow-hidden flex flex-col items-center justify-center min-h-[80vh]">
+        {/* Background Images Slider */}
+        {heroImages.map((img, index) => (
+          <img 
+            key={index}
+            src={img} 
+            alt={`Hero Background ${index + 1}`} 
+            className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${
+              index === currentImage ? "opacity-80" : "opacity-0"
+            }`} 
+          />
+        ))}
+        <div className="absolute inset-0 bg-black/60 z-0 transition-opacity duration-1000"></div> {/* Overlay darker for better contrast */}
         
         <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center text-center w-full">
           <div className="mb-8 drop-shadow-2xl">
@@ -36,9 +61,9 @@ export function Home() {
       </section>
 
       {/* Seção do Slider de Prêmios */}
-      <section className="py-12 px-4 w-full bg-white">
-        <div className="max-w-6xl mx-auto text-center mb-4">
-          <h3 className="text-2xl font-bold text-primary">Prêmios incríveis te esperam</h3>
+      <section className="py-12 w-full bg-white">
+        <div className="max-w-6xl mx-auto text-center mb-4 px-4">
+          <h3 className="text-3xl md:text-4xl font-bold text-primary">Prêmios incríveis te esperam</h3>
         </div>
         <PrizesSlider />
       </section>
@@ -98,7 +123,7 @@ export function Home() {
       <section className="py-20 px-4 w-full bg-primary text-white">
         <div className="max-w-6xl mx-auto">
           <h3 className="text-3xl md:text-4xl font-bold text-center mb-16">O que a torcida está dizendo</h3>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
@@ -120,30 +145,6 @@ export function Home() {
           </div>
         </div>
       </section>
-
-      {/* FAQ */}
-      <section className="py-20 px-4 w-full bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <h3 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Dúvidas Frequentes (FAQ)</h3>
-          
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <h4 className="text-xl font-bold text-primary mb-2">Como eu participo do Quiz?</h4>
-              <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Assim que um evento principal acontecer (como Gol ou Cartão), o quiz aparece e você ganha Tokens se acertar.</p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <h4 className="text-xl font-bold text-primary mb-2">Como eu recebo meu prêmio?</h4>
-              <p className="text-gray-600">Todos os prêmios são pagos via PIX. Para isso, sua chave PIX deve ser o mesmo CPF cadastrado na sua conta Raspadinha do Gol.</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <h4 className="text-xl font-bold text-primary mb-2">Menores de 18 anos podem jogar?</h4>
-              <p className="text-gray-600">Não. O uso da plataforma é estritamente proibido para menores de idade. Confirmamos a identidade e a idade durante o cadastro.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </>
-  );
-}
+      </>
+      );
+      }

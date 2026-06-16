@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Regulamento, Privacidade, Termos, JogoResponsavel } from './pages/StaticPages';
 import { Admin } from './pages/Admin';
+import { FAQ } from './pages/FAQ';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="privacidade" element={<Privacidade />} />
           <Route path="termos" element={<Termos />} />
           <Route path="jogo-responsavel" element={<JogoResponsavel />} />
+          <Route path="faq" element={<FAQ />} />
           <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
