@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 
 class WithdrawScreen extends ConsumerStatefulWidget {
@@ -14,7 +15,7 @@ class WithdrawScreen extends ConsumerStatefulWidget {
 class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   final TextEditingController _pixKeyController = TextEditingController();
 
-  void _requestWithdraw() {
+  Future<void> _requestWithdraw() async {
     final user = ref.read(currentUserProvider);
     if (user == null || user.tokens < widget.tokensPerReal) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -32,26 +33,47 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
     final double withdrawValue = user.tokens / widget.tokensPerReal;
 
-    // Aqui integraria com a API real de pagamento para enviar o PIX
-    // Zerar saldo simulado:
-    ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: 0);
+    try {
+      await FirebaseFirestore.instance.collection('redemptions').add({
+        'userId': user.id,
+        'userName': user.name,
+        'userEmail': user.email,
+        'pixKey': _pixKeyController.text,
+        'tokensCost': user.tokens,
+        'valueInReais': withdrawValue,
+        'type': 'pix',
+        'status': 'pendente', // pendente, enviado, rejeitado
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Saque Solicitado!'),
-        content: Text('O valor de R\$ ${withdrawValue.toStringAsFixed(2)} será depositado na sua conta via PIX em instantes.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
-          )
-        ],
-      ),
-    );
+      // Zerar saldo simulado:
+      ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: 0);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Saque Solicitado!'),
+            content: Text('O valor de R\$ ${withdrawValue.toStringAsFixed(2)} será depositado na sua conta via PIX em instantes.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                },
+                child: const Text('OK'),
+              )
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao solicitar saque: $e')),
+        );
+      }
+    }
   }
 
   @override

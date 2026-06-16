@@ -26,6 +26,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _newPrizeOddsCtrl = TextEditingController();
   final _newPrizeImageCtrl = TextEditingController();
   final _newPrizeTokenCostCtrl = TextEditingController();
+  final _newPrizeLinkCtrl = TextEditingController();
   String _newPrizeType = 'produto'; // 'produto' ou 'pix'
   String _newPrizeScope = 'global'; // 'global', 'league', 'match'
   int? _selectedLeagueId;
@@ -131,7 +132,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Painel Administrativo'),
@@ -144,15 +145,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             tabs: [
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
+              Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
             ],
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Sair',
-              onPressed: () => ref.read(authServiceProvider).signOut(),
-            ),
-          ],
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -160,6 +155,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 children: [
                   _buildIntegrationsTab(),
                   _buildPrizesTab(),
+                  _buildRedemptionsTab(),
                 ],
               ),
       ),
@@ -500,6 +496,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final odds = int.tryParse(_newPrizeOddsCtrl.text.trim()) ?? 0;
     final tokenCost = int.tryParse(_newPrizeTokenCostCtrl.text.trim()) ?? 0;
     final image = _newPrizeImageCtrl.text.trim();
+    final prizeLink = _newPrizeLinkCtrl.text.trim();
 
     if (name.isEmpty || odds <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -530,6 +527,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'odds': odds,
         'token_cost': tokenCost,
         'image_url': image,
+        'prize_link': prizeLink,
         'active': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -538,6 +536,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _newPrizeOddsCtrl.clear();
       _newPrizeTokenCostCtrl.clear();
       _newPrizeImageCtrl.clear();
+      _newPrizeLinkCtrl.clear();
       setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; _fetchedMatches = []; });
       
       if (mounted) {
@@ -648,6 +647,105 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
       ),
+    );
+  }
+
+  Widget _buildRedemptionsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('redemptions').orderBy('createdAt', descending: true).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return const Center(child: Text('Erro ao carregar histórico de resgates.'));
+
+        final redemptions = snapshot.data?.docs ?? [];
+        if (redemptions.isEmpty) return const Center(child: Text('Nenhum resgate solicitado.'));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: redemptions.length,
+          itemBuilder: (context, index) {
+            final doc = redemptions[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final isPix = data['type'] == 'pix';
+            final status = data['status'] ?? 'pendente';
+            
+            Color statusColor = Colors.orange;
+            if (status == 'enviado' || status == 'concluido') statusColor = Colors.green;
+            if (status == 'rejeitado') statusColor = Colors.red;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ExpansionTile(
+                leading: Icon(isPix ? Icons.pix : Icons.card_giftcard, color: isPix ? Colors.teal : AppTheme.primaryGreen, size: 36),
+                title: Text(
+                  isPix ? 'Saque PIX - R\$ ${data['valueInReais']?.toStringAsFixed(2) ?? '0.00'}' : 'Resgate Físico - ${data['prizeName']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('Solicitado por: ${data['userName'] ?? 'Desconhecido'}\nStatus: ${status.toUpperCase()}'),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Custo em Tokens: ${data['cost'] ?? data['tokensCost'] ?? 0}'),
+                        Text('E-mail: ${data['userEmail'] ?? 'Não informado'}'),
+                        if (isPix) Text('Chave PIX: ${data['pixKey'] ?? 'Não informada'}'),
+                        if (!isPix) Text('Telefone: ${data['userPhone'] ?? 'Não informado'}'),
+                        if (!isPix) Text('CPF: ${data['userCpf'] ?? 'Não informado'}'),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            if (status == 'pendente')
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                                label: const Text('Marcar como Enviado', style: TextStyle(color: Colors.white)),
+                                onPressed: () {
+                                  FirebaseFirestore.instance.collection('redemptions').doc(doc.id).update({'status': isPix ? 'concluido' : 'enviado'});
+                                },
+                              ),
+                            if (status == 'pendente')
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                                icon: const Icon(Icons.close, size: 18),
+                                label: const Text('Rejeitar'),
+                                onPressed: () {
+                                  FirebaseFirestore.instance.collection('redemptions').doc(doc.id).update({'status': 'rejeitado'});
+                                },
+                              ),
+                          ],
+                        )
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}              ),
+                          ],
+                        )
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

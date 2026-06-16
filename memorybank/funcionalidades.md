@@ -41,3 +41,18 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 - **Loja de Prêmios (Resgate Físico):** Além do saque PIX, a vitrine de prêmios exibe produtos físicos (ex: camisas, chuteiras). Se o usuário acumular Tokens suficientes (definido pelo admin no "Custo na Loja"), ele pode resgatar o prêmio diretamente, sem precisar tentar a sorte na raspadinha.
 - **Cadastro Completo:** Para resgatar prêmios físicos, o aplicativo exige que o usuário complete o seu perfil com CPF e Telefone.
 - **Processamento:** Ao ganhar ou resgatar um prêmio físico, o processo passa para análise e envio pela equipe admin, que entrará em contato (via WhatsApp, por exemplo). Para PIX, a liberação/integração ocorre conforme regras de segurança.
+
+## 7. Plano de Melhorias Futuras (Carteira e Resgate)
+
+Para aumentar a segurança e melhorar a experiência do usuário durante o resgate de prêmios, as seguintes melhorias estão planejadas para a tela de Carteira/Loja:
+
+### A. Fluxo de Resgate de Produto (Voucher/Link Externo)
+- Em vez de coletar endereços e gerenciar logística de envio internamente, o administrador pode cadastrar um **Link de Resgate / Voucher** ao criar o prêmio no painel (opcional).
+- Ao resgatar ou ganhar na raspadinha um prêmio que possua esse link, o usuário será direcionado diretamente para o e-commerce parceiro ou página de voucher.
+- Isso elimina a necessidade de preenchimento de endereço e simplifica a operação de distribuição de prêmios do aplicativo.
+
+### B. Fluxo de Saque PIX (Validação OTP)
+- Para garantir que a conta e a chave PIX pertencem ao usuário e evitar fraudes de saque, a solicitação de PIX passará por uma camada extra de segurança.
+- Ao cadastrar/informar a chave PIX para saque, o sistema enviará um **Código OTP (One-Time Password)** de 6 dígitos para o E-mail ou WhatsApp cadastrado do usuário.
+- O saque só será efetivado e descontado do saldo de tokens após o usuário inserir o código OTP correto em uma tela de verificação.
+- Isso protege a carteira do usuário contra acessos não autorizados.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../core/theme.dart';
 import 'withdraw_screen.dart';
@@ -67,19 +68,46 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Resgate'),
-        content: Text('Deseja resgatar "${prize['name']}" por $cost Tokens?\nNossa equipe entrará em contato via WhatsApp para o envio.'),
+        content: Text('Deseja resgatar "${prize['name']}" por $cost Tokens?\n${(prize['prize_link'] != null && prize['prize_link'].toString().isNotEmpty) ? 'Você receberá o link para acessar o seu voucher/prêmio no nosso parceiro.' : 'Nossa equipe entrará em contato via WhatsApp para o envio.'}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Aqui chamaria uma Cloud Function para debitar com segurança
+            onPressed: () async {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Resgate solicitado com sucesso! Em breve entraremos em contato.')),
-              );
+              
+              try {
+                await FirebaseFirestore.instance.collection('redemptions').add({
+                  'userId': user.id,
+                  'userName': user.name,
+                  'userEmail': user.email,
+                  'userPhone': user.phone,
+                  'userCpf': user.cpf,
+                  'prizeId': prize['id'] ?? 'unknown',
+                  'prizeName': prize['name'],
+                  'cost': cost,
+                  'type': 'physical',
+                  'status': 'pendente', // pendente, enviado, rejeitado
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                
+                // Optimistic update locally
+                ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: user.tokens - cost);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Resgate solicitado com sucesso! Em breve entraremos em contato.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao solicitar resgate: $e')),
+                  );
+                }
+              }
             },
             child: const Text('Confirmar'),
           )
@@ -98,6 +126,9 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
         title: const Text('Carteira e Loja'),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppTheme.accentGold,
           tabs: const [
             Tab(text: 'Saque (PIX)'),
             Tab(text: 'Prêmios Físicos'),
@@ -275,6 +306,36 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                                         ),
                                       ],
                                     ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: () => _redeemPhysicalPrize(prize, currentTokens),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                        ),
+                                        child: const Text('Resgatar', style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                  ),
                                     const SizedBox(height: 8),
                                     SizedBox(
                                       width: double.infinity,
