@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { PrizesSlider } from '../components/PrizesSlider';
 
 export function Home() {
   return (
@@ -32,6 +33,14 @@ export function Home() {
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Seção do Slider de Prêmios */}
+      <section className="py-12 px-4 w-full bg-white">
+        <div className="max-w-6xl mx-auto text-center mb-4">
+          <h3 className="text-2xl font-bold text-primary">Prêmios incríveis te esperam</h3>
+        </div>
+        <PrizesSlider />
       </section>
 
       {/* Benefícios / Por que Escolher */}
