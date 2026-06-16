@@ -17,7 +17,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _apiFootballController = TextEditingController();
   final _mercadoPagoController = TextEditingController();
   final _zApiController = TextEditingController();
+  final _geminiApiController = TextEditingController();
   final _scratchcardCostController = TextEditingController();
+  final _quizRewardController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
   final _newPrizeOddsCtrl = TextEditingController();
@@ -52,11 +54,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _apiFootballController.text = apiKeys['api_football']?.toString() ?? '';
           _mercadoPagoController.text = apiKeys['mercado_pago']?.toString() ?? '';
           _zApiController.text = apiKeys['z_api']?.toString() ?? '';
+          _geminiApiController.text = apiKeys['gemini']?.toString() ?? '';
         }
 
         if (data.containsKey('economy')) {
           final economy = data['economy'] as Map<String, dynamic>;
           _scratchcardCostController.text = economy['scratchcard_token_cost']?.toString() ?? '1000';
+          _quizRewardController.text = economy['quiz_reward']?.toString() ?? '250';
         }
       }
       
@@ -80,7 +84,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _apiFootballController.dispose();
     _mercadoPagoController.dispose();
     _zApiController.dispose();
+    _geminiApiController.dispose();
     _scratchcardCostController.dispose();
+    _quizRewardController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeOddsCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -96,9 +102,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           'api_football': _apiFootballController.text,
           'mercado_pago': _mercadoPagoController.text,
           'z_api': _zApiController.text,
+          'gemini': _geminiApiController.text,
         },
         'economy': {
           'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
+          'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
         }
       }, SetOptions(merge: true));
 
@@ -117,7 +125,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Painel Administrativo'),
@@ -129,8 +137,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
-              Tab(icon: Icon(Icons.monetization_on), text: 'Economia'),
-              Tab(icon: Icon(Icons.stars), text: 'Prêmios da Raspadinha'),
+              Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
             ],
           ),
           actions: [
@@ -146,7 +153,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             : TabBarView(
                 children: [
                   _buildIntegrationsTab(),
-                  _buildEconomyTab(),
                   _buildPrizesTab(),
                 ],
               ),
@@ -180,6 +186,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
+                        controller: _geminiApiController,
+                        label: 'Chave Gemini (Google IA)',
+                        hint: 'Usada para gerar os Quizzes do jogo',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
                         controller: _mercadoPagoController,
                         label: 'Chave Mercado Pago',
                         hint: 'Usada para disparar PIX automaticamente (Futuro)',
@@ -189,50 +201,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         controller: _zApiController,
                         label: 'Chave Z-API',
                         hint: 'Usada para notificações via WhatsApp',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              _buildSaveButton(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEconomyTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader(Icons.monetization_on, 'Economia de Tokens e Raspadinhas'),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
-                        child: Text(
-                          'O usuário ganha Tokens ao acertar Quizzes. Aqui você define quantos Tokens são necessários para liberar 1 Raspadinha (onde ele tenta a sorte).',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                      _buildTextField(
-                        controller: _scratchcardCostController,
-                        label: 'Custo da Raspadinha (em Tokens)',
-                        hint: 'Ex: 1000',
-                        keyboardType: TextInputType.number,
                       ),
                     ],
                   ),
@@ -276,6 +244,65 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.monetization_on, 'Regra de Economia'),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text(
+                          'Defina quantos Tokens são necessários para liberar 1 Raspadinha, e quantos Tokens o usuário ganha a cada acerto no Quiz.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _scratchcardCostController,
+                              label: 'Custo da Raspadinha (em Tokens)',
+                              hint: 'Ex: 1000',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _quizRewardController,
+                              label: 'Prêmio por Acerto no Quiz',
+                              hint: 'Ex: 250',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          SizedBox(
+                            height: 56,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.accentGold,
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: _isSaving
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                                  : const Icon(Icons.save),
+                              label: Text(_isSaving ? 'Salvando...' : 'Salvar Regras'),
+                              onPressed: _isSaving ? null : _saveSettings,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

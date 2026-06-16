@@ -50,8 +50,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Ligas com jogos ativos hoje.',
-            style: TextStyle(color: Colors.grey, fontSize: 16),
+            'A lista de campeonatos é 100% dinâmica. Nós buscamos na API e só mostramos campeonatos que realmente têm alguma partida rolando no dia de hoje.',
+            style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
           const SizedBox(height: 32),
           _isLoading

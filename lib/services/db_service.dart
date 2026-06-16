@@ -34,6 +34,12 @@ class DbService {
     });
   }
 
+  Future<void> addTokens(String uid, int amount) async {
+    await _db.collection('users').doc(uid).update({
+      'tokens': FieldValue.increment(amount),
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> getUserScratchHistory(String uid) {
     return _db
         .collection('scratch_history')
@@ -49,21 +55,26 @@ class DbService {
     });
   }
 
-  Future<Map<String, String>> getApiKeys() async {
-    final docSnap = await _db.collection('settings').doc('api_keys').get();
+  Future<Map<String, dynamic>> getApiKeys() async {
+    final docSnap = await _db.collection('system_config').doc('general').get();
     if (docSnap.exists) {
       final data = docSnap.data()!;
-      return {
-        'api_football': data['api_football']?.toString() ?? '',
-        'mercado_pago': data['mercado_pago']?.toString() ?? '',
-        'z_api': data['z_api']?.toString() ?? '',
-      };
+      if (data.containsKey('api_keys')) {
+        return data['api_keys'] as Map<String, dynamic>;
+      }
     }
-    return {
-      'api_football': '',
-      'mercado_pago': '',
-      'z_api': '',
-    };
+    return {};
+  }
+
+  Future<Map<String, dynamic>> getEconomySettings() async {
+    final docSnap = await _db.collection('system_config').doc('general').get();
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      if (data.containsKey('economy')) {
+        return data['economy'] as Map<String, dynamic>;
+      }
+    }
+    return {};
   }
 
   Future<void> saveApiKeys(Map<String, String> keys) async {

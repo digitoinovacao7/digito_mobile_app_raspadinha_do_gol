@@ -12,6 +12,7 @@ class AuthService {
   final DbService _dbService = DbService();
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+  User? get currentUser => _auth.currentUser;
 
   Future<AppUser?> signInWithGoogle() async {
     try {
