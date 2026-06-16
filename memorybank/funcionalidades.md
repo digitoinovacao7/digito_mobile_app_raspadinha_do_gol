@@ -9,33 +9,36 @@ Este documento descreve todas as funcionalidades e regras de negócio presentes 
 
 ## 2. Painel Administrativo (Acesso Restrito)
 
-Apenas usuários com a role `admin` podem acessar a tela `/admin`. Esta tela possui duas sessões principais:
+Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativo. Esta tela permite gerenciar diversas áreas do app:
 
-- **Configurações de Integração:** O admin pode alterar dinamicamente (em tempo real) as chaves de API:
-  - API-Football (Para gatilhos das partidas ao vivo).
-  - Mercado Pago (Para transações Pix de compra e premiação).
-  - Z-API (Para disparos e notificações).
-- **Regras de Premiação (Sistema de Lotes):** O admin define as probabilidades e o caixa do sorteio configurando:
-  - **Valor do Prêmio:** (Ex: R$ 50,00).
-  - **Quantidade de Prêmios:** Total disponível para distribuir (Ex: 10 prêmios).
-  - **Tamanho do Lote:** Qual a probabilidade fixa. (Ex: Um lote de 100 significa que a cada 100 jogadas, 1 usuário aleatório dentro desse grupo de 100 ganhará obrigatoriamente).
+- **Configurações de Quizzes:** Gerenciamento das perguntas e configurações do Quiz (integração IA, dificuldade, tempo de resposta).
+- **Gestão de Tokens:** Controle da economia do jogo (custo da raspadinha, recompensas, bônus e venda de pacotes).
+- **Gestão de Prêmios:** Cadastro de prêmios disponíveis no catálogo (Pix, Camisas, Cupons, etc) e a definição das probabilidades.
+- **Integrações e API:** Gerenciamento de chaves (ex: API-Football, Mercado Pago, chave da API do **Google Gemini**).
+- **Histórico e Ganhadores:** Acompanhamento dos usuários que ganharam prêmios físicos ou digitais, além do status de entrega.
 
 ## 3. Tela Principal (Home / Placares Ao Vivo)
 
-- O aplicativo consome a **api-football** (de forma simulada/escutada) para trazer informações sobre uma partida selecionada em tempo real (Home Score, Away Score, Tempo Decorrido e Status).
-- **Bloqueio Padrão:** O botão de jogar ("Jogar Agora") permanece inativo exibindo "Aguardando próximo lance...".
-- **Liberação (Gatilhos):** A raspadinha é ativada APENAS se houver uma mudança de status chave no jogo. Exemplos: Saída de um Gol, Intervalo de jogo (Halftime) e Fim de jogo (Fulltime).
+- O aplicativo exibe as partidas em andamento.
+- Durante a partida, o usuário acompanha o tempo e eventos importantes.
+- **Gatilhos (Eventos):** Quando ocorre um evento relevante na partida ao vivo (ex: Gol, Fim do Primeiro Tempo, Cartões), o backend gera um evento que aciona um **Quiz Relâmpago** para os usuários conectados.
 
-## 4. O Jogo (A Raspadinha)
+## 4. Dinâmica do Quiz e Tokens (Motor Gemini)
 
-- **Mecânica Híbrida:** O usuário pode "esfregar" o dedo na tela para remover a tinta prateada da raspadinha ou, se estiver sem tempo, clicar no botão **"Revelar Tudo Rapidão"** para descobrir instantaneamente.
-- **Visualização Oculta:** Atrás da capa da raspadinha (que pode exibir o logo de um patrocinador), existe um grid de 3x3 com 9 espaços.
-- **Condição de Vitória:** O algoritmo do jogo avalia se a raspadinha atual foi a premiada pelo _Sistema de Lotes_. Se sim, o grid revelará 3 "Bolas de Futebol". Do contrário, revelará ícones incorretos.
-- **Feedback Visual:** Caso seja vitorioso, confetes saltam na tela e o usuário recebe um alerta de que ganhou.
+- **Geração do Quiz (Inteligência Artificial):** O backend utiliza a API do **Google Gemini** para gerar perguntas de múltipla escolha exclusivas baseadas no contexto da partida em tempo real. O modelo elabora a pergunta, 4 opções e a resposta correta de forma inteligente, armazenando os dados no Firestore.
+- **Quiz ao Vivo e Segurança:** Ao ser notificado do evento na partida, o usuário vê a pergunta e as opções geradas pelo Gemini. Para garantir a segurança e evitar fraudes (ou custos altos de API), a conferência da resposta é feita localmente no backend comparando o índice selecionado com o índice correto previamente salvo no banco de dados. O Gemini não é chamado novamente para validar a resposta do usuário.
+- **Recompensa em Tokens:** Se o usuário responder corretamente (dentro da janela de tempo/tentativas), ele ganha uma quantidade pré-configurada de **Tokens Virtuais**. Um controle interno impede que o mesmo usuário ganhe tokens mais de uma vez para o mesmo quiz.
+- **Loja de Tokens (Opcional):** Usuários que desejam mais tentativas sem aguardar as partidas podem adquirir pacotes de Tokens (via Pix / In-App Purchase).
 
-## 5. Monetização e Transações Financeiras
+## 5. O Jogo (A Raspadinha)
 
-- **Jogada Gratuita:** A primeira jogada que o usuário realiza em uma partida (no primeiro evento que ocorrer) é gratuita.
-- **Pagamento para Jogar (Microtransação):** Quando o usuário esgota a sua tentativa grátis em uma partida e ocorre um segundo evento (ex: sai um novo gol), o app o direciona para a Tela de Checkout.
-- **Checkout via Pix:** A tela mostra a chave Pix (Copia e Cola). O usuário deve pagar **R$ 1,00** para desbloquear uma nova raspadinha.
-- **Saque de Prêmios:** O saldo ganho nas raspadinhas fica atrelado ao usuário. Ele pode clicar no saldo, abrir a tela de "Saque", informar a sua chave Pix (CPF, Telefone, E-mail) e solicitar o resgate automático.
+- **Custo da Raspadinha:** Para jogar, o usuário precisa gastar uma quantidade pré-determinada de seus Tokens acumulados (Ex: 50 Tokens por jogada).
+- **Mecânica:** O usuário "esfrega" o dedo na tela para remover a tinta prateada da raspadinha ou clica no botão para descobrir o resultado rapidamente.
+- **Grid Oculto:** O painel revela 9 espaços. O resultado é calculado via Motor de Probabilidades (RNG), de acordo com os prêmios configurados no painel admin.
+- **Condição de Vitória:** O usuário ganha ao alinhar combinações específicas (ex: 3 Bolas de Futebol iguais revelam o prêmio máximo). Do contrário, revela ícones variados de "tente novamente".
+
+## 6. Loja de Prêmios e Resgate
+
+- **Vitrine de Prêmios:** Os prêmios (Pix, físicas como camisas ou chuteiras, e cupons digitais) ficam expostos no aplicativo.
+- Ao ganhar um prêmio físico, o usuário preenche o seu endereço diretamente no app e o processo passa para análise e envio pela equipe admin.
+- Ao ganhar Pix ou prêmio digital, a transferência ou disponibilização do voucher ocorre após verificação de segurança no painel admin.

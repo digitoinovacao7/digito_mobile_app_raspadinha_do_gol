@@ -26,6 +26,29 @@ class DbService {
     return null;
   }
 
+  Future<void> updateUserProfile(AppUser user) async {
+    await _db.collection('users').doc(user.id).update({
+      'name': user.name,
+      if (user.phone != null) 'phone': user.phone,
+      if (user.cpf != null) 'cpf': user.cpf,
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getUserScratchHistory(String uid) {
+    return _db
+        .collection('scratch_history')
+        .where('uid', isEqualTo: uid)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    });
+  }
+
   Future<Map<String, String>> getApiKeys() async {
     final docSnap = await _db.collection('settings').doc('api_keys').get();
     if (docSnap.exists) {

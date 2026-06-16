@@ -6,6 +6,7 @@ import '../core/theme.dart';
 import 'home_screen.dart';
 import 'my_scratchcards_screen.dart';
 import 'admin_screen.dart';
+import 'wallet_store_screen.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
@@ -57,11 +58,22 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
               },
             ),
           Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                'Tokens: 🟡 ${user?.tokens ?? 0}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletStoreScreen()));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet, size: 20, color: AppTheme.accentGold),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${user?.tokens ?? 0}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

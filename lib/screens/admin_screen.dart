@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../providers/game_provider.dart';
+import '../core/theme.dart';
+import '../models/league_info.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -15,12 +17,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _apiFootballController = TextEditingController();
   final _mercadoPagoController = TextEditingController();
   final _zApiController = TextEditingController();
-  final _prizeValueController = TextEditingController();
-  final _prizeQuantityController = TextEditingController();
-  final _batchSizeController = TextEditingController();
+  final _scratchcardCostController = TextEditingController();
+
+  final _newPrizeNameCtrl = TextEditingController();
+  final _newPrizeOddsCtrl = TextEditingController();
+  final _newPrizeImageCtrl = TextEditingController();
+  String _newPrizeType = 'produto'; // 'produto' ou 'pix'
+  String _newPrizeScope = 'global'; // 'global', 'league', 'match'
+  int? _selectedLeagueId;
+  int? _selectedFixtureId;
+  List<dynamic> _fetchedMatches = [];
+  bool _isFetchingMatches = false;
+  List<LeagueInfo> _activeLeagues = [];
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isSavingPrize = false;
 
   @override
   void initState() {
@@ -30,10 +42,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _loadSettings() async {
     try {
-      final docSnap = await FirebaseFirestore.instance
-          .collection('system_config')
-          .doc('general')
-          .get();
+      final docSnap = await FirebaseFirestore.instance.collection('system_config').doc('general').get();
 
       if (docSnap.exists) {
         final data = docSnap.data() ?? {};
@@ -45,25 +54,24 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _zApiController.text = apiKeys['z_api']?.toString() ?? '';
         }
 
-        if (data.containsKey('prize_rules')) {
-          final prizeRules = data['prize_rules'] as Map<String, dynamic>;
-          _prizeValueController.text = prizeRules['prize_value']?.toString() ?? '0';
-          _prizeQuantityController.text = prizeRules['total_prizes']?.toString() ?? '0';
-          _batchSizeController.text = prizeRules['batch_size']?.toString() ?? '0';
+        if (data.containsKey('economy')) {
+          final economy = data['economy'] as Map<String, dynamic>;
+          _scratchcardCostController.text = economy['scratchcard_token_cost']?.toString() ?? '1000';
         }
+      }
+      
+      // Load leagues for the dropdowns
+      final service = ref.read(footballServiceProvider);
+      final leagues = await service.getActiveLeaguesForToday();
+      if (mounted) {
+        _activeLeagues = leagues;
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar configurações: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao carregar configurações: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -72,147 +80,498 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _apiFootballController.dispose();
     _mercadoPagoController.dispose();
     _zApiController.dispose();
-    _prizeValueController.dispose();
-    _prizeQuantityController.dispose();
-    _batchSizeController.dispose();
+    _scratchcardCostController.dispose();
+    _newPrizeNameCtrl.dispose();
+    _newPrizeOddsCtrl.dispose();
+    _newPrizeImageCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _saveSettings() async {
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('system_config')
-          .doc('general')
-          .set({
+      await FirebaseFirestore.instance.collection('system_config').doc('general').set({
         'api_keys': {
           'api_football': _apiFootballController.text,
           'mercado_pago': _mercadoPagoController.text,
           'z_api': _zApiController.text,
         },
-        'prize_rules': {
-          'prize_value': double.tryParse(_prizeValueController.text) ?? 0.0,
-          'total_prizes': int.tryParse(_prizeQuantityController.text) ?? 0,
-          'batch_size': int.tryParse(_batchSizeController.text) ?? 0,
+        'economy': {
+          'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
         }
       }, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Configurações salvas com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configurações salvas!'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao salvar as configurações: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Painel Administrativo'),
-        backgroundColor: AppTheme.primaryGreen,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () {
-              ref.read(authServiceProvider).signOut();
-            },
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Painel Administrativo'),
+          backgroundColor: AppTheme.primaryGreen,
+          bottom: const TabBar(
+            indicatorColor: AppTheme.accentGold,
+            indicatorWeight: 4,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: [
+              Tab(icon: Icon(Icons.api), text: 'Integrações'),
+              Tab(icon: Icon(Icons.monetization_on), text: 'Economia'),
+              Tab(icon: Icon(Icons.stars), text: 'Prêmios da Raspadinha'),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Sair',
+              onPressed: () => ref.read(authServiceProvider).signOut(),
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
                 children: [
-                  _buildSectionHeader(Icons.api, 'Integrações (APIs)'),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _apiFootballController,
-                    label: 'Chave API-Football',
-                    hint: 'Usada para consultar dados das partidas ao vivo',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    controller: _mercadoPagoController,
-                    label: 'Chave Mercado Pago',
-                    hint: 'Usada para recebimentos e pagamentos via PIX',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    controller: _zApiController,
-                    label: 'Chave Z-API',
-                    hint: 'Usada para disparos e notificações no WhatsApp',
-                  ),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader(Icons.card_giftcard, 'Regras de Premiação (Lotes)'),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _prizeValueController,
-                    label: 'Valor do Prêmio (R\$)',
-                    hint: 'Ex: 50.00',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    controller: _prizeQuantityController,
-                    label: 'Quantidade de Prêmios Ativos',
-                    hint: 'Ex: 10',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    controller: _batchSizeController,
-                    label: 'Tamanho do Lote (Probabilidade)',
-                    hint: 'Ex: 100 (1 usuário premiado a cada 100 jogadas)',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.save),
-                      label: Text(_isSaving ? 'Salvando...' : 'Salvar Configurações'),
-                      onPressed: _isSaving ? null : _saveSettings,
-                    ),
-                  ),
+                  _buildIntegrationsTab(),
+                  _buildEconomyTab(),
+                  _buildPrizesTab(),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildIntegrationsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.api, 'Chaves de Integração'),
+                      const SizedBox(height: 24),
+                      _buildTextField(
+                        controller: _apiFootballController,
+                        label: 'Chave API-Football',
+                        hint: 'Usada para consultar jogos ao vivo',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _mercadoPagoController,
+                        label: 'Chave Mercado Pago',
+                        hint: 'Usada para disparar PIX automaticamente (Futuro)',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _zApiController,
+                        label: 'Chave Z-API',
+                        hint: 'Usada para notificações via WhatsApp',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              _buildSaveButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEconomyTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.monetization_on, 'Economia de Tokens e Raspadinhas'),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text(
+                          'O usuário ganha Tokens ao acertar Quizzes. Aqui você define quantos Tokens são necessários para liberar 1 Raspadinha (onde ele tenta a sorte).',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      _buildTextField(
+                        controller: _scratchcardCostController,
+                        label: 'Custo da Raspadinha (em Tokens)',
+                        hint: 'Ex: 1000',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              _buildSaveButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.accentGold,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 4,
+        ),
+        icon: _isSaving
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+            : const Icon(Icons.save),
+        label: Text(_isSaving ? 'Salvando...' : 'Salvar Configurações'),
+        onPressed: _isSaving ? null : _saveSettings,
+      ),
+    );
+  }
+
+  Widget _buildPrizesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.add_circle_outline, 'Adicionar Prêmio da Raspadinha'),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text(
+                          'Cadastre os prêmios (PIX ou Físicos) que podem sair quando o usuário raspar a cartela e tirar 3 figuras iguais.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      _buildPrizeForm(),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.card_giftcard, 'Prêmios Cadastrados'),
+                      const SizedBox(height: 24),
+                      _buildPrizesList(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrizeForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Escopo do Prêmio:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 16),
+            Radio<String>(value: 'global', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; _selectedLeagueId = null; _selectedFixtureId = null; })),
+            const Text('Global'),
+            Radio<String>(value: 'league', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; _selectedFixtureId = null; })),
+            const Text('Campeonato'),
+            Radio<String>(value: 'match', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; if (_selectedLeagueId != null) _fetchMatchesForAdmin(_selectedLeagueId!); })),
+            const Text('Jogo Específico'),
+          ],
+        ),
+        if (_newPrizeScope == 'league' || _newPrizeScope == 'match') ...[
+          const SizedBox(height: 16),
+          _activeLeagues.isEmpty
+              ? const CircularProgressIndicator()
+              : DropdownButtonFormField<int>(
+                  decoration: InputDecoration(labelText: 'Selecione o Campeonato', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  value: _selectedLeagueId,
+                  items: _activeLeagues.map((l) => DropdownMenuItem(value: l.id, child: Text(l.name))).toList(),
+                  onChanged: (val) {
+                    setState(() { _selectedLeagueId = val; _selectedFixtureId = null; });
+                    if (_newPrizeScope == 'match' && val != null) _fetchMatchesForAdmin(val);
+                  },
+                ),
+        ],
+        if (_newPrizeScope == 'match') ...[
+          const SizedBox(height: 16),
+          _isFetchingMatches
+              ? const CircularProgressIndicator()
+              : DropdownButtonFormField<int>(
+                  decoration: InputDecoration(labelText: 'Selecione a Partida de Hoje', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  value: _selectedFixtureId,
+                  items: _fetchedMatches.map((m) => DropdownMenuItem<int>(value: m['fixture']['id'], child: Text('${m['teams']['home']['name']} x ${m['teams']['away']['name']}'))).toList(),
+                  onChanged: (val) => setState(() => _selectedFixtureId = val),
+                ),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Text('Tipo de Prêmio:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 16),
+            Radio<String>(
+              value: 'pix',
+              groupValue: _newPrizeType,
+              activeColor: AppTheme.primaryGreen,
+              onChanged: (val) => setState(() => _newPrizeType = val!),
             ),
+            const Text('Saque PIX'),
+            const SizedBox(width: 16),
+            Radio<String>(
+              value: 'produto',
+              groupValue: _newPrizeType,
+              activeColor: AppTheme.primaryGreen,
+              onChanged: (val) => setState(() => _newPrizeType = val!),
+            ),
+            const Text('Produto Físico'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: _newPrizeNameCtrl,
+          label: _newPrizeType == 'pix' ? 'Nome (Ex: PIX de R\$ 50)' : 'Nome do Produto (Ex: Camisa)',
+          hint: 'O que o usuário vai ganhar?',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTextField(
+                controller: _newPrizeOddsCtrl,
+                label: 'Probabilidade (Sai 1 a cada X raspadinhas)',
+                hint: 'Ex: 1000',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildTextField(
+                controller: _newPrizeImageCtrl,
+                label: 'URL da Imagem (Opcional)',
+                hint: 'Ex: https://site.com/foto.png',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: _isSavingPrize
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.add),
+            label: Text(_isSavingPrize ? 'Salvando...' : 'Salvar Novo Prêmio'),
+            onPressed: _isSavingPrize ? null : _saveNewPrize,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _fetchMatchesForAdmin(int leagueId) async {
+    setState(() { _isFetchingMatches = true; _fetchedMatches = []; _selectedFixtureId = null; });
+    try {
+      final service = ref.read(footballServiceProvider);
+      final matches = await service.getMatchesForLeague(leagueId);
+      if (mounted) setState(() => _fetchedMatches = matches);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao buscar jogos: $e')));
+    } finally {
+      if (mounted) setState(() => _isFetchingMatches = false);
+    }
+  }
+
+  Future<void> _saveNewPrize() async {
+    final name = _newPrizeNameCtrl.text.trim();
+    final odds = int.tryParse(_newPrizeOddsCtrl.text.trim()) ?? 0;
+    final image = _newPrizeImageCtrl.text.trim();
+
+    if (name.isEmpty || odds <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha o nome e uma probabilidade válida (> 0).'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (_newPrizeScope == 'league' && _selectedLeagueId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione um Campeonato.'), backgroundColor: Colors.red));
+      return;
+    }
+
+    if (_newPrizeScope == 'match' && _selectedFixtureId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione uma Partida.'), backgroundColor: Colors.red));
+      return;
+    }
+
+    setState(() => _isSavingPrize = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('prizes').add({
+        'name': name,
+        'type': _newPrizeType,
+        'scope': _newPrizeScope,
+        'leagueId': _newPrizeScope == 'global' ? null : _selectedLeagueId,
+        'fixtureId': _newPrizeScope == 'match' ? _selectedFixtureId : null,
+        'odds': odds,
+        'image_url': image,
+        'active': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      
+      _newPrizeNameCtrl.clear();
+      _newPrizeOddsCtrl.clear();
+      _newPrizeImageCtrl.clear();
+      setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; _fetchedMatches = []; });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prêmio adicionado com sucesso!'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      setState(() => _isSavingPrize = false);
+    }
+  }
+
+  Widget _buildPrizesList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('prizes').orderBy('createdAt', descending: true).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return const Text('Erro ao carregar prêmios.');
+
+        final prizes = snapshot.data?.docs ?? [];
+        if (prizes.isEmpty) return const Text('Nenhum prêmio cadastrado.');
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: prizes.length,
+          itemBuilder: (context, index) {
+            final doc = prizes[index];
+            final prize = doc.data() as Map<String, dynamic>;
+            final active = prize['active'] ?? false;
+            final isPix = prize['type'] == 'pix';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 0,
+              color: Colors.grey.shade50,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white, borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: prize['image_url'] != null && prize['image_url'].toString().isNotEmpty
+                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(prize['image_url'], fit: BoxFit.cover, errorBuilder: (_,__,___) => Icon(isPix ? Icons.pix : Icons.card_giftcard, color: Colors.grey)))
+                      : Icon(isPix ? Icons.pix : Icons.card_giftcard, color: Colors.grey),
+                ),
+                title: Text(prize['name'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.casino, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('Sai 1 a cada ${prize['odds']} raspadinhas', style: TextStyle(color: Colors.grey.shade700)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(prize['scope'] == 'global' ? Icons.public : (prize['scope'] == 'league' ? Icons.emoji_events : Icons.sports_soccer), size: 16, color: AppTheme.accentGold),
+                          const SizedBox(width: 4),
+                          Text(
+                            prize['scope'] == 'global' ? 'Prêmio Global' : (prize['scope'] == 'league' ? 'Liga ID: ${prize['leagueId']}' : 'Jogo ID: ${prize['fixtureId']}'),
+                            style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: Switch(
+                  value: active,
+                  activeColor: AppTheme.primaryGreen,
+                  onChanged: (val) => FirebaseFirestore.instance.collection('prizes').doc(doc.id).update({'active': val}),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -221,34 +580,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       children: [
         Icon(icon, color: AppTheme.primaryGreen),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
-          ),
-        ),
+        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
       ],
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    String? hint,
-    TextInputType? keyboardType,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
+  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType}) {
+    return TextFormField(
+      controller: controller, keyboardType: keyboardType,
       decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: const OutlineInputBorder(),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.primaryGreen),
-        ),
+        labelText: label, hintText: hint, filled: true, fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
       ),
     );
   }

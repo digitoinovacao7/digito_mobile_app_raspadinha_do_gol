@@ -18,10 +18,10 @@ export function Home() {
             />
           </div>
           <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
-            Sua torcida vale <span className="text-accent drop-shadow-md">PIX na hora!</span>
+            Seu conhecimento de futebol vale <span className="text-accent drop-shadow-md">PIX e Prêmios!</span>
           </h2>
           <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
-            Assista aos jogos ao vivo e ganhe raspadinhas exclusivas a cada gol, no intervalo e no fim da partida. Encontrou 3 bolas de futebol? O PIX cai na sua conta!
+            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada evento da partida e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto">
             <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
@@ -41,18 +41,18 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚡</div>
-              <h4 className="text-2xl font-bold mb-3 text-primary">Pix na Hora</h4>
-              <p className="text-gray-600 text-lg">Ganhou? O dinheiro vai direto para a sua conta bancária em poucos minutos, sem burocracia.</p>
+              <h4 className="text-2xl font-bold mb-3 text-primary">Quizzes Relâmpago</h4>
+              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda perguntas na hora do gol e ganhe Tokens Virtuais imediatamente.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚽</div>
-              <h4 className="text-2xl font-bold mb-3 text-primary">Emoção ao Vivo</h4>
-              <p className="text-gray-600 text-lg">Seu time fez gol? Você ganha uma raspadinha grátis. O jogo fica muito mais emocionante!</p>
+              <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🎁</div>
+              <h4 className="text-2xl font-bold mb-3 text-primary">Prêmios Incríveis</h4>
+              <p className="text-gray-600 text-lg">Use seus Tokens na Raspadinha e concorra a Pix na hora, camisas oficiais de times, cupons e brindes exclusivos.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-white text-primary border-4 border-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🔒</div>
               <h4 className="text-2xl font-bold mb-3 text-primary">100% Seguro</h4>
-              <p className="text-gray-600 text-lg">Plataforma auditada, pagamentos regulamentados pelo Banco Central e proteção total de dados (LGPD).</p>
+              <p className="text-gray-600 text-lg">Não somos casa de aposta! Somos um jogo de habilidade seguro, transparente e gratuito para participar.</p>
             </div>
           </div>
         </div>
@@ -66,20 +66,20 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">1</div>
-              <h4 className="text-xl font-bold mb-4">Acompanhe o Jogo</h4>
-              <p className="text-gray-600">Fique de olho nas partidas de futebol ao vivo diretamente pelo aplicativo.</p>
+              <h4 className="text-xl font-bold mb-4">Acompanhe e Responda</h4>
+              <p className="text-gray-600">Acompanhe os jogos. Rolou um lance importante? Um Quiz Relâmpago vai aparecer na sua tela.</p>
             </div>
 
             <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-accent hover:-translate-y-2 transition-transform">
               <div className="w-16 h-16 bg-accent/20 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">2</div>
-              <h4 className="text-xl font-bold mb-4">Gatilho de Liberação</h4>
-              <p className="text-gray-600">Saiu Gol? Intervalo? Fim de jogo? A sua primeira raspadinha da partida é 100% grátis.</p>
+              <h4 className="text-xl font-bold mb-4">Acumule Tokens</h4>
+              <p className="text-gray-600">Responda corretamente e antes do tempo acabar para encher sua carteira de Tokens Virtuais.</p>
             </div>
 
             <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">3</div>
-              <h4 className="text-xl font-bold mb-4">Acumule Tokens e Troque por PIX</h4>
-              <p className="text-gray-600">Revele prêmios na sua raspadinha, junte uma quantidade de tokens e troque por um PIX instantaneamente.</p>
+              <h4 className="text-xl font-bold mb-4">Raspe e Ganhe</h4>
+              <p className="text-gray-600">Use os Tokens na Raspadinha do Gol. Combine as imagens certas e leve Pix, camisas de time ou super cupons!</p>
             </div>
           </div>
         </div>
@@ -93,13 +93,13 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
-              <p className="text-gray-200 italic mb-6">"Fui assistir ao jogo do Flamengo e no primeiro gol do Pedro já ganhei uma raspadinha grátis. Raspei e ganhei R$ 50 direto no PIX! Sensacional!"</p>
+              <p className="text-gray-200 italic mb-6">"Fui assistir ao jogo do Flamengo, respondi certinho quem fez o gol e ganhei Tokens. Fui na raspadinha e ganhei a camisa oficial! Sensacional!"</p>
               <div className="font-bold text-lg">- Marcos T. <span className="text-sm font-normal text-gray-300 ml-2">Rio de Janeiro</span></div>
             </div>
 
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
-              <p className="text-gray-200 italic mb-6">"Muito mais divertido do que aposta esportiva normal. A gente vibra com o gol duas vezes: pelo time e pela chance de raspar a cartela."</p>
+              <p className="text-gray-200 italic mb-6">"Muito mais divertido do que aposta. A gente vibra com o jogo e ainda testa nossos conhecimentos no quiz. Acumulei tokens e fiz um Pix de R$ 50."</p>
               <div className="font-bold text-lg">- Juliana S. <span className="text-sm font-normal text-gray-300 ml-2">São Paulo</span></div>
             </div>
 
@@ -119,8 +119,8 @@ export function Home() {
           
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <h4 className="text-xl font-bold text-primary mb-2">É realmente grátis no momento do gol?</h4>
-              <p className="text-gray-600">Sim! Toda vez que ocorrer um dos gatilhos (Gol, Intervalo ou Fim de Jogo) na partida que você está acompanhando no app, a primeira raspadinha é por nossa conta.</p>
+              <h4 className="text-xl font-bold text-primary mb-2">Como eu participo do Quiz?</h4>
+              <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Assim que um evento principal acontecer (como Gol ou Cartão), o quiz aparece e você ganha Tokens se acertar.</p>
             </div>
             
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">

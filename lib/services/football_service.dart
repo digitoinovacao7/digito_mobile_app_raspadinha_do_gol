@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../models/match_state.dart';
+import '../models/league_info.dart';
 import 'db_service.dart';
 
 class FootballService {
@@ -20,6 +21,91 @@ class FootballService {
       if (_apiKey != null && _apiKey!.isNotEmpty) {
         _dio.options.headers['x-apisports-key'] = _apiKey;
       }
+    }
+  }
+
+  // Busca as ligas que tem jogos hoje
+  Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
+    await _initApiKey();
+    if (_apiKey == null || _apiKey!.isEmpty) return [];
+
+    final today = DateTime.now();
+    final dateStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+    try {
+      final response = await _dio.get(
+        'https://v3.football.api-sports.io/fixtures',
+        queryParameters: {
+          'date': dateStr,
+          'timezone': 'America/Sao_Paulo'
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data['response'] != null) {
+          final Set<int> uniqueIds = {};
+          final List<LeagueInfo> leagues = [];
+          for (var match in data['response']) {
+            final leagueData = match['league'];
+            final leagueId = leagueData['id'];
+            if (!uniqueIds.contains(leagueId)) {
+              uniqueIds.add(leagueId);
+              leagues.add(LeagueInfo(
+                id: leagueId,
+                name: leagueData['name'],
+                logoUrl: leagueData['logo'],
+                season: leagueData['season'],
+              ));
+            }
+          }
+          return leagues;
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Erro ao buscar ligas ativas: $e');
+      return [];
+    }
+  }
+
+  // Busca os jogos de hoje para uma liga específica
+  Future<List<dynamic>> getMatchesForLeague(int leagueId, {int? season}) async {
+    await _initApiKey();
+    if (_apiKey == null || _apiKey!.isEmpty) return [];
+
+    final today = DateTime.now();
+    final dateStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    
+    // Simplificação para a temporada caso não seja passada
+    int resolvedSeason = season ?? today.year;
+    if (season == null) {
+      if ((leagueId == 2 || leagueId == 39 || leagueId == 140) && today.month < 7) {
+        resolvedSeason = today.year - 1;
+      }
+    }
+
+    try {
+      final response = await _dio.get(
+        'https://v3.football.api-sports.io/fixtures',
+        queryParameters: {
+          'league': leagueId,
+          'season': resolvedSeason,
+          'date': dateStr,
+          'timezone': 'America/Sao_Paulo'
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data['response'] != null) {
+          return data['response'] as List<dynamic>;
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Erro ao buscar jogos da liga $leagueId: $e');
+      return [];
     }
   }
 
@@ -57,7 +143,7 @@ class FootballService {
     try {
       final response = await _dio.get(
         'https://v3.football.api-sports.io/fixtures',
-        queryParameters: {'id': fixtureId},
+        queryParameters: {'id': fixtureId, 'timezone': 'America/Sao_Paulo'},
       );
 
       if (response.statusCode == 200) {
@@ -75,9 +161,7 @@ class FootballService {
 
           MatchEventType triggerEvent = MatchEventType.none;
 
-          // Simples lógica de gatilho baseada no status ou mudança de gols.
-          // Em um app real, precisaríamos manter o estado anterior para comparar e saber se foi um "NOVO" gol.
-          // Aqui, estamos simplificando para o escopo do projeto.
+          // Eventos de gatilho para ganhar tokens (simplificado para gols e finalizações de tempo)
           if (status == 'HT') {
             triggerEvent = MatchEventType.halftime;
           } else if (status == 'FT') {
@@ -98,26 +182,14 @@ class FootballService {
 
           _matchStreamController.add(matchState);
         } else {
-          _matchStreamController.add(MatchState(
-            fixtureId: -1,
-            homeTeam: '',
-            awayTeam: '',
-          ));
+          _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
         }
       } else {
-        _matchStreamController.add(MatchState(
-          fixtureId: -1,
-          homeTeam: '',
-          awayTeam: '',
-        ));
+        _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
       }
     } catch (e) {
       print('Erro ao buscar dados da api-football: $e');
-      _matchStreamController.add(MatchState(
-        fixtureId: -1,
-        homeTeam: '',
-        awayTeam: '',
-      ));
+      _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
     }
   }
 

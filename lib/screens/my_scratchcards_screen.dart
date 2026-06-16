@@ -1,110 +1,123 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../core/theme.dart';
+import '../providers/auth_provider.dart';
+import '../services/db_service.dart';
 
-class MyScratchcardsScreen extends StatelessWidget {
+class MyScratchcardsScreen extends ConsumerWidget {
   const MyScratchcardsScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // Dados simulados para validar o design visual
-    final List<Map<String, dynamic>> mockScratchcards = [
-      {
-        'id': '10293',
-        'match': 'Flamengo 2 x 0 Vasco',
-        'date': 'Hoje, 21:30',
-        'won': true,
-        'prize': 'R\$ 500,00'
-      },
-      {
-        'id': '10292',
-        'match': 'Corinthians 1 x 1 Palmeiras',
-        'date': 'Ontem, 16:00',
-        'won': false,
-        'prize': null
-      },
-      {
-        'id': '10291',
-        'match': 'São Paulo 3 x 0 Santos',
-        'date': '12/06/2026, 20:00',
-        'won': true,
-        'prize': 'R\$ 50,00'
-      },
-      {
-        'id': '10290',
-        'match': 'Grêmio 1 x 2 Internacional',
-        'date': '10/06/2026, 18:30',
-        'won': false,
-        'prize': null
-      },
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
 
-    final body = mockScratchcards.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.style_outlined, size: 80, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Você ainda não raspou nenhuma cartela.',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+    if (user == null) {
+      return const Center(child: Text('Você precisa estar logado.'));
+    }
+
+    final dbService = DbService();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: dbService.getUserScratchHistory(user.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erro ao carregar histórico: ${snapshot.error}'));
+        }
+
+        final scratchcards = snapshot.data ?? [];
+
+        if (scratchcards.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.style_outlined, size: 80, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  'Você ainda não raspou nenhuma cartela.',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: scratchcards.length,
+          itemBuilder: (context, index) {
+            final card = scratchcards[index];
+            final winCount = card['winCount'] as int? ?? 0;
+            final won = winCount >= 2;
+            final dateObj = card['date'];
+            
+            String formattedDate = '';
+            if (dateObj is Timestamp) {
+              formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(dateObj.toDate());
+            }
+
+            final prizeType = card['prizeType'] as String? ?? 'none';
+            final wonTokens = card['wonTokens'] as int? ?? 0;
+
+            String prizeText = '';
+            if (prizeType == 'tokens' && wonTokens > 0) {
+              prizeText = '$wonTokens Tokens';
+            } else if (prizeType == 'item') {
+              prizeText = 'Prêmio Físico';
+            }
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: CircleAvatar(
+                  backgroundColor: won ? AppTheme.primaryGreen.withOpacity(0.1) : Colors.grey[200],
+                  child: Icon(
+                    won ? Icons.emoji_events : Icons.close,
+                    color: won ? AppTheme.accentGold : Colors.grey[500],
                   ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: mockScratchcards.length,
-              itemBuilder: (context, index) {
-                final card = mockScratchcards[index];
-                final won = card['won'] as bool;
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundColor: won ? AppTheme.primaryGreen.withOpacity(0.1) : Colors.grey[200],
-                      child: Icon(
-                        won ? Icons.emoji_events : Icons.close,
-                        color: won ? AppTheme.accentGold : Colors.grey[500],
-                      ),
-                    ),
-                    title: Text(
-                      card['match'],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text('Data: ${card['date']}'),
-                    ),
-                    trailing: won
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Prêmio', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(
-                                card['prize'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryGreen,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          )
-                        : const Text(
-                            'Não Premiada',
-                            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+                title: Text(
+                  won ? 'Vitória! (${winCount} bolas)' : 'Não Premiada',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text('Data: $formattedDate'),
+                ),
+                trailing: won
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text('Prêmio', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text(
+                            prizeText,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                              fontSize: 16,
+                            ),
                           ),
-                  ),
-                );
-              },
+                        ],
+                      )
+                    : const Text(
+                        'Quase...',
+                        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                      ),
+              ),
             );
-
-    return body;
+          },
+        );
+      },
+    );
   }
 }

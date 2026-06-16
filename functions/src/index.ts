@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { GoogleGenAI } from "@google/genai";
 
 admin.initializeApp();
 
@@ -46,20 +47,53 @@ export const answerQuiz = onCall(async (request) => {
     }
 
     const uid = request.auth.uid;
+    const userQuizAttemptRef = db.collection("users").doc(uid).collection("quiz_attempts").doc(quizId);
     
-    // No mundo real, validaríamos contra o Firestore se o quiz está ativo
-    // Para MVP, se answerId for 0 (alternativa A), consideramos correto.
-    const isCorrect = answerId === 0;
+    try {
+        const result = await db.runTransaction(async (t) => {
+            const attemptDoc = await t.get(userQuizAttemptRef);
+            if (attemptDoc.exists) {
+                throw new HttpsError("already-exists", "Você já respondeu a este quiz.");
+            }
 
-    if (isCorrect) {
-        const userRef = db.collection("users").doc(uid);
-        await userRef.update({
-            tokens: admin.firestore.FieldValue.increment(TOKENS_PER_CORRECT_ANSWER)
+            const quizRef = db.collection("quizzes").doc(quizId);
+            const quizDoc = await t.get(quizRef);
+            if (!quizDoc.exists) {
+                throw new HttpsError("not-found", "Quiz não encontrado.");
+            }
+            
+            const quizData = quizDoc.data()!;
+            if (!quizData.active) {
+                throw new HttpsError("failed-precondition", "Este quiz já expirou.");
+            }
+
+            const isCorrect = quizData.correctIndex === answerId;
+
+            // Salva a tentativa para evitar que responda de novo
+            t.set(userQuizAttemptRef, {
+                answeredAt: admin.firestore.FieldValue.serverTimestamp(),
+                isCorrect: isCorrect,
+                answerId: answerId
+            });
+
+            if (isCorrect) {
+                const userRef = db.collection("users").doc(uid);
+                t.update(userRef, {
+                    tokens: admin.firestore.FieldValue.increment(TOKENS_PER_CORRECT_ANSWER)
+                });
+            }
+
+            return { isCorrect };
         });
-        return { success: true, isCorrect: true, earnedTokens: TOKENS_PER_CORRECT_ANSWER };
-    }
 
-    return { success: true, isCorrect: false, earnedTokens: 0 };
+        return { 
+            success: true, 
+            isCorrect: result.isCorrect, 
+            earnedTokens: result.isCorrect ? TOKENS_PER_CORRECT_ANSWER : 0 
+        };
+    } catch (e: any) {
+        throw new HttpsError("internal", e.message || "Erro interno ao responder quiz.");
+    }
 });
 
 /**
@@ -91,9 +125,6 @@ export const playScratchcard = onCall(async (request) => {
             });
 
             // Motor de Probabilidade (RNG) simplificado:
-            // 5% chance de ganhar o prêmio principal (3 bolas de futebol = winCount 3 -> 5000 Tokens)
-            // 15% chance de ganhar algo secundário (winCount 2 -> 100 Tokens)
-            // 80% chance de perder (winCount 0 ou 1)
             const rand = Math.random();
             let winCount = 0;
             let resultMessage = "Quase! Tente novamente.";
@@ -102,7 +133,7 @@ export const playScratchcard = onCall(async (request) => {
 
             if (rand < 0.05) {
                 winCount = 3;
-                wonTokens = 1000; // Prêmio principal em tokens
+                wonTokens = 1000;
                 resultMessage = `GOLAÇO! Você ganhou ${wonTokens} Tokens!`;
                 prizeType = "tokens";
                 transaction.update(userRef, {
@@ -110,17 +141,17 @@ export const playScratchcard = onCall(async (request) => {
                 });
             } else if (rand < 0.20) {
                 winCount = 2;
-                wonTokens = 100; // Prêmio de consolação
+                wonTokens = 100;
                 resultMessage = `Na Trave! Você ganhou ${wonTokens} Tokens extras.`;
                 prizeType = "tokens";
                 transaction.update(userRef, {
                     tokens: admin.firestore.FieldValue.increment(wonTokens)
                 });
             } else {
-                winCount = Math.floor(Math.random() * 2); // 0 ou 1
+                winCount = Math.floor(Math.random() * 2);
             }
 
-            // Gerar o grid baseado no winCount
+            // Gerar o grid
             const gridBalls: boolean[] = Array(9).fill(false);
             let placed = 0;
             while(placed < winCount) {
@@ -131,7 +162,6 @@ export const playScratchcard = onCall(async (request) => {
                 }
             }
 
-            // Registrar a tentativa no histórico
             const historyRef = db.collection("scratch_history").doc();
             transaction.set(historyRef, {
                 uid: uid,
@@ -154,5 +184,79 @@ export const playScratchcard = onCall(async (request) => {
         return result;
     } catch (error: any) {
         throw new HttpsError("internal", error.message || "Erro interno.");
+    }
+});
+
+/**
+ * Gera um novo quiz usando a API do Gemini
+ */
+export const generateQuiz = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
+    }
+    
+    const uid = request.auth.uid;
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (userDoc.data()?.role !== "admin") {
+        throw new HttpsError("permission-denied", "Apenas administradores podem gerar quizzes.");
+    }
+
+    const { context } = request.data;
+    if (!context) {
+        throw new HttpsError("invalid-argument", "Contexto não fornecido.");
+    }
+
+    // Busca a API key do painel (salva no Firestore)
+    const settingsDoc = await db.collection("settings").doc("api_keys").get();
+    const geminiKey = settingsDoc.data()?.gemini_api_key;
+    if (!geminiKey) {
+        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no painel admin.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: geminiKey });
+
+    const prompt = `Você é o narrador do aplicativo Raspadinha do Gol. 
+Gere uma pergunta de múltipla escolha sobre futebol.
+O contexto atual para inspiração é: "${context}".
+A pergunta deve ter 4 alternativas curtas (A, B, C e D). 
+Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\`json), com as chaves: 
+"question" (string), "options" (array de 4 strings), e "correctIndex" (número inteiro de 0 a 3 indicando a opção certa).`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+            }
+        });
+
+        const jsonText = response.text || "{}";
+        const quizData = JSON.parse(jsonText);
+
+        if (!quizData.question || !Array.isArray(quizData.options) || quizData.options.length !== 4 || quizData.correctIndex === undefined) {
+             throw new Error("Formato de quiz gerado inválido.");
+        }
+
+        // Salvar no Firestore
+        const quizRef = db.collection("quizzes").doc();
+        await quizRef.set({
+            question: quizData.question,
+            options: quizData.options,
+            correctIndex: quizData.correctIndex,
+            context: context,
+            active: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Retorna pro cliente o que foi gerado
+        return { 
+            success: true, 
+            quizId: quizRef.id, 
+            question: quizData.question, 
+            options: quizData.options 
+        };
+    } catch (error: any) {
+        throw new HttpsError("internal", `Erro ao gerar quiz: ${error.message}`);
     }
 });

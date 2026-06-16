@@ -4,6 +4,8 @@ class AppUser {
   final String name;
   final String role; // 'user' or 'admin'
   final int tokens;
+  final String? phone;
+  final String? cpf;
 
   AppUser({
     required this.id,
@@ -11,6 +13,8 @@ class AppUser {
     required this.name,
     this.role = 'user',
     this.tokens = 0,
+    this.phone,
+    this.cpf,
   });
 
   bool get isAdmin => role.trim().toLowerCase() == 'admin';
@@ -22,6 +26,8 @@ class AppUser {
       name: map['name'] ?? '',
       role: map['role'] ?? 'user',
       tokens: map['tokens'] ?? 0,
+      phone: map['phone'],
+      cpf: map['cpf'],
     );
   }
 
@@ -31,6 +37,8 @@ class AppUser {
       'name': name,
       'role': role,
       'tokens': tokens,
+      if (phone != null) 'phone': phone,
+      if (cpf != null) 'cpf': cpf,
     };
   }
 
@@ -40,6 +48,8 @@ class AppUser {
     String? name,
     String? role,
     int? tokens,
+    String? phone,
+    String? cpf,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -47,6 +57,8 @@ class AppUser {
       name: name ?? this.name,
       role: role ?? this.role,
       tokens: tokens ?? this.tokens,
+      phone: phone ?? this.phone,
+      cpf: cpf ?? this.cpf,
     );
   }
 }

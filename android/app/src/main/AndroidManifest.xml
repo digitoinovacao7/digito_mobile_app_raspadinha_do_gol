@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="raspadinha_do_gol"
+        android:label="Raspadinha do Gol"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

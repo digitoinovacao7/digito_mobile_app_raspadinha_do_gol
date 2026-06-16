@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_scratchcards_screen.dart';
+import '../screens/admin_screen.dart';
+import '../screens/profile_edit_screen.dart';
 import '../core/theme.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -88,6 +90,33 @@ class ProfileBottomSheet extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // Menu Options
+          if (user?.isAdmin == true) ...[
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings, color: Colors.redAccent),
+              title: const Text('Painel Administrativo', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.redAccent),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminScreen()),
+                );
+              },
+            ),
+            const Divider(),
+          ],
+          ListTile(
+            leading: const Icon(Icons.edit_outlined, color: AppTheme.primaryGreen),
+            title: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.style_outlined, color: AppTheme.primaryGreen),
             title: const Text('Minhas Raspadinhas', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -96,7 +125,15 @@ class ProfileBottomSheet extends ConsumerWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const MyScratchcardsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                    appBar: AppBar(
+                      title: const Text('Minhas Raspadinhas'),
+                      backgroundColor: AppTheme.primaryGreen,
+                    ),
+                    body: const MyScratchcardsScreen(),
+                  ),
+                ),
               );
             },
           ),
