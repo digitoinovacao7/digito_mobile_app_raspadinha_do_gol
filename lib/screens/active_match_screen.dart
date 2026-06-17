@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/ai_quiz_service.dart';
@@ -31,7 +32,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
-        return _QuizWidget(homeTeam: widget.homeTeam, awayTeam: widget.awayTeam);
+        return _QuizWidget(homeTeam: widget.homeTeam, awayTeam: widget.awayTeam, fixtureId: widget.fixtureId);
       }
     );
   }
@@ -41,6 +42,22 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     // Escuta o stream do provider passando o fixtureId
     final matchState = ref.watch(matchStreamProvider(widget.fixtureId));
     final freePlays = ref.watch(freePlaysProvider);
+    
+    final authService = ref.watch(authServiceProvider);
+    final firebaseUser = authService.currentUser;
+    final appUserAsync = firebaseUser != null ? ref.watch(appUserFutureProvider(firebaseUser.uid)) : null;
+    
+    // Calcula o total de eventos/chances na partida: 1 entrada + gols + intervalo + fim
+    int totalEventos = 1 + (matchState.value?.homeScore ?? 0) + (matchState.value?.awayScore ?? 0);
+    final status = matchState.value?.status ?? '';
+    final elapsed = matchState.value?.elapsed ?? 0;
+    
+    if (elapsed >= 45 || ['HT', '2H', 'FT', 'AET', 'PEN'].contains(status)) totalEventos += 1;
+    if (elapsed >= 90 || ['FT', 'AET', 'PEN'].contains(status)) totalEventos += 1;
+
+    final int quizzesRespondidos = appUserAsync?.value?.answeredQuizzesCount[widget.fixtureId.toString()] ?? 0;
+    final int quizzesDisponiveis = totalEventos - quizzesRespondidos;
+    final bool temQuizDisponivel = quizzesDisponiveis > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -59,30 +76,81 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    '${match.homeTeam.isNotEmpty ? match.homeTeam : widget.homeTeam} ${match.homeScore} x ${match.awayScore} ${match.awayTeam.isNotEmpty ? match.awayTeam : widget.awayTeam}',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))],
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: Text(match.homeTeam.isNotEmpty ? match.homeTeam : widget.homeTeam, textAlign: TextAlign.right, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [AppTheme.primaryGreen, Colors.green.shade700]),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))],
+                          ),
+                          child: Text('${match.homeScore} - ${match.awayScore}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(child: Text(match.awayTeam.isNotEmpty ? match.awayTeam : widget.awayTeam, textAlign: TextAlign.left, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tempo: ${match.elapsed}\' - Status: ${match.status}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.grey[700]),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.red.shade200)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${match.elapsed}\' - ${match.status}',
+                          style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 48),
 
                   Padding(
                     padding: const EdgeInsets.only(bottom: 32.0),
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.psychology),
-                      label: const Text('Responder Quiz com IA (Ganhar Tokens)'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryGreen,
-                        side: const BorderSide(color: AppTheme.primaryGreen, width: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: () => _openQuizModal(),
+                    child: Column(
+                      children: [
+                        if (temQuizDisponivel)
+                          _AnimatedQuizButton(
+                            onPressed: _openQuizModal,
+                            badgeCount: quizzesDisponiveis,
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(16)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green.shade600),
+                                const SizedBox(width: 8),
+                                const Text('CHANCES ZERADAS ✅', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 12),
+                        Text(
+                          temQuizDisponivel 
+                            ? 'Você tem $quizzesDisponiveis chance(s) pendente(s)!' 
+                            : 'Aguarde o próximo gol, intervalo ou fim de jogo para ganhar mais chances.',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ],
                     ),
                   ),
                   
@@ -102,7 +170,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      child: Text(freePlays > 0 ? 'Resgatar Recompensa!' : 'Desbloquear Raspadinha'),
+                      child: Text(freePlays > 0 ? 'Jogar Raspadinha' : 'Comprar Mais Raspadinhas'),
                     )
                   else
                     Column(
@@ -130,7 +198,8 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
 class _QuizWidget extends ConsumerStatefulWidget {
   final String homeTeam;
   final String awayTeam;
-  const _QuizWidget({required this.homeTeam, required this.awayTeam});
+  final int fixtureId;
+  const _QuizWidget({required this.homeTeam, required this.awayTeam, required this.fixtureId});
 
   @override
   ConsumerState<_QuizWidget> createState() => _QuizWidgetState();
@@ -174,31 +243,56 @@ class _QuizWidgetState extends ConsumerState<_QuizWidget> {
     setState(() {
       _selectedOption = index;
       _isAnswered = true;
+      _isLoading = true;
     });
 
-    final isCorrect = index == _quizData!['respostaCorreta'];
-    
-    if (isCorrect) {
-      final dbService = DbService();
+    try {
+      final functions = FirebaseFunctions.instance;
+      final result = await functions.httpsCallable('answerQuiz').call({
+        'quizId': _quizData!['quizId'],
+        'answerId': index,
+        'fixtureId': widget.fixtureId,
+        'matchName': '${widget.homeTeam} x ${widget.awayTeam}',
+      });
+
+      final data = result.data;
+      final isCorrect = data['isCorrect'] == true;
+      final earnedTokens = data['earnedTokens'] ?? 0;
+
       final auth = ref.read(authServiceProvider);
       final user = auth.currentUser;
       if (user != null) {
-        final economy = await dbService.getEconomySettings();
-        final reward = economy['quiz_reward'] ?? 250;
-        await dbService.addTokens(user.uid, reward);
-        
-        if (mounted) {
+        ref.invalidate(appUserFutureProvider(user.uid));
+      }
+
+      if (mounted) {
+        setState(() {
+          _quizData!['respostaCorreta'] = isCorrect ? index : -1;
+          _isLoading = false;
+        });
+
+        if (isCorrect) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Resposta Exata! Você ganhou $reward Tokens 🪙'),
+            content: Text('Resposta Exata! Você ganhou $earnedTokens Tokens 🪙'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Resposta Incorreta! Tente outro quiz depois.'),
+            backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ));
         }
       }
-    } else {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Resposta Incorreta! Tente outro quiz depois.'),
+        setState(() {
+          _isLoading = false;
+          _quizData!['respostaCorreta'] = -1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro ao enviar resposta: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ));
@@ -295,6 +389,77 @@ class _QuizWidgetState extends ConsumerState<_QuizWidget> {
                           ),
                       ],
                     ),
+    );
+  }
+}
+
+class _AnimatedQuizButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final int badgeCount;
+  const _AnimatedQuizButton({required this.onPressed, this.badgeCount = 1});
+
+  @override
+  State<_AnimatedQuizButton> createState() => _AnimatedQuizButtonState();
+}
+
+class _AnimatedQuizButtonState extends State<_AnimatedQuizButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  boxShadow: [BoxShadow(color: AppTheme.accentGold.withOpacity(0.5 * (_scaleAnimation.value - 1.0) * 20), blurRadius: 16)],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.psychology, size: 28),
+                  label: const Text('NOVO QUIZ DISPONÍVEL! (Ganhar Tokens)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.textDark,
+                    foregroundColor: AppTheme.accentGold,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: widget.onPressed,
+                ),
+              ),
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+                  child: Text(widget.badgeCount.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

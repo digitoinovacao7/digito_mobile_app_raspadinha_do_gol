@@ -3,6 +3,8 @@ import 'package:scratcher/scratcher.dart';
 import 'package:confetti/confetti.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
@@ -24,6 +26,8 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   List<bool> _gridBalls = List.generate(9, (_) => false);
   int _winCount = 0;
   String _resultMessage = "";
+  String? _prizeLink;
+  int _ticketCost = 1000;
 
   @override
   void initState() {
@@ -31,7 +35,21 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     
     // Chama o backend imediatamente para gerar o grid seguro e debitar os tokens
+    _fetchCost();
     _playScratchcard();
+  }
+
+  Future<void> _fetchCost() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('system_config').doc('general').get();
+      if (doc.exists && doc.data() != null && doc.data()!.containsKey('economy')) {
+        setState(() {
+          _ticketCost = doc.data()!['economy']['scratchcard_token_cost'] ?? 1000;
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   @override
@@ -51,6 +69,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
           _gridBalls = List<bool>.from(data['gridBalls']);
           _winCount = data['winCount'];
           _resultMessage = data['message'];
+          _prizeLink = data['prizeLink'] ?? data['prize_link'];
           _isLoading = false;
         });
 
@@ -98,7 +117,17 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
               Navigator.pop(context); // Voltar pra home
             },
             child: const Text('Voltar'),
-          )
+          ),
+          if (_prizeLink != null && _prizeLink!.isNotEmpty)
+            ElevatedButton(
+              onPressed: () async {
+                final url = Uri.parse(_prizeLink!);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                }
+              },
+              child: const Text('Acessar Cupom'),
+            ),
         ],
       ),
     );
@@ -155,7 +184,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text('Custo: 50 🟡'),
+              Text('Custo: $_ticketCost 🟡'),
               const SizedBox(height: 32),
               Scratcher(
                 key: scratchKey,
@@ -188,8 +217,16 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
                           ),
                           child: Center(
                             child: hasBall 
-                              ? const Text('⚽', style: TextStyle(fontSize: 48))
-                              : const Text('✖️', style: TextStyle(fontSize: 32, color: Colors.grey)),
+                              ? Container(
+                                  width: 64, height: 64,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(colors: [Colors.yellow.shade200, AppTheme.accentGold]),
+                                    boxShadow: [BoxShadow(color: AppTheme.accentGold.withOpacity(0.6), blurRadius: 10, offset: const Offset(0, 4))],
+                                  ),
+                                  child: const Icon(Icons.sports_soccer, size: 40, color: Colors.black87),
+                                )
+                              : const Icon(Icons.close, size: 48, color: Colors.grey),
                           ),
                         );
                       },
@@ -210,9 +247,12 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
           ConfettiWidget(
             confettiController: _confettiController,
             blastDirection: -pi / 2, // Pra cima
-            emissionFrequency: 0.05,
-            numberOfParticles: 20,
-            gravity: 0.1,
+            emissionFrequency: 0.1,
+            numberOfParticles: 50,
+            maxBlastForce: 100,
+            minBlastForce: 80,
+            gravity: 0.2,
+            colors: const [Colors.green, Colors.yellow, Colors.blue, Colors.white],
           ),
         ],
       ),

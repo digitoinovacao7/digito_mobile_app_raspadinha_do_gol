@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
   const ProfileEditScreen({Key? key}) : super(key: key);
@@ -16,6 +17,16 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _cpfController;
   bool _isLoading = false;
+
+  final _phoneFormatter = MaskTextInputFormatter(
+      mask: '(##) #####-####', 
+      filter: { "#": RegExp(r'[0-9]') },
+      type: MaskAutoCompletionType.lazy);
+
+  final _cpfFormatter = MaskTextInputFormatter(
+      mask: '###.###.###-##', 
+      filter: { "#": RegExp(r'[0-9]') },
+      type: MaskAutoCompletionType.lazy);
 
   @override
   void initState() {
@@ -108,6 +119,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [_phoneFormatter],
                       decoration: const InputDecoration(
                         labelText: 'Telefone (WhatsApp)',
                         border: OutlineInputBorder(),
@@ -119,6 +131,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     TextFormField(
                       controller: _cpfController,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [_cpfFormatter],
                       decoration: const InputDecoration(
                         labelText: 'CPF',
                         border: OutlineInputBorder(),

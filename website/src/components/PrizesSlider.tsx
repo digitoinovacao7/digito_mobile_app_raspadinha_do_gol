@@ -6,21 +6,21 @@ const slides = [
     title: "Troque tokens por PIX!",
     description: "Acumulou tokens nos quizzes? Troque por dinheiro na sua conta via PIX rapidamente.",
     icon: "💸",
-    image: "https://images.unsplash.com/photo-1621961458348-f013d219b50c?q=80&w=2560&auto=format&fit=crop"
+    image: "/pix_transfer.png"
   },
   {
     id: 2,
     title: "Camisa Oficial do seu Clube",
     description: "Use seus tokens para resgatar a camisa oficial do seu time do coração.",
     icon: "👕",
-    image: "https://images.unsplash.com/photo-1577223625816-7546f13df25d?q=80&w=2560&auto=format&fit=crop"
+    image: "/soccer_jersey.png"
   },
   {
     id: 3,
     title: "Outros Brindes Exclusivos",
     description: "Vouchers, ingressos e diversos outros prêmios incríveis te esperam.",
     icon: "🎁",
-    image: "https://images.unsplash.com/photo-1513885535751-8b9238bf345a?q=80&w=2560&auto=format&fit=crop"
+    image: "/gifts_vouchers.png"
   }
 ];
 

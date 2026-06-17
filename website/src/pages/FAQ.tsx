@@ -7,7 +7,7 @@ export function FAQ() {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <h4 className="text-xl font-bold text-primary mb-2">Como eu participo do Quiz?</h4>
-            <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Assim que um evento principal acontecer (como Gol ou Cartão), o quiz aparece e você ganha Tokens se acertar.</p>
+            <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Sempre que rolar um gol, o intervalo ou o fim do jogo, o quiz aparece e você ganha Tokens se acertar.</p>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">

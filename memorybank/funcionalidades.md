@@ -6,6 +6,7 @@ Este documento descreve todas as funcionalidades e regras de negócio presentes 
 
 - **Login com Google:** O usuário deve obrigatoriamente fazer login usando a sua conta do Gmail para acessar o aplicativo.
 - **Sistema de Perfis (Roles):** Existem dois tipos de usuário no sistema: `user` (padrão) e `admin`. Essa regra é gravada diretamente na base de dados (Firestore).
+- **Configurações e Notificações:** O usuário tem acesso a uma tela de Configurações (via barra de navegação inferior) onde pode ativar o Opt-in de notificações via WhatsApp. Esse status é salvo diretamente em seu documento no Firestore (`wants_whatsapp_notifications`), permitindo que a equipe de marketing faça envios seguros.
 
 ## 2. Painel Administrativo (Acesso Restrito)
 
@@ -20,13 +21,14 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 - O aplicativo exibe as partidas em andamento.
 - Durante a partida, o usuário acompanha o tempo e eventos importantes.
-- **Gatilhos (Eventos):** Quando ocorre um evento relevante na partida ao vivo (ex: Gol, Fim do Primeiro Tempo, Cartões), o backend gera um evento que aciona um **Quiz Relâmpago** para os usuários conectados.
+- **Gatilhos Dinâmicos (Eventos Reais):** O aplicativo monitora os eventos da partida ao vivo (Ex: Fim do 1º Tempo, Fim de Jogo, ou Gols de qualquer um dos times). Cada evento desses gera 1 "Chance" para o usuário responder a um Quiz.
+- **Acúmulo de Chances:** Se saírem 3 gols rápido, o usuário acumula 3 chances. A chance só é "gasta" e contabilizada quando o usuário **acerta** a resposta. Se ele errar, ele pode tentar de novo (gerando um novo quiz).
 
 ## 4. Dinâmica do Quiz e Tokens (Motor Gemini)
 
-- **Geração do Quiz (Inteligência Artificial):** O backend utiliza a API do **Google Gemini** para gerar perguntas de múltipla escolha exclusivas baseadas no contexto da partida em tempo real. O modelo elabora a pergunta, 4 opções e a resposta correta de forma inteligente, armazenando os dados no Firestore.
-- **Quiz ao Vivo e Segurança:** Ao ser notificado do evento na partida, o usuário vê a pergunta e as opções geradas pelo Gemini. Para garantir a segurança e evitar fraudes (ou custos altos de API), a conferência da resposta é feita localmente no backend comparando o índice selecionado com o índice correto previamente salvo no banco de dados. O Gemini não é chamado novamente para validar a resposta do usuário.
-- **Recompensa em Tokens:** Se o usuário responder corretamente (dentro da janela de tempo/tentativas), ele ganha uma quantidade pré-configurada de **Tokens Virtuais**. Um controle interno impede que o mesmo usuário ganhe tokens mais de uma vez para o mesmo quiz.
+- **Geração do Quiz (Inteligência Artificial):** O servidor (via Firebase Cloud Functions) utiliza a API do **Google Gemini** para gerar perguntas de múltipla escolha exclusivas baseadas no contexto da partida em tempo real. O modelo elabora a pergunta, 4 opções e a resposta correta de forma inteligente, armazenando o gabarito de forma segura no Firestore. A Chave da API nunca trafega no aplicativo.
+- **Quiz ao Vivo e Segurança Máxima:** Ao ser notificado do evento na partida, o usuário vê a pergunta e as opções. O aplicativo envia apenas o "palpite" do usuário para o Servidor (Cloud Functions). A conferência da resposta é feita no backend de forma fechada, comparando o palpite com o índice correto secreto. Isso impossibilita hackers de fraudarem acertos ou descobrirem a resposta no código do celular.
+- **Recompensa em Tokens:** Se o usuário responder corretamente e o servidor validar, a própria *Cloud Function* deposita de forma atômica a quantidade configurada de **Tokens Virtuais** na conta do usuário e atualiza o extrato, impossibilitando fraudes de saldo.
 
 ## 5. O Jogo (A Raspadinha)
 
@@ -35,12 +37,14 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 - **Grid Oculto:** O painel revela 9 espaços. O resultado é calculado via Motor de Probabilidades (RNG), de acordo com as probabilidades dos prêmios configurados no painel admin.
 - **Condição de Vitória:** O usuário ganha ao alinhar combinações específicas (ex: 3 imagens iguais do prêmio). Do contrário, revela ícones variados de "tente novamente".
 
-## 6. Carteira, Loja de Prêmios e Resgate
+## 6. Carteira, Loja de Prêmios e Extrato Seguro
+
 
 - **Carteira e Saque PIX:** O usuário acessa sua carteira tocando no saldo de Tokens na barra superior. Na carteira, ele pode ver a conversão direta de seus Tokens para dinheiro real (com base na taxa configurada no Painel Admin) e solicitar um saque via PIX instantâneo informando sua chave.
 - **Loja de Prêmios (Resgate Físico):** Além do saque PIX, a vitrine de prêmios exibe produtos físicos (ex: camisas, chuteiras). Se o usuário acumular Tokens suficientes (definido pelo admin no "Custo na Loja"), ele pode resgatar o prêmio diretamente, sem precisar tentar a sorte na raspadinha.
 - **Cadastro Completo:** Para resgatar prêmios físicos, o aplicativo exige que o usuário complete o seu perfil com CPF e Telefone.
 - **Processamento:** Ao ganhar ou resgatar um prêmio (físico ou PIX), o processo é totalmente automatizado. O usuário recebe o valor ou as instruções de resgate diretamente pelo seu painel no aplicativo, sem a necessidade de qualquer interação com a equipe de suporte ou administradores.
+
 
 ## 7. Plano de Melhorias Futuras (Carteira e Resgate)
 

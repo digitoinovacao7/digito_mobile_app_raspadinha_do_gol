@@ -6,6 +6,8 @@ class AppUser {
   final int tokens;
   final String? phone;
   final String? cpf;
+  final Map<String, int> answeredQuizzesCount;
+  final bool wantsWhatsappNotifications;
 
   AppUser({
     required this.id,
@@ -15,6 +17,8 @@ class AppUser {
     this.tokens = 0,
     this.phone,
     this.cpf,
+    this.answeredQuizzesCount = const {},
+    this.wantsWhatsappNotifications = false,
   });
 
   bool get isAdmin => role.trim().toLowerCase() == 'admin';
@@ -28,6 +32,10 @@ class AppUser {
       tokens: map['tokens'] ?? 0,
       phone: map['phone'],
       cpf: map['cpf'],
+      answeredQuizzesCount: map['answered_quizzes_count'] != null 
+          ? Map<String, int>.from(map['answered_quizzes_count']) 
+          : {},
+      wantsWhatsappNotifications: map['wants_whatsapp_notifications'] ?? false,
     );
   }
 
@@ -39,6 +47,8 @@ class AppUser {
       'tokens': tokens,
       if (phone != null) 'phone': phone,
       if (cpf != null) 'cpf': cpf,
+      'answered_quizzes_count': answeredQuizzesCount,
+      'wants_whatsapp_notifications': wantsWhatsappNotifications,
     };
   }
 
@@ -50,6 +60,8 @@ class AppUser {
     int? tokens,
     String? phone,
     String? cpf,
+    Map<String, int>? answeredQuizzesCount,
+    bool? wantsWhatsappNotifications,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -59,6 +71,8 @@ class AppUser {
       tokens: tokens ?? this.tokens,
       phone: phone ?? this.phone,
       cpf: cpf ?? this.cpf,
+      answeredQuizzesCount: answeredQuizzesCount ?? this.answeredQuizzesCount,
+      wantsWhatsappNotifications: wantsWhatsappNotifications ?? this.wantsWhatsappNotifications,
     );
   }
 }

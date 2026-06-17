@@ -4,8 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_scratchcards_screen.dart';
-import '../screens/admin_screen.dart';
 import '../screens/profile_edit_screen.dart';
+import '../screens/settings_screen.dart';
 import '../core/theme.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -120,43 +120,6 @@ class ProfileBottomSheet extends ConsumerWidget {
                   ),
                 ),
               );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Regulamento'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/regulamento');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: const Text('Política de Privacidade'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/privacidade');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.gavel_outlined),
-            title: const Text('Termos de Uso'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/termos');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.health_and_safety_outlined),
-            title: const Text('Jogo Responsável'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/jogo-responsavel');
             },
           ),
 

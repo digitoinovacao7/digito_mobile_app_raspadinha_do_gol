@@ -4,8 +4,8 @@ import { PrizesSlider } from '../components/PrizesSlider';
 
 const heroImages = [
   "/hero-football.png?v=2",
-  "https://images.unsplash.com/photo-1518605368461-1ee7e16353d2?q=80&w=2560&auto=format&fit=crop", // Stadium crowd
-  "https://images.unsplash.com/photo-1574629810360-7efbb928929e?q=80&w=2560&auto=format&fit=crop"  // Player kicking ball
+  "/stadium_crowd.png",
+  "/player_kicking.png"
 ];
 
 export function Home() {
@@ -47,13 +47,13 @@ export function Home() {
             Seu conhecimento de futebol vale <span className="text-accent drop-shadow-md">PIX e Prêmios!</span>
           </h2>
           <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
-            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada evento da partida e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
+            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto">
-            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
-              Quero Participar
+          <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto mt-4">
+            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-black hover:scale-110 transition-all duration-300 shadow-[0_0_25px_rgba(252,211,77,0.8)] text-center animate-pulse border-2 border-accent">
+              Jogar Agora Grátis
             </a>
-            <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
+            <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 hover:scale-105 transition-all duration-300 text-center">
               Ver Regulamento
             </Link>
           </div>
@@ -76,7 +76,7 @@ export function Home() {
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚡</div>
               <h4 className="text-2xl font-bold mb-3 text-primary">Quizzes Relâmpago</h4>
-              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda perguntas na hora do gol e ganhe Tokens Virtuais imediatamente.</p>
+              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens Virtuais imediatamente.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🎁</div>
@@ -92,30 +92,14 @@ export function Home() {
         </div>
       </section>
 
-      {/* Features / Como Funciona */}
-      <section id="como-funciona" className="py-20 px-4 w-full bg-white">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl md:text-4xl font-bold text-center mb-16 text-primary">Como Funciona?</h3>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">1</div>
-              <h4 className="text-xl font-bold mb-4">Acompanhe e Responda</h4>
-              <p className="text-gray-600">Acompanhe os jogos. Rolou um lance importante? Um Quiz Relâmpago vai aparecer na sua tela.</p>
-            </div>
-
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-accent hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-accent/20 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">2</div>
-              <h4 className="text-xl font-bold mb-4">Acumule Tokens</h4>
-              <p className="text-gray-600">Responda corretamente e antes do tempo acabar para encher sua carteira de Tokens Virtuais.</p>
-            </div>
-
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">3</div>
-              <h4 className="text-xl font-bold mb-4">Raspe e Ganhe</h4>
-              <p className="text-gray-600">Use os Tokens na Raspadinha do Gol. Combine as imagens certas e leve Pix, camisas de time ou super cupons!</p>
-            </div>
-          </div>
+      {/* Features / Como Funciona Banner */}
+      <section className="py-16 px-4 w-full bg-primary text-white text-center">
+        <div className="max-w-4xl mx-auto">
+          <h3 className="text-3xl md:text-4xl font-bold mb-6">Ainda com dúvidas de como jogar?</h3>
+          <p className="text-xl mb-8 text-gray-200">Preparamos um guia passo a passo de como ganhar tokens e resgatar prêmios incríveis!</p>
+          <Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="inline-block bg-white text-primary text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg">
+            Ver o Passo a Passo Completo
+          </Link>
         </div>
       </section>
 
