@@ -14,7 +14,7 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 - **Integrações e API:** Gerenciamento de chaves (ex: API-Football, Mercado Pago, Z-API para WhatsApp, e chave da API do **Google Gemini**).
 - **Regras de Economia:** Controle da economia do jogo, incluindo o custo da raspadinha em tokens, a recompensa em tokens por acerto no quiz, e a **taxa de conversão de Tokens para Dinheiro Real (PIX)** (ex: definir que 100 Tokens = R$ 1,00).
-- **Gestão de Prêmios:** Cadastro de prêmios (Pix, Camisas, etc). O admin define a **Probabilidade** de o prêmio sair na raspadinha (ex: 1 a cada 1000) e o **Custo na Loja** em Tokens (para resgate direto sem raspadinha). Também é possível definir se o prêmio é Global, para um Campeonato específico ou para uma Partida específica.
+- **Gestão de Prêmios:** Cadastro de prêmios (Pix, Camisas, etc). O admin define o **Custo na Loja** em Tokens (para resgate direto sem raspadinha). Também é possível definir se o prêmio é Global, para um Campeonato específico ou para uma Partida específica.
 - **Histórico e Ganhadores (Futuro/Planejado):** Acompanhamento dos usuários que ganharam prêmios físicos ou digitais, além do status de entrega.
 
 ## 3. Tela Principal (Home / Placares Ao Vivo)
@@ -34,7 +34,7 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 - **Custo da Raspadinha:** Para jogar, o usuário precisa gastar uma quantidade pré-determinada de seus Tokens acumulados (Ex: 1000 Tokens por jogada, definido pelo Admin).
 - **Mecânica:** O usuário "esfrega" o dedo na tela para remover a tinta prateada da raspadinha ou clica no botão para descobrir o resultado rapidamente.
-- **Grid Oculto:** O painel revela 9 espaços. O resultado é calculado via Motor de Probabilidades (RNG), de acordo com as probabilidades dos prêmios configurados no painel admin.
+- **Grid Oculto:** O painel revela 9 espaços. O resultado é determinado por um sorteio aleatório (RNG) no momento da jogada, onde todos os prêmios ativos têm uma chance de sair.
 - **Condição de Vitória:** O usuário ganha ao alinhar combinações específicas (ex: 3 imagens iguais do prêmio). Do contrário, revela ícones variados de "tente novamente".
 
 ## 6. Carteira, Loja de Prêmios e Extrato Seguro

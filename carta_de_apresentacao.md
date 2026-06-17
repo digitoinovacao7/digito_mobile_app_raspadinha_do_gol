@@ -23,7 +23,7 @@ O funcionamento é empolgante e sincronizado com a emoção das partidas em temp
 
 ## Modelo de Negócios e Sustentabilidade
 
-Nossa receita é gerada através da comercialização opcional de pacotes de Tokens (In-App Purchases / Pix) para usuários que não desejam esperar pelas partidas para jogar, e por parcerias de publicidade (Anúncios, Ads em formato Rewarded Video e Patrocínios In-App). A precificação dos prêmios é gerida por um robusto motor de probabilidades (RNG) auditável através do nosso Painel Administrativo, garantindo que o custo das premiações seja estritamente inferior à geração de valor da plataforma.
+Nossa receita é gerada através da comercialização opcional de pacotes de Tokens (In-App Purchases / Pix) para usuários que não desejam esperar pelas partidas para jogar, e por parcerias de publicidade (Anúncios, Ads em formato Rewarded Video e Patrocínios In-App). A distribuição dos prêmios é gerida por um sistema de sorteio aleatório (RNG), e o cadastro de prêmios e custos é feito através do nosso Painel Administrativo, garantindo que o custo das premiações seja estritamente inferior à geração de valor da plataforma.
 
 ## A Oportunidade
 

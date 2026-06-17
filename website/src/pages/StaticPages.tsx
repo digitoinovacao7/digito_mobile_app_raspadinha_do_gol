@@ -81,7 +81,7 @@ export function Termos() {
         <p>Ao utilizar o aplicativo e site da <strong>Raspadinha do Gol</strong>, você concorda expressamente com todos os Termos de Uso aqui descritos. Caso não concorde com qualquer parte destes termos, por favor, não utilize nossos serviços.</p>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">1. Natureza do Serviço</h2>
-        <p>A Raspadinha do Gol é uma plataforma de entretenimento digital baseada na mecânica de bilhetes raspáveis (raspadinhas). Não garantimos ganhos financeiros ou rendimentos. Os prêmios são baseados em probabilidade matemática e fatores aleatórios associados à distribuição do sistema de lotes.</p>
+        <p>A Raspadinha do Gol é uma plataforma de entretenimento digital baseada na mecânica de bilhetes raspáveis (raspadinhas). Não garantimos ganhos financeiros ou rendimentos. Os prêmios são baseados em um sorteio aleatório (RNG - Gerador de Números Aleatórios) no momento da jogada.</p>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">2. Cadastro e Responsabilidade</h2>
         <ul className="list-disc pl-6 space-y-2">

@@ -27,9 +27,7 @@ export function Admin() {
   const [zApi, setZApi] = useState('');
 
   // Prize Rules State
-  const [prizeValue, setPrizeValue] = useState(0);
-  const [totalPrizes, setTotalPrizes] = useState(0);
-  const [batchSize, setBatchSize] = useState(0);
+  const [globalWinChance, setGlobalWinChance] = useState(10);
 
   useEffect(() => {
     async function loadData() {
@@ -45,9 +43,7 @@ export function Admin() {
           }
 
           if (data.prize_rules) {
-            setPrizeValue(data.prize_rules.prize_value || 0);
-            setTotalPrizes(data.prize_rules.total_prizes || 0);
-            setBatchSize(data.prize_rules.batch_size || 0);
+            setGlobalWinChance(data.prize_rules.global_win_chance || 10);
           }
         }
       } catch (e) {
@@ -71,9 +67,7 @@ export function Admin() {
           z_api: zApi
         },
         prize_rules: {
-          prize_value: prizeValue,
-          total_prizes: totalPrizes,
-          batch_size: batchSize
+          global_win_chance: globalWinChance
         }
       }, { merge: true });
       setMessage('Configurações salvas com sucesso!');
@@ -124,16 +118,9 @@ export function Admin() {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor do Prêmio (R$)</label>
-              <input type="number" step="0.01" className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500" value={prizeValue} onChange={e => setPrizeValue(parseFloat(e.target.value))} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total de Prêmios Ativos</label>
-              <input type="number" className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500" value={totalPrizes} onChange={e => setTotalPrizes(parseInt(e.target.value, 10))} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho do Lote (Batch Size)</label>
-              <input type="number" className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500" value={batchSize} onChange={e => setBatchSize(parseInt(e.target.value, 10))} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chance Global de Vitória (%)</label>
+              <input type="number" step="1" min="1" max="100" className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500" value={globalWinChance} onChange={e => setGlobalWinChance(parseInt(e.target.value, 10))} />
+              <p className="text-sm text-gray-500 mt-1">Ex: 10 significa que 10% das raspadinhas jogadas serão premiadas (Sorteio Aleatório - RNG).</p>
             </div>
           </div>
         </div>

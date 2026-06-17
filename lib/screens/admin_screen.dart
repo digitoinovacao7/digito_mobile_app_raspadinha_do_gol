@@ -21,9 +21,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _scratchcardCostController = TextEditingController();
   final _quizRewardController = TextEditingController();
   final _tokensToRealRateController = TextEditingController();
+  final _globalWinChanceController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
-  final _newPrizeOddsCtrl = TextEditingController();
   final _newPrizeImageCtrl = TextEditingController();
   final _newPrizeTokenCostCtrl = TextEditingController();
   final _newPrizeLinkCtrl = TextEditingController();
@@ -66,6 +66,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _quizRewardController.text = economy['quiz_reward']?.toString() ?? '250';
           _tokensToRealRateController.text = economy['tokens_per_real']?.toString() ?? '100';
         }
+
+        if (data.containsKey('prize_rules')) {
+          _globalWinChanceController.text = data['prize_rules']['global_win_chance']?.toString() ?? '10';
+        }
       }
       
       // Load leagues for the dropdowns
@@ -92,8 +96,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _scratchcardCostController.dispose();
     _quizRewardController.dispose();
     _tokensToRealRateController.dispose();
+    _globalWinChanceController.dispose();
     _newPrizeNameCtrl.dispose();
-    _newPrizeOddsCtrl.dispose();
     _newPrizeImageCtrl.dispose();
     _newPrizeTokenCostCtrl.dispose();
     super.dispose();
@@ -114,6 +118,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
           'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
           'tokens_per_real': int.tryParse(_tokensToRealRateController.text) ?? 100,
+        },
+        'prize_rules': {
+          'global_win_chance': int.tryParse(_globalWinChanceController.text) ?? 10,
         }
       }, SetOptions(merge: true));
 
@@ -262,7 +269,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.0),
                         child: Text(
-                          'Defina quantos Tokens são necessários para liberar 1 Raspadinha, quantos Tokens o usuário ganha a cada acerto no Quiz, e a conversão de PIX.',
+                          'Defina os custos, recompensas e a chance global de um usuário ser premiado na raspadinha (Sorteio RNG).',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),
@@ -296,6 +303,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                               hint: 'Ex: 100',
                               keyboardType: TextInputType.number,
                               helpText: 'Taxa de câmbio para saque PIX.\nEx: Se estiver "100", então 5000 Tokens = R\$ 50,00.\nSugestão: 100 (Cálculo fácil) ou 1000 (Para inflacionar a moeda e dar prêmios maiores no app).',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _globalWinChanceController,
+                              label: 'Chance de Vitória (%)',
+                              hint: 'Ex: 10',
+                              keyboardType: TextInputType.number,
+                              helpText: 'A probabilidade global (RNG) de qualquer raspadinha ser premiada.\nEx: 10 significa que 10% das jogadas ganharão um dos prêmios ativos.',
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -498,19 +515,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           children: [
             Expanded(
               child: _buildTextField(
-                controller: _newPrizeOddsCtrl,
-                label: 'Probabilidade (1 a cada X)',
-                hint: 'Ex: 1000',
-                keyboardType: TextInputType.number,
-                helpText: 'Chance do prêmio sair na raspadinha.\nEx: 1000 = Sai em média 1 vez a cada 1000 raspadinhas.\nSugestões:\nPrêmios caros (Camisas/PIX R\$500): 10000\nPrêmios médios (PIX R\$50): 1000\nPrêmios baratos (PIX R\$5): 100',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildTextField(
                 controller: _newPrizeTokenCostCtrl,
                 label: 'Custo na Loja (Tokens)',
-                hint: '0 = Só Raspadinha',
+                hint: 'Ex: 50000. 0 = Só na Sorte',
                 keyboardType: TextInputType.number,
                 helpText: 'Preço se o usuário quiser COMPRAR este prêmio na loja usando os tokens acumulados (sem contar com a sorte).\nDeixe 0 se o prêmio só puder ser ganho raspando.',
               ),
@@ -572,14 +579,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _saveNewPrize() async {
     final name = _newPrizeNameCtrl.text.trim();
-    final odds = int.tryParse(_newPrizeOddsCtrl.text.trim()) ?? 0;
     final tokenCost = int.tryParse(_newPrizeTokenCostCtrl.text.trim()) ?? 0;
     final image = _newPrizeImageCtrl.text.trim();
     final prizeLink = _newPrizeLinkCtrl.text.trim();
 
-    if (name.isEmpty || odds <= 0) {
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha o nome e uma probabilidade válida (> 0).'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Preencha o nome do prêmio.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -603,7 +609,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'scope': _newPrizeScope,
         'leagueId': _newPrizeScope == 'global' ? null : _selectedLeagueId,
         'fixtureId': _newPrizeScope == 'match' ? _selectedFixtureId : null,
-        'odds': odds,
         'token_cost': tokenCost,
         'image_url': image,
         'prize_link': prizeLink,
@@ -612,7 +617,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       });
       
       _newPrizeNameCtrl.clear();
-      _newPrizeOddsCtrl.clear();
       _newPrizeTokenCostCtrl.clear();
       _newPrizeImageCtrl.clear();
       _newPrizeLinkCtrl.clear();
@@ -675,14 +679,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.casino, size: 16, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('Sai 1 a cada ${prize['odds']} raspadinhas', style: TextStyle(color: Colors.grey.shade700)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(prize['scope'] == 'global' ? Icons.public : (prize['scope'] == 'league' ? Icons.emoji_events : Icons.sports_soccer), size: 16, color: AppTheme.accentGold),
