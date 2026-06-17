@@ -4,8 +4,8 @@ import { PrizesSlider } from '../components/PrizesSlider';
 
 const heroImages = [
   "/hero-football.png?v=2",
-  "https://images.unsplash.com/photo-1518605368461-1ee7e16353d2?q=80&w=2560&auto=format&fit=crop", // Stadium crowd
-  "https://images.unsplash.com/photo-1574629810360-7efbb928929e?q=80&w=2560&auto=format&fit=crop"  // Player kicking ball
+  "/stadium_crowd.png",
+  "/player_kicking.png"
 ];
 
 export function Home() {
@@ -92,30 +92,14 @@ export function Home() {
         </div>
       </section>
 
-      {/* Features / Como Funciona */}
-      <section id="como-funciona" className="py-20 px-4 w-full bg-white">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl md:text-4xl font-bold text-center mb-16 text-primary">Como Funciona?</h3>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">1</div>
-              <h4 className="text-xl font-bold mb-4">Acompanhe e Responda</h4>
-              <p className="text-gray-600">Acompanhe os jogos. Rolou um lance importante? Um Quiz Relâmpago vai aparecer na sua tela.</p>
-            </div>
-
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-accent hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-accent/20 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">2</div>
-              <h4 className="text-xl font-bold mb-4">Acumule Tokens</h4>
-              <p className="text-gray-600">Responda corretamente e antes do tempo acabar para encher sua carteira de Tokens Virtuais.</p>
-            </div>
-
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-sm text-center border-t-4 border-primary hover:-translate-y-2 transition-transform">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black">3</div>
-              <h4 className="text-xl font-bold mb-4">Raspe e Ganhe</h4>
-              <p className="text-gray-600">Use os Tokens na Raspadinha do Gol. Combine as imagens certas e leve Pix, camisas de time ou super cupons!</p>
-            </div>
-          </div>
+      {/* Features / Como Funciona Banner */}
+      <section className="py-16 px-4 w-full bg-primary text-white text-center">
+        <div className="max-w-4xl mx-auto">
+          <h3 className="text-3xl md:text-4xl font-bold mb-6">Ainda com dúvidas de como jogar?</h3>
+          <p className="text-xl mb-8 text-gray-200">Preparamos um guia passo a passo de como ganhar tokens e resgatar prêmios incríveis!</p>
+          <Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="inline-block bg-white text-primary text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg">
+            Ver o Passo a Passo Completo
+          </Link>
         </div>
       </section>
 

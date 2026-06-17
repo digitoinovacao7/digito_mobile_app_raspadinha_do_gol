@@ -102,7 +102,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      child: Text(freePlays > 0 ? 'Resgatar Recompensa!' : 'Desbloquear Raspadinha'),
+                      child: Text(freePlays > 0 ? 'Jogar Raspadinha' : 'Comprar Mais Raspadinhas'),
                     )
                   else
                     Column(

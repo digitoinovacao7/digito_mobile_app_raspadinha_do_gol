@@ -4,6 +4,7 @@ import '../core/theme.dart';
 import '../models/league_info.dart';
 import '../providers/game_provider.dart';
 import 'matches_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -24,7 +25,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _loadLeagues() async {
     final service = ref.read(footballServiceProvider);
-    final leagues = await service.getActiveLeaguesForToday();
+    List<LeagueInfo> leagues = await service.getActiveLeaguesForToday();
+    
+    try {
+      final prizesSnap = await FirebaseFirestore.instance.collection('prizes').where('active', isEqualTo: true).get();
+      bool hasGlobalPrize = prizesSnap.docs.any((doc) => doc['scope'] == 'global');
+      
+      if (!hasGlobalPrize) {
+        final Set<int> validLeagueIds = prizesSnap.docs
+            .where((doc) => doc.data().containsKey('leagueId') && doc['leagueId'] != null)
+            .map((doc) => doc['leagueId'] as int)
+            .toSet();
+            
+        leagues = leagues.where((l) => validLeagueIds.contains(l.id)).toList();
+      }
+    } catch (e) {
+      print('Erro ao filtrar ligas por prêmios: $e');
+      leagues = [];
+    }
+
     if (mounted) {
       setState(() {
         _activeLeagues = leagues;

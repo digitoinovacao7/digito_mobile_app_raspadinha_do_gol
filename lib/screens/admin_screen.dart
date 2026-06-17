@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../providers/auth_provider.dart';
 import '../providers/game_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
@@ -362,24 +361,44 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        const Text('Escopo do Prêmio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
           children: [
-            const Text('Escopo do Prêmio:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 16),
-            Radio<String>(value: 'global', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; _selectedLeagueId = null; _selectedFixtureId = null; })),
-            const Text('Global'),
-            Radio<String>(value: 'league', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; _selectedFixtureId = null; })),
-            const Text('Campeonato'),
-            Radio<String>(value: 'match', groupValue: _newPrizeScope, activeColor: AppTheme.primaryGreen, onChanged: (v) => setState(() { _newPrizeScope = v!; if (_selectedLeagueId != null) _fetchMatchesForAdmin(_selectedLeagueId!); })),
-            const Text('Jogo Específico'),
+            ChoiceChip(
+              label: const Text('Global', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: _newPrizeScope == 'global',
+              onSelected: (v) => setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; }),
+              selectedColor: AppTheme.accentGold,
+              backgroundColor: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            ChoiceChip(
+              label: const Text('Campeonato', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: _newPrizeScope == 'league',
+              onSelected: (v) => setState(() { _newPrizeScope = 'league'; _selectedFixtureId = null; }),
+              selectedColor: AppTheme.accentGold,
+              backgroundColor: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            ChoiceChip(
+              label: const Text('Jogo Específico', style: TextStyle(fontWeight: FontWeight.bold)),
+              selected: _newPrizeScope == 'match',
+              onSelected: (v) => setState(() { _newPrizeScope = 'match'; if (_selectedLeagueId != null) _fetchMatchesForAdmin(_selectedLeagueId!); }),
+              selectedColor: AppTheme.accentGold,
+              backgroundColor: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
           ],
         ),
+        
         if (_newPrizeScope == 'league' || _newPrizeScope == 'match') ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _activeLeagues.isEmpty
               ? const CircularProgressIndicator()
               : DropdownButtonFormField<int>(
-                  decoration: InputDecoration(labelText: 'Selecione o Campeonato', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  decoration: InputDecoration(labelText: 'Selecione o Campeonato', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   value: _selectedLeagueId,
                   items: _activeLeagues.map((l) => DropdownMenuItem(value: l.id, child: Text(l.name))).toList(),
                   onChanged: (val) {
@@ -393,39 +412,69 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _isFetchingMatches
               ? const CircularProgressIndicator()
               : DropdownButtonFormField<int>(
-                  decoration: InputDecoration(labelText: 'Selecione a Partida de Hoje', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  decoration: InputDecoration(labelText: 'Selecione a Partida de Hoje', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   value: _selectedFixtureId,
                   items: _fetchedMatches.map((m) => DropdownMenuItem<int>(value: m['fixture']['id'], child: Text('${m['teams']['home']['name']} x ${m['teams']['away']['name']}'))).toList(),
                   onChanged: (val) => setState(() => _selectedFixtureId = val),
                 ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 32),
+        const Text('Tipo de Prêmio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
         Row(
           children: [
-            const Text('Tipo de Prêmio:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 16),
-            Radio<String>(
-              value: 'pix',
-              groupValue: _newPrizeType,
-              activeColor: AppTheme.primaryGreen,
-              onChanged: (val) => setState(() => _newPrizeType = val!),
+            Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _newPrizeType = 'pix'),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: _newPrizeType == 'pix' ? AppTheme.primaryGreen.withOpacity(0.05) : Colors.white,
+                    border: Border.all(color: _newPrizeType == 'pix' ? AppTheme.primaryGreen : Colors.grey.shade300, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.pix, color: _newPrizeType == 'pix' ? AppTheme.primaryGreen : Colors.grey, size: 36),
+                      const SizedBox(height: 12),
+                      Text('Saque PIX', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _newPrizeType == 'pix' ? AppTheme.primaryGreen : Colors.grey.shade700)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const Text('Saque PIX'),
             const SizedBox(width: 16),
-            Radio<String>(
-              value: 'produto',
-              groupValue: _newPrizeType,
-              activeColor: AppTheme.primaryGreen,
-              onChanged: (val) => setState(() => _newPrizeType = val!),
+            Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _newPrizeType = 'produto'),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: _newPrizeType == 'produto' ? AppTheme.primaryGreen.withOpacity(0.05) : Colors.white,
+                    border: Border.all(color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey.shade300, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.card_giftcard, color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey, size: 36),
+                      const SizedBox(height: 12),
+                      Text('Produto Físico', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey.shade700)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const Text('Produto Físico'),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 32),
+        const Text('Detalhes do Prêmio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
         _buildTextField(
           controller: _newPrizeNameCtrl,
-          label: _newPrizeType == 'pix' ? 'Nome (Ex: PIX de R\$ 50)' : 'Nome do Produto (Ex: Camisa)',
-          hint: 'O que o usuário vai ganhar?',
+          label: _newPrizeType == 'pix' ? 'Valor do PIX a ser pago (Ex: R\$ 50,00)' : 'Nome do Produto (Ex: Camisa)',
+          hint: _newPrizeType == 'pix' ? 'Ex: 50,00' : 'O que o usuário vai ganhar?',
         ),
         const SizedBox(height: 16),
         Row(
@@ -433,7 +482,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Expanded(
               child: _buildTextField(
                 controller: _newPrizeOddsCtrl,
-                label: 'Probabilidade (Sai 1 a cada X raspadinhas)',
+                label: 'Probabilidade (1 a cada X)',
                 hint: 'Ex: 1000',
                 keyboardType: TextInputType.number,
               ),
@@ -442,35 +491,46 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Expanded(
               child: _buildTextField(
                 controller: _newPrizeTokenCostCtrl,
-                label: 'Custo na Loja (em Tokens, 0 = Só Raspadinha)',
-                hint: 'Ex: 5000',
+                label: 'Custo na Loja (Tokens)',
+                hint: '0 = Só Raspadinha',
                 keyboardType: TextInputType.number,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildTextField(
-                controller: _newPrizeImageCtrl,
-                label: 'URL da Imagem (Opcional)',
-                hint: 'Ex: https://site.com/foto.png',
+            if (_newPrizeType == 'produto') ...[
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _newPrizeImageCtrl,
+                  label: 'URL da Imagem (Opcional)',
+                  hint: 'https://site.com/foto.png',
+                ),
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: 24),
+        if (_newPrizeType == 'produto') ...[
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _newPrizeLinkCtrl,
+            label: 'URL do Prêmio/Cupom (Opcional)',
+            hint: 'Link que o usuário acessa para resgatar o voucher',
+          ),
+        ],
+        const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
-          height: 48,
+          height: 56,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryGreen,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 4,
             ),
             icon: _isSavingPrize
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.add),
-            label: Text(_isSavingPrize ? 'Salvando...' : 'Salvar Novo Prêmio'),
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.add_circle, size: 24),
+            label: Text(_isSavingPrize ? 'Salvando...' : 'Cadastrar Novo Prêmio', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             onPressed: _isSavingPrize ? null : _saveNewPrize,
           ),
         ),
@@ -561,9 +621,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         final prizes = snapshot.data?.docs ?? [];
         if (prizes.isEmpty) return const Text('Nenhum prêmio cadastrado.');
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+        return SizedBox(
+          height: 400,
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const BouncingScrollPhysics(),
           itemCount: prizes.length,
           itemBuilder: (context, index) {
             final doc = prizes[index];
@@ -623,7 +685,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               ),
             );
           },
-        );
+        ),
+      );
       },
     );
   }
@@ -721,20 +784,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                   FirebaseFirestore.instance.collection('redemptions').doc(doc.id).update({'status': 'rejeitado'});
                                 },
                               ),
-                          ],
-                        )
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}              ),
                           ],
                         )
                       ],

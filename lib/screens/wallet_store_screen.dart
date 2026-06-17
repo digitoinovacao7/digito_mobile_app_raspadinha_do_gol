@@ -40,7 +40,8 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
     }
 
     final user = ref.read(currentUserProvider);
-    if (user?.phone == null || user?.phone?.isEmpty == true || user?.cpf == null || user?.cpf?.isEmpty == true) {
+    if (user == null) return;
+    if (user.phone == null || user.phone?.isEmpty == true || user.cpf == null || user.cpf?.isEmpty == true) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -97,9 +98,37 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                 ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: user.tokens - cost);
 
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Resgate solicitado com sucesso! Em breve entraremos em contato.')),
-                  );
+                  final link = prize['prize_link']?.toString() ?? '';
+                  if (link.isNotEmpty) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx2) => AlertDialog(
+                        title: const Text('Resgate Concluído!'),
+                        content: const Text('Seu cupom/voucher está pronto para ser acessado.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx2);
+                            },
+                            child: const Text('Fechar'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final url = Uri.parse(link);
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url);
+                              }
+                            },
+                            child: const Text('Acessar Cupom'),
+                          )
+                        ],
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Resgate solicitado com sucesso! Em breve entraremos em contato.')),
+                    );
+                  }
                 }
               } catch (e) {
                 if (mounted) {
@@ -226,7 +255,7 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                 
                 // ABA 2: STORE
                 StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('prizes').where('active', isEqualTo: true).snapshots(),
+                  stream: FirebaseFirestore.instance.collection('prizes').where('active', isEqualTo: true).where('scope', isEqualTo: 'global').snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -306,36 +335,6 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: () => _redeemPhysicalPrize(prize, currentTokens),
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
-                                        ),
-                                        child: const Text('Resgatar', style: TextStyle(fontSize: 12)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-                                  ),
                                     const SizedBox(height: 8),
                                     SizedBox(
                                       width: double.infinity,

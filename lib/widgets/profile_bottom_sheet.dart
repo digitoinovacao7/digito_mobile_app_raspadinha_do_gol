@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_scratchcards_screen.dart';
-import '../screens/admin_screen.dart';
 import '../screens/profile_edit_screen.dart';
 import '../core/theme.dart';
 
@@ -157,6 +156,34 @@ class ProfileBottomSheet extends ConsumerWidget {
             onTap: () {
               Navigator.pop(context);
               _launchUrl('/jogo-responsavel');
+            },
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Redes Sociais', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.play_circle_fill_outlined, color: Colors.red),
+            title: const Text('YouTube'),
+            trailing: const Icon(Icons.open_in_new, size: 16),
+            onTap: () async {
+              Navigator.pop(context);
+              final url = Uri.parse('https://www.youtube.com/@guiadoplayeroficial');
+              if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.music_note, color: Colors.black),
+            title: const Text('TikTok'),
+            trailing: const Icon(Icons.open_in_new, size: 16),
+            onTap: () async {
+              Navigator.pop(context);
+              final url = Uri.parse('https://www.tiktok.com/@guiadoplayeroficial');
+              if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
             },
           ),
 
