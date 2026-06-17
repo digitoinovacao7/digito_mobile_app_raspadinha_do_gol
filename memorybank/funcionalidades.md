@@ -40,7 +40,7 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 - **Carteira e Saque PIX:** O usuário acessa sua carteira tocando no saldo de Tokens na barra superior. Na carteira, ele pode ver a conversão direta de seus Tokens para dinheiro real (com base na taxa configurada no Painel Admin) e solicitar um saque via PIX instantâneo informando sua chave.
 - **Loja de Prêmios (Resgate Físico):** Além do saque PIX, a vitrine de prêmios exibe produtos físicos (ex: camisas, chuteiras). Se o usuário acumular Tokens suficientes (definido pelo admin no "Custo na Loja"), ele pode resgatar o prêmio diretamente, sem precisar tentar a sorte na raspadinha.
 - **Cadastro Completo:** Para resgatar prêmios físicos, o aplicativo exige que o usuário complete o seu perfil com CPF e Telefone.
-- **Processamento:** Ao ganhar ou resgatar um prêmio físico, o processo passa para análise e envio pela equipe admin, que entrará em contato (via WhatsApp, por exemplo). Para PIX, a liberação/integração ocorre conforme regras de segurança.
+- **Processamento:** Ao ganhar ou resgatar um prêmio (físico ou PIX), o processo é totalmente automatizado. O usuário recebe o valor ou as instruções de resgate diretamente pelo seu painel no aplicativo, sem a necessidade de qualquer interação com a equipe de suporte ou administradores.
 
 ## 7. Plano de Melhorias Futuras (Carteira e Resgate)
 
@@ -56,3 +56,20 @@ Para aumentar a segurança e melhorar a experiência do usuário durante o resga
 - Ao cadastrar/informar a chave PIX para saque, o sistema enviará um **Código OTP (One-Time Password)** de 6 dígitos para o E-mail ou WhatsApp cadastrado do usuário.
 - O saque só será efetivado e descontado do saldo de tokens após o usuário inserir o código OTP correto em uma tela de verificação.
 - Isso protege a carteira do usuário contra acessos não autorizados.
+
+## 8. Estratégia de Monetização
+
+A plataforma adota um modelo **Freemium**, garantindo acesso sem riscos financeiros aos usuários, gerando receita através de três pilares principais:
+
+### A. Venda de Tokens e Benefícios (Microtransações)
+- **Pacotes de Tokens:** Venda direta de pacotes de Tokens (via PIX ou integração In-App da Apple/Google) para usuários ansiosos que desejam jogar nas raspadinhas ou resgatar prêmios sem ter que aguardar os eventos das partidas ao vivo.
+- **Assinatura VIP (Clube do Gol):** Modelo de assinatura mensal/anual que oferece vantagens como: remoção de anúncios, multiplicadores (ex: ganho de 2x mais tokens ao acertar o quiz), e acesso a raspadinhas exclusivas.
+
+### B. Publicidade Gamificada (Ads)
+- **Rewarded Videos (Vídeos Premiados):** Integração com redes de anúncios (como AdMob) onde o usuário pode optar por assistir a um vídeo publicitário (15 a 30 segundos) para ganhar uma quantidade de Tokens bônus ou "Vidas Extras" nos Quizzes.
+- **Banners e Interstitiais:** Exibição de anúncios tradicionais no rodapé do aplicativo ou em telas de transição (ex: após finalizar uma raspadinha sem vitória).
+
+### C. Parcerias B2B e Afiliados
+- **Raspadinhas Patrocinadas:** Marcas parceiras podem comprar o espaço visual de uma raspadinha específica (ex: "Raspadinha Zé Delivery") oferecendo prêmios da própria marca.
+- **Cupons de Afiliados (CPA):** A Loja de Prêmios pode conter vouchers de desconto para grandes e-commerces. A plataforma não tem custo de estoque e recebe uma comissão (Custo Por Aquisição) sempre que o usuário utilizar o cupom para realizar uma compra externa.
+- **Naming Rights de Quizzes:** Possibilidade de comercializar "espaços" nos quizzes de partidas de alto tráfego (Ex: Finais de campeonato patrocinadas por uma grande marca esportiva).
