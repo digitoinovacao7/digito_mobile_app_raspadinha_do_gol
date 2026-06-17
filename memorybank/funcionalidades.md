@@ -6,6 +6,7 @@ Este documento descreve todas as funcionalidades e regras de negócio presentes 
 
 - **Login com Google:** O usuário deve obrigatoriamente fazer login usando a sua conta do Gmail para acessar o aplicativo.
 - **Sistema de Perfis (Roles):** Existem dois tipos de usuário no sistema: `user` (padrão) e `admin`. Essa regra é gravada diretamente na base de dados (Firestore).
+- **Configurações e Notificações:** O usuário tem acesso a uma tela de Configurações (via barra de navegação inferior) onde pode ativar o Opt-in de notificações via WhatsApp. Esse status é salvo diretamente em seu documento no Firestore (`wants_whatsapp_notifications`), permitindo que a equipe de marketing faça envios seguros.
 
 ## 2. Painel Administrativo (Acesso Restrito)
 
@@ -20,7 +21,8 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 - O aplicativo exibe as partidas em andamento.
 - Durante a partida, o usuário acompanha o tempo e eventos importantes.
-- **Gatilhos (Eventos):** Quando ocorre um evento relevante na partida ao vivo (ex: Gol, Fim do Primeiro Tempo, Cartões), o backend gera um evento que aciona um **Quiz Relâmpago** para os usuários conectados.
+- **Gatilhos Dinâmicos (Eventos Reais):** O aplicativo monitora os eventos da partida ao vivo (Ex: Fim do 1º Tempo, Fim de Jogo, ou Gols de qualquer um dos times). Cada evento desses gera 1 "Chance" para o usuário responder a um Quiz.
+- **Acúmulo de Chances:** Se saírem 3 gols rápido, o usuário acumula 3 chances. A chance só é "gasta" e contabilizada quando o usuário **acerta** a resposta. Se ele errar, ele pode tentar de novo (gerando um novo quiz).
 
 ## 4. Dinâmica do Quiz e Tokens (Motor Gemini)
 
@@ -35,12 +37,13 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 - **Grid Oculto:** O painel revela 9 espaços. O resultado é calculado via Motor de Probabilidades (RNG), de acordo com as probabilidades dos prêmios configurados no painel admin.
 - **Condição de Vitória:** O usuário ganha ao alinhar combinações específicas (ex: 3 imagens iguais do prêmio). Do contrário, revela ícones variados de "tente novamente".
 
-## 6. Carteira, Loja de Prêmios e Resgate
+## 6. Carteira, Loja de Prêmios e Extrato Seguro
 
-- **Carteira e Saque PIX:** O usuário acessa sua carteira tocando no saldo de Tokens na barra superior. Na carteira, ele pode ver a conversão direta de seus Tokens para dinheiro real (com base na taxa configurada no Painel Admin) e solicitar um saque via PIX instantâneo informando sua chave.
-- **Loja de Prêmios (Resgate Físico):** Além do saque PIX, a vitrine de prêmios exibe produtos físicos (ex: camisas, chuteiras). Se o usuário acumular Tokens suficientes (definido pelo admin no "Custo na Loja"), ele pode resgatar o prêmio diretamente, sem precisar tentar a sorte na raspadinha.
-- **Cadastro Completo:** Para resgatar prêmios físicos, o aplicativo exige que o usuário complete o seu perfil com CPF e Telefone.
-- **Processamento:** Ao ganhar ou resgatar um prêmio físico, o processo passa para análise e envio pela equipe admin, que entrará em contato (via WhatsApp, por exemplo). Para PIX, a liberação/integração ocorre conforme regras de segurança.
+- **Carteira e Saque PIX:** O usuário acessa sua carteira pela barra superior. Nela, ele vê seu saldo de Tokens e pode solicitar um saque via PIX instantâneo informando sua chave, respeitando a taxa de conversão configurada.
+- **Loja de Prêmios (Resgate Físico):** A vitrine exibe produtos físicos. Se o usuário tiver Tokens suficientes, ele pode resgatar o prêmio diretamente.
+- **Extrato de Tokens (Histórico):** Há uma tela de extrato cronológico (como uma conta bancária) que mostra tudo o que o usuário ganhou (Acertos no Quiz: +250), perdeu (Compras na loja: -500), e inclusive os **erros nos quizzes** (0 Tokens), permitindo total transparência e gamificação.
+- **Transações Seguras (Anti-Fraude):** O motor financeiro utiliza *Transações Atômicas* no Firestore. O ato de comprar/sacar verifica o saldo direto no banco de forma isolada, deduz o valor e cria o recibo ao mesmo tempo. Isso blinda o app contra fraudes de manipulação de saldo no celular.
+- **Cadastro Completo:** Para resgatar prêmios, o app exige CPF e Telefone do usuário.
 
 ## 7. Plano de Melhorias Futuras (Carteira e Resgate)
 

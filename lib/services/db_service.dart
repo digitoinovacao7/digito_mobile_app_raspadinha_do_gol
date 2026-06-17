@@ -40,16 +40,69 @@ class DbService {
     });
   }
 
-  Future<void> recordQuizSuccess(String uid, int fixtureId, int reward) async {
+  Future<void> addTokenTransaction(String uid, int amount, String type, String description) async {
+    await _db.collection('token_transactions').add({
+      'uid': uid,
+      'amount': amount,
+      'type': type,
+      'description': description,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> recordQuizSuccess(String uid, int fixtureId, int reward, String matchName) async {
     await _db.collection('users').doc(uid).update({
       'tokens': FieldValue.increment(reward),
       'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
     });
+    await addTokenTransaction(uid, reward, 'quiz_reward', 'Acerto no Quiz: $matchName');
+  }
+
+  Future<void> recordQuizFailure(String uid, int fixtureId, String matchName) async {
+    await _db.collection('users').doc(uid).update({
+      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
+    });
+    await addTokenTransaction(uid, 0, 'quiz_failure', 'Erro no Quiz: $matchName');
   }
 
   Future<void> toggleWhatsappNotifications(String uid, bool value) async {
     await _db.collection('users').doc(uid).update({
       'wants_whatsapp_notifications': value,
+    });
+  }
+
+  Future<void> redeemPrize(String uid, int cost, Map<String, dynamic> redemptionData, String prizeName) async {
+    await _db.runTransaction((transaction) async {
+      final userRef = _db.collection('users').doc(uid);
+      final snapshot = await transaction.get(userRef);
+      
+      if (!snapshot.exists) {
+        throw Exception("Usuário não encontrado.");
+      }
+      
+      final currentTokens = snapshot.data()?['tokens'] as int? ?? 0;
+      if (currentTokens < cost) {
+        throw Exception("Saldo insuficiente.");
+      }
+      
+      transaction.update(userRef, {
+        'tokens': currentTokens - cost,
+      });
+      
+      final redemptionRef = _db.collection('redemptions').doc();
+      transaction.set(redemptionRef, {
+        ...redemptionData,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      
+      final txRef = _db.collection('token_transactions').doc();
+      transaction.set(txRef, {
+        'uid': uid,
+        'amount': -cost,
+        'type': 'prize_redemption',
+        'description': 'Resgate de Prêmio: $prizeName',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 

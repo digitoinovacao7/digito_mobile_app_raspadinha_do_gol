@@ -253,7 +253,8 @@ class _QuizWidgetState extends ConsumerState<_QuizWidget> {
       if (user != null) {
         final economy = await dbService.getEconomySettings();
         final reward = economy['quiz_reward'] ?? 250;
-        await dbService.recordQuizSuccess(user.uid, widget.fixtureId, reward);
+        final matchName = '${widget.homeTeam} x ${widget.awayTeam}';
+        await dbService.recordQuizSuccess(user.uid, widget.fixtureId, reward, matchName);
         // Atualiza o cache do provider do usuário
         ref.invalidate(appUserFutureProvider(user.uid));
         
@@ -266,6 +267,15 @@ class _QuizWidgetState extends ConsumerState<_QuizWidget> {
         }
       }
     } else {
+      final dbService = DbService();
+      final auth = ref.read(authServiceProvider);
+      final user = auth.currentUser;
+      if (user != null) {
+        final matchName = '${widget.homeTeam} x ${widget.awayTeam}';
+        await dbService.recordQuizFailure(user.uid, widget.fixtureId, matchName);
+        ref.invalidate(appUserFutureProvider(user.uid));
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Resposta Incorreta! Tente outro quiz depois.'),

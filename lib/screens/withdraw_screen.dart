@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../services/db_service.dart';
 
 class WithdrawScreen extends ConsumerStatefulWidget {
   final int tokensPerReal;
@@ -34,7 +35,8 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     final double withdrawValue = user.tokens / widget.tokensPerReal;
 
     try {
-      await FirebaseFirestore.instance.collection('redemptions').add({
+      final dbService = DbService();
+      await dbService.redeemPrize(user.id, user.tokens, {
         'userId': user.id,
         'userName': user.name,
         'userEmail': user.email,
@@ -43,8 +45,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
         'valueInReais': withdrawValue,
         'type': 'pix',
         'status': 'pendente', // pendente, enviado, rejeitado
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, 'Saque PIX');
 
       // Zerar saldo simulado:
       ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: 0);

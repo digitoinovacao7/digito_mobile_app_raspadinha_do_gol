@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
+import '../services/db_service.dart';
 import '../core/theme.dart';
 import 'withdraw_screen.dart';
 import 'profile_edit_screen.dart';
+import 'token_history_screen.dart';
 
 class WalletStoreScreen extends ConsumerStatefulWidget {
   const WalletStoreScreen({Key? key}) : super(key: key);
@@ -80,7 +82,8 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
               Navigator.pop(ctx);
               
               try {
-                await FirebaseFirestore.instance.collection('redemptions').add({
+                final dbService = DbService();
+                await dbService.redeemPrize(user.id, cost, {
                   'userId': user.id,
                   'userName': user.name,
                   'userEmail': user.email,
@@ -91,8 +94,7 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                   'cost': cost,
                   'type': 'physical',
                   'status': 'pendente', // pendente, enviado, rejeitado
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
+                }, prize['name']);
                 
                 // Optimistic update locally
                 ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: user.tokens - cost);
@@ -198,6 +200,20 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> with Sing
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TokenHistoryScreen()));
+                  },
+                  icon: const Icon(Icons.history, size: 16),
+                  label: const Text('Ver Extrato Completo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
                 ),
               ],
             ),
