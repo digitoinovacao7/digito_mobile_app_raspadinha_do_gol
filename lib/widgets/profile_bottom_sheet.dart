@@ -122,19 +122,6 @@ class ProfileBottomSheet extends ConsumerWidget {
               );
             },
           ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined, color: AppTheme.primaryGreen),
-            title: const Text('Configurações', style: TextStyle(fontWeight: FontWeight.bold)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
 
           const SizedBox(height: 8),
           const Divider(),
