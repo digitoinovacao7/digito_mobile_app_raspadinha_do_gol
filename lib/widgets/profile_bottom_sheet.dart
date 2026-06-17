@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_scratchcards_screen.dart';
 import '../screens/profile_edit_screen.dart';
+import '../screens/settings_screen.dart';
 import '../core/theme.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -123,67 +124,15 @@ class ProfileBottomSheet extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Regulamento'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
+            leading: const Icon(Icons.settings_outlined, color: AppTheme.primaryGreen),
+            title: const Text('Configurações', style: TextStyle(fontWeight: FontWeight.bold)),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.pop(context);
-              _launchUrl('/regulamento');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: const Text('Política de Privacidade'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/privacidade');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.gavel_outlined),
-            title: const Text('Termos de Uso'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/termos');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.health_and_safety_outlined),
-            title: const Text('Jogo Responsável'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () {
-              Navigator.pop(context);
-              _launchUrl('/jogo-responsavel');
-            },
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Redes Sociais', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.play_circle_fill_outlined, color: Colors.red),
-            title: const Text('YouTube'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () async {
-              Navigator.pop(context);
-              final url = Uri.parse('https://www.youtube.com/@guiadoplayeroficial');
-              if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.music_note, color: Colors.black),
-            title: const Text('TikTok'),
-            trailing: const Icon(Icons.open_in_new, size: 16),
-            onTap: () async {
-              Navigator.pop(context);
-              final url = Uri.parse('https://www.tiktok.com/@guiadoplayeroficial');
-              if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
             },
           ),
 

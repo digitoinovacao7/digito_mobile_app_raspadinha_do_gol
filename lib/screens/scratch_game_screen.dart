@@ -217,8 +217,16 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
                           ),
                           child: Center(
                             child: hasBall 
-                              ? const Text('⚽', style: TextStyle(fontSize: 48))
-                              : const Text('✖️', style: TextStyle(fontSize: 32, color: Colors.grey)),
+                              ? Container(
+                                  width: 64, height: 64,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(colors: [Colors.yellow.shade200, AppTheme.accentGold]),
+                                    boxShadow: [BoxShadow(color: AppTheme.accentGold.withOpacity(0.6), blurRadius: 10, offset: const Offset(0, 4))],
+                                  ),
+                                  child: const Icon(Icons.sports_soccer, size: 40, color: Colors.black87),
+                                )
+                              : const Icon(Icons.close, size: 48, color: Colors.grey),
                           ),
                         );
                       },
@@ -239,9 +247,12 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
           ConfettiWidget(
             confettiController: _confettiController,
             blastDirection: -pi / 2, // Pra cima
-            emissionFrequency: 0.05,
-            numberOfParticles: 20,
-            gravity: 0.1,
+            emissionFrequency: 0.1,
+            numberOfParticles: 50,
+            maxBlastForce: 100,
+            minBlastForce: 80,
+            gravity: 0.2,
+            colors: const [Colors.green, Colors.yellow, Colors.blue, Colors.white],
           ),
         ],
       ),

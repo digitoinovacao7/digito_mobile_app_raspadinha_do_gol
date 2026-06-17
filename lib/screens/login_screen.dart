@@ -83,33 +83,7 @@ class LoginScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.login),
-                          label: const Text('Entrar com Google'),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 56),
-                            backgroundColor: AppTheme.primaryGreen,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: () async {
-                            final authService = ref.read(authServiceProvider);
-                            final user = await authService.signInWithGoogle();
-                            
-                            if (user != null) {
-                              ref.read(currentUserProvider.notifier).state = user;
-                              ref.invalidate(appUserFutureProvider(user.id));
-                              // O AuthWrapper cuidará da navegação automaticamente
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Falha ao fazer login.')),
-                              );
-                            }
-                          },
-                        ),
+                        const AnimatedGoogleLoginButton(),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -187,3 +161,79 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 }
+
+class AnimatedGoogleLoginButton extends ConsumerStatefulWidget {
+  const AnimatedGoogleLoginButton({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<AnimatedGoogleLoginButton> createState() => _AnimatedGoogleLoginButtonState();
+}
+
+class _AnimatedGoogleLoginButtonState extends ConsumerState<AnimatedGoogleLoginButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.03).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 56),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black87,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+              elevation: 4,
+            ),
+            onPressed: _isLoading ? null : () async {
+              setState(() => _isLoading = true);
+              final authService = ref.read(authServiceProvider);
+              final user = await authService.signInWithGoogle();
+              
+              if (user != null) {
+                ref.read(currentUserProvider.notifier).state = user;
+                ref.invalidate(appUserFutureProvider(user.id));
+              } else {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falha ao fazer login.')));
+                  setState(() => _isLoading = false);
+                }
+              }
+            },
+            child: _isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 24, width: 24, errorBuilder: (_,__,___) => const Icon(Icons.login)),
+                      const SizedBox(width: 12),
+                      const Text('Continuar com Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+

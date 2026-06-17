@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/game_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -142,8 +143,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             tabs: [
-              Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
+              Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
             ],
           ),
@@ -152,8 +153,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
                 children: [
-                  _buildIntegrationsTab(),
                   _buildPrizesTab(),
+                  _buildIntegrationsTab(),
                   _buildRedemptionsTab(),
                 ],
               ),
@@ -184,24 +185,28 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         controller: _apiFootballController,
                         label: 'Chave API-Football',
                         hint: 'Usada para consultar jogos ao vivo',
+                        helpText: 'Chave da API-Football. Necessária para buscar os jogos do dia e detalhes das ligas. Obtenha em dashboard.api-football.com.',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _geminiApiController,
                         label: 'Chave Gemini (Google IA)',
                         hint: 'Usada para gerar os Quizzes do jogo',
+                        helpText: 'Chave da API do Google Gemini. Necessária para a Inteligência Artificial gerar perguntas sobre futebol em tempo real. Obtenha no Google AI Studio.',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _mercadoPagoController,
                         label: 'Chave Mercado Pago',
                         hint: 'Usada para disparar PIX automaticamente (Futuro)',
+                        helpText: 'Chave da API do Mercado Pago. Servirá para realizar o pagamento automático via PIX aos usuários (em breve).',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _zApiController,
                         label: 'Chave Z-API',
                         hint: 'Usada para notificações via WhatsApp',
+                        helpText: 'Chave de instância da Z-API. Necessária para enviar comprovantes e notificações de premiação diretamente no WhatsApp do ganhador.',
                       ),
                     ],
                   ),
@@ -270,6 +275,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                               label: 'Custo da Raspadinha',
                               hint: 'Ex: 1000',
                               keyboardType: TextInputType.number,
+                              helpText: 'Tokens descontados do saldo do usuário para raspar 1 vez.\nSugestão: 1000 (Assim o usuário precisa acertar 4 quizzes para ter o direito de jogar).',
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -279,6 +285,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                               label: 'Prêmio por Acerto',
                               hint: 'Ex: 250',
                               keyboardType: TextInputType.number,
+                              helpText: 'Tokens ganhos DE GRAÇA ao acertar a pergunta da IA durante o jogo ao vivo.\nSugestão: 250 (Gera dopamina de ganho rápido).',
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -288,6 +295,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                               label: 'Tokens para R\$ 1,00',
                               hint: 'Ex: 100',
                               keyboardType: TextInputType.number,
+                              helpText: 'Taxa de câmbio para saque PIX.\nEx: Se estiver "100", então 5000 Tokens = R\$ 50,00.\nSugestão: 100 (Cálculo fácil) ou 1000 (Para inflacionar a moeda e dar prêmios maiores no app).',
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -327,6 +335,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         child: Text(
                           'Cadastre os prêmios (PIX ou Físicos) que podem sair quando o usuário raspar a cartela e tirar 3 figuras iguais.',
                           style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: TextButton.icon(
+                          onPressed: () => launchUrl(Uri.parse('https://dashboard.api-football.com/'), mode: LaunchMode.externalApplication),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Consultar IDs no Dashboard da API-Football'),
+                          style: TextButton.styleFrom(foregroundColor: Colors.blue),
                         ),
                       ),
                       _buildPrizeForm(),
@@ -485,6 +502,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 label: 'Probabilidade (1 a cada X)',
                 hint: 'Ex: 1000',
                 keyboardType: TextInputType.number,
+                helpText: 'Chance do prêmio sair na raspadinha.\nEx: 1000 = Sai em média 1 vez a cada 1000 raspadinhas.\nSugestões:\nPrêmios caros (Camisas/PIX R\$500): 10000\nPrêmios médios (PIX R\$50): 1000\nPrêmios baratos (PIX R\$5): 100',
               ),
             ),
             const SizedBox(width: 16),
@@ -494,6 +512,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 label: 'Custo na Loja (Tokens)',
                 hint: '0 = Só Raspadinha',
                 keyboardType: TextInputType.number,
+                helpText: 'Preço se o usuário quiser COMPRAR este prêmio na loja usando os tokens acumulados (sem contar com a sorte).\nDeixe 0 se o prêmio só puder ser ganho raspando.',
               ),
             ),
             if (_newPrizeType == 'produto') ...[
@@ -701,15 +720,37 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType}) {
-    return TextFormField(
-      controller: controller, keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label, hintText: hint, filled: true, fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
-      ),
+  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType, String? helpText}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+            if (helpText != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.help_outline, color: Colors.blueGrey, size: 18),
+                tooltip: helpText,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {},
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller, keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint, filled: true, fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
+          ),
+        ),
+      ],
     );
   }
 

@@ -119,12 +119,23 @@ export function Layout() {
             </div>
           </div>
 
-          <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+          <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 pb-20 md:pb-8">
             <p>LUVTEK - CNPJ: 43.531.480/0001-20</p>
             <p>© {new Date().getFullYear()} Dígito Inovação - Raspadinha do Gol. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
+
+      {/* Sticky Bottom Bar (Mobile Only) */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-slate-900 border-t border-slate-700 p-4 z-50 flex justify-between items-center shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex flex-col">
+          <span className="text-white font-black text-sm">COPA DO MUNDO 🏆</span>
+          <span className="text-accent text-xs font-bold">Raspadinhas Liberadas</span>
+        </div>
+        <a href="https://app-raspadinhadogol.web.app" className="bg-green-500 text-white px-5 py-2.5 rounded-full font-black uppercase text-xs shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
+          JOGAR AGORA
+        </a>
+      </div>
     </div>
   );
 }

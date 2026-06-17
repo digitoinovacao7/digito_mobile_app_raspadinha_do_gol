@@ -40,6 +40,19 @@ class DbService {
     });
   }
 
+  Future<void> recordQuizSuccess(String uid, int fixtureId, int reward) async {
+    await _db.collection('users').doc(uid).update({
+      'tokens': FieldValue.increment(reward),
+      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
+    });
+  }
+
+  Future<void> toggleWhatsappNotifications(String uid, bool value) async {
+    await _db.collection('users').doc(uid).update({
+      'wants_whatsapp_notifications': value,
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> getUserScratchHistory(String uid) {
     return _db
         .collection('scratch_history')

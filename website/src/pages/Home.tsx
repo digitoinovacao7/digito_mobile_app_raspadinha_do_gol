@@ -49,11 +49,11 @@ export function Home() {
           <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
             Acompanhe jogos ao vivo, responda a quizzes rápidos a cada evento da partida e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto">
-            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30 text-center">
-              Quero Participar
+          <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto mt-4">
+            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-black hover:scale-110 transition-all duration-300 shadow-[0_0_25px_rgba(252,211,77,0.8)] text-center animate-pulse border-2 border-accent">
+              Jogar Agora Grátis
             </a>
-            <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors text-center">
+            <Link to="/regulamento" onClick={() => window.scrollTo(0, 0)} className="bg-white/10 border-2 border-white/50 backdrop-blur-sm text-white text-xl px-8 py-4 rounded-xl font-bold hover:bg-white/20 hover:scale-105 transition-all duration-300 text-center">
               Ver Regulamento
             </Link>
           </div>

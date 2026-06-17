@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../core/theme.dart';
+import 'settings_screen.dart';
 import 'home_screen.dart';
 import 'my_scratchcards_screen.dart';
 import 'admin_screen.dart';
@@ -43,21 +44,19 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           label: 'Admin',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.person),
-        label: 'Perfil',
+        icon: Icon(Icons.settings),
+        label: 'Configurações',
       ),
     ];
 
     void onTabTapped(int index) {
-      final isProfileIndex = index == navItems.length - 1;
+      final isSettingsIndex = index == navItems.length - 1;
       final isAdminIndex = isAdmin && index == 2;
 
-      if (isProfileIndex) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => const ProfileBottomSheet(),
+      if (isSettingsIndex) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
         );
       } else if (isAdminIndex) {
         Navigator.push(
@@ -73,6 +72,23 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: InkWell(
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const ProfileBottomSheet(),
+              );
+            },
+            child: CircleAvatar(
+              backgroundColor: AppTheme.textDark,
+              child: const Icon(Icons.person, color: AppTheme.accentGold, size: 20),
+            ),
+          ),
+        ),
         title: const Text('Raspadinha do Gol'),
         actions: [
           Center(
