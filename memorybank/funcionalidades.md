@@ -26,9 +26,9 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 ## 4. Dinâmica do Quiz e Tokens (Motor Gemini)
 
-- **Geração do Quiz (Inteligência Artificial):** O backend utiliza a API do **Google Gemini** para gerar perguntas de múltipla escolha exclusivas baseadas no contexto da partida em tempo real. O modelo elabora a pergunta, 4 opções e a resposta correta de forma inteligente, armazenando os dados no Firestore.
-- **Quiz ao Vivo e Segurança:** Ao ser notificado do evento na partida, o usuário vê a pergunta e as opções geradas pelo Gemini. Para garantir a segurança e evitar fraudes (ou custos altos de API), a conferência da resposta é feita localmente no backend comparando o índice selecionado com o índice correto previamente salvo no banco de dados. O Gemini não é chamado novamente para validar a resposta do usuário.
-- **Recompensa em Tokens:** Se o usuário responder corretamente (dentro da janela de tempo/tentativas), ele ganha uma quantidade pré-configurada de **Tokens Virtuais**. Um controle interno impede que o mesmo usuário ganhe tokens mais de uma vez para o mesmo quiz.
+- **Geração do Quiz (Inteligência Artificial):** O servidor (via Firebase Cloud Functions) utiliza a API do **Google Gemini** para gerar perguntas de múltipla escolha exclusivas baseadas no contexto da partida em tempo real. O modelo elabora a pergunta, 4 opções e a resposta correta de forma inteligente, armazenando o gabarito de forma segura no Firestore. A Chave da API nunca trafega no aplicativo.
+- **Quiz ao Vivo e Segurança Máxima:** Ao ser notificado do evento na partida, o usuário vê a pergunta e as opções. O aplicativo envia apenas o "palpite" do usuário para o Servidor (Cloud Functions). A conferência da resposta é feita no backend de forma fechada, comparando o palpite com o índice correto secreto. Isso impossibilita hackers de fraudarem acertos ou descobrirem a resposta no código do celular.
+- **Recompensa em Tokens:** Se o usuário responder corretamente e o servidor validar, a própria *Cloud Function* deposita de forma atômica a quantidade configurada de **Tokens Virtuais** na conta do usuário e atualiza o extrato, impossibilitando fraudes de saldo.
 
 ## 5. O Jogo (A Raspadinha)
 
