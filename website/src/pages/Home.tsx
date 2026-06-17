@@ -47,7 +47,7 @@ export function Home() {
             Seu conhecimento de futebol vale <span className="text-accent drop-shadow-md">PIX e Prêmios!</span>
           </h2>
           <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
-            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada evento da partida e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
+            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto mt-4">
             <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-black hover:scale-110 transition-all duration-300 shadow-[0_0_25px_rgba(252,211,77,0.8)] text-center animate-pulse border-2 border-accent">
@@ -76,7 +76,7 @@ export function Home() {
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚡</div>
               <h4 className="text-2xl font-bold mb-3 text-primary">Quizzes Relâmpago</h4>
-              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda perguntas na hora do gol e ganhe Tokens Virtuais imediatamente.</p>
+              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens Virtuais imediatamente.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🎁</div>

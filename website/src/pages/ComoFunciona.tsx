@@ -19,7 +19,7 @@ export function ComoFunciona() {
             <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-8 text-4xl font-black">1</div>
             <h4 className="text-2xl font-bold mb-4">Acompanhe e Responda</h4>
             <p className="text-gray-600 text-lg leading-relaxed">
-              No aplicativo, navegue até a aba "Jogos ao Vivo" e escolha a partida do seu time. Fique de olho: sempre que rolar o intervalo ou o fim do jogo, um <b>Quiz Relâmpago</b> especial vai aparecer na sua tela. Você precisa ser rápido e mostrar que entende de futebol!
+              No aplicativo, navegue até a aba "Jogos ao Vivo" e escolha a partida do seu time. Fique de olho: sempre que rolar um gol, o intervalo ou o fim do jogo, um <b>Quiz Relâmpago</b> especial vai aparecer na sua tela. Você precisa ser rápido e mostrar que entende de futebol!
             </p>
           </div>
 

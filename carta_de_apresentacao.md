@@ -16,7 +16,7 @@ Nós criamos uma experiência Freemium onde **você não aposta o seu dinheiro p
 
 O funcionamento é empolgante e sincronizado com a emoção das partidas em tempo real:
 
-1. **O Gatilho:** O torcedor acompanha as partidas de futebol no nosso app. Quando um evento relevante acontece no mundo real (um gol, um cartão amarelo, o intervalo do jogo), o app reage instantaneamente.
+1. **O Gatilho:** O torcedor acompanha as partidas de futebol no nosso app. Quando um evento relevante acontece no mundo real (um gol, o intervalo ou o fim do jogo), o app reage instantaneamente.
 2. **O Quiz Relâmpago:** Uma pergunta de conhecimentos gerais sobre futebol ou sobre a partida aparece na tela.
 3. **A Recompensa em Tokens:** Os torcedores que respondem corretamente e rapidamente são recompensados com nossa moeda virtual: os Tokens.
 4. **O Grande Prêmio:** Com esses Tokens, o usuário joga a tradicional "Raspadinha do Gol" para concorrer a recompensas físicas (Camisas de Time Oficiais), cupons de desconto ou até transferências via PIX.
