@@ -62,7 +62,6 @@ class TokenHistoryScreen extends ConsumerWidget {
               stream: FirebaseFirestore.instance
                   .collection('token_transactions')
                   .where('uid', isEqualTo: user.id)
-                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -73,7 +72,21 @@ class TokenHistoryScreen extends ConsumerWidget {
                   return Center(child: Text('Erro ao carregar extrato: ${snapshot.error}'));
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                var docs = snapshot.data?.docs ?? [];
+                
+                // Ordenação local para evitar necessidade de índice composto no Firebase
+                docs.sort((a, b) {
+                  final dataA = a.data() as Map<String, dynamic>;
+                  final dataB = b.data() as Map<String, dynamic>;
+                  final timeA = dataA['createdAt'] as Timestamp?;
+                  final timeB = dataB['createdAt'] as Timestamp?;
+                  
+                  if (timeA == null && timeB == null) return 0;
+                  if (timeA == null) return 1;
+                  if (timeB == null) return -1;
+                  
+                  return timeB.compareTo(timeA); // descending
+                });
 
                 if (docs.isEmpty) {
                   return const Center(
