@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/ai_quiz_service.dart';
@@ -242,43 +243,56 @@ class _QuizWidgetState extends ConsumerState<_QuizWidget> {
     setState(() {
       _selectedOption = index;
       _isAnswered = true;
+      _isLoading = true;
     });
 
-    final isCorrect = index == _quizData!['respostaCorreta'];
-    
-    if (isCorrect) {
-      final dbService = DbService();
+    try {
+      final functions = FirebaseFunctions.instance;
+      final result = await functions.httpsCallable('answerQuiz').call({
+        'quizId': _quizData!['quizId'],
+        'answerId': index,
+        'fixtureId': widget.fixtureId,
+        'matchName': '${widget.homeTeam} x ${widget.awayTeam}',
+      });
+
+      final data = result.data;
+      final isCorrect = data['isCorrect'] == true;
+      final earnedTokens = data['earnedTokens'] ?? 0;
+
       final auth = ref.read(authServiceProvider);
       final user = auth.currentUser;
       if (user != null) {
-        final economy = await dbService.getEconomySettings();
-        final reward = economy['quiz_reward'] ?? 250;
-        final matchName = '${widget.homeTeam} x ${widget.awayTeam}';
-        await dbService.recordQuizSuccess(user.uid, widget.fixtureId, reward, matchName);
-        // Atualiza o cache do provider do usuário
         ref.invalidate(appUserFutureProvider(user.uid));
-        
-        if (mounted) {
+      }
+
+      if (mounted) {
+        setState(() {
+          _quizData!['respostaCorreta'] = isCorrect ? index : -1;
+          _isLoading = false;
+        });
+
+        if (isCorrect) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Resposta Exata! Você ganhou $reward Tokens 🪙'),
+            content: Text('Resposta Exata! Você ganhou $earnedTokens Tokens 🪙'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Resposta Incorreta! Tente outro quiz depois.'),
+            backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ));
         }
       }
-    } else {
-      final dbService = DbService();
-      final auth = ref.read(authServiceProvider);
-      final user = auth.currentUser;
-      if (user != null) {
-        final matchName = '${widget.homeTeam} x ${widget.awayTeam}';
-        await dbService.recordQuizFailure(user.uid, widget.fixtureId, matchName);
-        ref.invalidate(appUserFutureProvider(user.uid));
-      }
-      
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Resposta Incorreta! Tente outro quiz depois.'),
+        setState(() {
+          _isLoading = false;
+          _quizData!['respostaCorreta'] = -1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro ao enviar resposta: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ));

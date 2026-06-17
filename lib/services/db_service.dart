@@ -50,20 +50,7 @@ class DbService {
     });
   }
 
-  Future<void> recordQuizSuccess(String uid, int fixtureId, int reward, String matchName) async {
-    await _db.collection('users').doc(uid).update({
-      'tokens': FieldValue.increment(reward),
-      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
-    });
-    await addTokenTransaction(uid, reward, 'quiz_reward', 'Acerto no Quiz: $matchName');
-  }
 
-  Future<void> recordQuizFailure(String uid, int fixtureId, String matchName) async {
-    await _db.collection('users').doc(uid).update({
-      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
-    });
-    await addTokenTransaction(uid, 0, 'quiz_failure', 'Erro no Quiz: $matchName');
-  }
 
   Future<void> toggleWhatsappNotifications(String uid, bool value) async {
     await _db.collection('users').doc(uid).update({

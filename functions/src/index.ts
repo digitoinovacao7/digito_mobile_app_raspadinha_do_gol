@@ -6,8 +6,7 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-// Constantes
-const TOKENS_PER_CORRECT_ANSWER = 100;
+
 const COST_PER_SCRATCH = 50;
 
 /**
@@ -41,15 +40,19 @@ export const answerQuiz = onCall(async (request) => {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
     }
 
-    const { quizId, answerId } = request.data;
-    if (!quizId || answerId === undefined) {
-        throw new HttpsError("invalid-argument", "Faltam parâmetros (quizId, answerId).");
+    const { quizId, answerId, fixtureId, matchName } = request.data;
+    if (!quizId || answerId === undefined || !fixtureId || !matchName) {
+        throw new HttpsError("invalid-argument", "Faltam parâmetros (quizId, answerId, fixtureId, matchName).");
     }
 
     const uid = request.auth.uid;
     const userQuizAttemptRef = db.collection("users").doc(uid).collection("quiz_attempts").doc(quizId);
     
     try {
+        const settingsDoc = await db.collection("system_config").doc("general").get();
+        const economy = settingsDoc.data()?.economy || {};
+        const quizReward = Number(economy.quiz_reward) || 250;
+
         const result = await db.runTransaction(async (t) => {
             const attemptDoc = await t.get(userQuizAttemptRef);
             if (attemptDoc.exists) {
@@ -73,23 +76,49 @@ export const answerQuiz = onCall(async (request) => {
             t.set(userQuizAttemptRef, {
                 answeredAt: admin.firestore.FieldValue.serverTimestamp(),
                 isCorrect: isCorrect,
-                answerId: answerId
+                answerId: answerId,
+                fixtureId: fixtureId,
+                matchName: matchName
             });
 
+            const userRef = db.collection("users").doc(uid);
+
             if (isCorrect) {
-                const userRef = db.collection("users").doc(uid);
                 t.update(userRef, {
-                    tokens: admin.firestore.FieldValue.increment(TOKENS_PER_CORRECT_ANSWER)
+                    tokens: admin.firestore.FieldValue.increment(quizReward),
+                    [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
+                });
+
+                const transactionRef = db.collection("token_transactions").doc();
+                t.set(transactionRef, {
+                    uid: uid,
+                    amount: quizReward,
+                    type: "quiz_reward",
+                    description: `Acerto no Quiz: ${matchName}`,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                t.update(userRef, {
+                    [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
+                });
+                
+                const transactionRef = db.collection("token_transactions").doc();
+                t.set(transactionRef, {
+                    uid: uid,
+                    amount: 0,
+                    type: "quiz_failure",
+                    description: `Erro no Quiz: ${matchName}`,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             }
 
-            return { isCorrect };
+            return { isCorrect, quizReward };
         });
 
         return { 
             success: true, 
             isCorrect: result.isCorrect, 
-            earnedTokens: result.isCorrect ? TOKENS_PER_CORRECT_ANSWER : 0 
+            earnedTokens: result.isCorrect ? result.quizReward : 0 
         };
     } catch (e: any) {
         throw new HttpsError("internal", e.message || "Erro interno ao responder quiz.");
@@ -193,12 +222,6 @@ export const playScratchcard = onCall(async (request) => {
 export const generateQuiz = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
-    }
-    
-    const uid = request.auth.uid;
-    const userDoc = await db.collection("users").doc(uid).get();
-    if (userDoc.data()?.role !== "admin") {
-        throw new HttpsError("permission-denied", "Apenas administradores podem gerar quizzes.");
     }
 
     const { context } = request.data;
