@@ -39,12 +39,10 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 ## 6. Carteira, Loja de Prêmios e Extrato Seguro
 
-
 - **Carteira e Saque PIX:** O usuário acessa sua carteira tocando no saldo de Tokens na barra superior. Na carteira, ele pode ver a conversão direta de seus Tokens para dinheiro real (com base na taxa configurada no Painel Admin) e solicitar um saque via PIX instantâneo informando sua chave.
 - **Loja de Prêmios (Resgate Físico):** Além do saque PIX, a vitrine de prêmios exibe produtos físicos (ex: camisas, chuteiras). Se o usuário acumular Tokens suficientes (definido pelo admin no "Custo na Loja"), ele pode resgatar o prêmio diretamente, sem precisar tentar a sorte na raspadinha.
 - **Cadastro Completo:** Para resgatar prêmios físicos, o aplicativo exige que o usuário complete o seu perfil com CPF e Telefone.
 - **Processamento:** Ao ganhar ou resgatar um prêmio (físico ou PIX), o processo é totalmente automatizado. O usuário recebe o valor ou as instruções de resgate diretamente pelo seu painel no aplicativo, sem a necessidade de qualquer interação com a equipe de suporte ou administradores.
-
 
 ## 7. Plano de Melhorias Futuras (Carteira e Resgate)
 

@@ -136,3 +136,30 @@ export function JogoResponsavel() {
     </div>
   );
 }
+
+export function SobreNos() {
+  return (
+    <div className="w-full max-w-4xl mx-auto px-4 py-12 text-gray-800">
+      <h1 className="text-4xl font-bold text-primary mb-8">Sobre Nós: Raspadinha do Gol</h1>
+      <div className="prose prose-lg max-w-none text-gray-700 space-y-6">
+        <p className="text-xl">É com imenso entusiasmo que apresentamos a <strong>Raspadinha do Gol</strong>, uma plataforma inovadora de gamificação focada em fãs de futebol, que une a emoção das partidas ao vivo, testes de conhecimento e prêmios reais.</p>
+        
+        <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Nosso Propósito</h2>
+        <p>No mercado atual, somos bombardeados por inúmeras casas de aposta (Betting), que exigem risco financeiro dos usuários e têm gerado discussões severas sobre vício e regulação. A <strong>Raspadinha do Gol</strong> nasce como uma alternativa saudável, transparente e 100% focada em <strong>habilidade e engajamento</strong>.</p>
+        <p>Nós criamos uma experiência Freemium onde <strong>você não aposta o seu dinheiro para jogar</strong>. Você joga com o seu conhecimento esportivo e paixão pelo seu time!</p>
+
+        <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Como Revolucionamos a Dinâmica</h2>
+        <p>O funcionamento é empolgante e sincronizado com a emoção das partidas em tempo real:</p>
+        <ol className="list-decimal pl-6 space-y-3">
+          <li><strong>O Gatilho:</strong> O torcedor acompanha as partidas de futebol no nosso app. Quando um evento relevante acontece no mundo real (um gol, um cartão amarelo, o intervalo do jogo), o app reage instantaneamente.</li>
+          <li><strong>O Quiz Relâmpago:</strong> Uma pergunta de conhecimentos gerais sobre futebol ou sobre a partida aparece na tela, gerada por nossa IA.</li>
+          <li><strong>A Recompensa em Tokens:</strong> Os torcedores que respondem corretamente e rapidamente são recompensados com nossa moeda virtual: os Tokens.</li>
+          <li><strong>O Grande Prêmio:</strong> Com esses Tokens, o usuário joga a tradicional "Raspadinha do Gol" para concorrer a recompensas físicas (Camisas de Time Oficiais), cupons de desconto ou até transferências via PIX.</li>
+        </ol>
+
+        <h2 className="text-2xl font-bold text-primary mt-8 mb-4">A Oportunidade</h2>
+        <p>Convidamos você a fazer parte dessa revolução gamificada. A Raspadinha do Gol converte a audiência passiva dos jogos de futebol em participantes ativos e engajados, trazendo retenção e a chance de transformar o Brasil em líder no modelo ético de "Play-to-Earn" de conhecimento.</p>
+      </div>
+    </div>
+  );
+}
