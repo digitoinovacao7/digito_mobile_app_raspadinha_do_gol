@@ -27,8 +27,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _newPrizeImageCtrl = TextEditingController();
   final _newPrizeTokenCostCtrl = TextEditingController();
   final _newPrizeLinkCtrl = TextEditingController();
-  String _newPrizeType = 'produto'; // 'produto' ou 'pix'
-  String _newPrizeScope = 'global'; // 'global', 'league', 'match'
+  String _newPrizeType = 'pix'; // 'produto' ou 'pix'
+  String _newPrizeScope = 'league'; // 'league', 'match'
   int? _selectedLeagueId;
   int? _selectedFixtureId;
   List<dynamic> _fetchedMatches = [];
@@ -273,65 +273,53 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _scratchcardCostController,
-                              label: 'Custo da Raspadinha',
-                              hint: 'Ex: 1000',
-                              keyboardType: TextInputType.number,
-                              helpText: 'Tokens descontados do saldo do usuário para raspar 1 vez.\nSugestão: 1000 (Assim o usuário precisa acertar 4 quizzes para ter o direito de jogar).',
-                            ),
+                      _buildTextField(
+                        controller: _scratchcardCostController,
+                        label: 'Custo da Raspadinha',
+                        hint: 'Ex: 1000',
+                        keyboardType: TextInputType.number,
+                        helpText: 'Tokens descontados do saldo do usuário para raspar 1 vez.\nSugestão: 1000 (Assim o usuário precisa acertar 4 quizzes para ter o direito de jogar).',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _quizRewardController,
+                        label: 'Prêmio por Acerto',
+                        hint: 'Ex: 250',
+                        keyboardType: TextInputType.number,
+                        helpText: 'Tokens ganhos DE GRAÇA ao acertar a pergunta da IA durante o jogo ao vivo.\nSugestão: 250 (Gera dopamina de ganho rápido).',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _tokensToRealRateController,
+                        label: 'Tokens para R\$ 1,00',
+                        hint: 'Ex: 100',
+                        keyboardType: TextInputType.number,
+                        helpText: 'Taxa de câmbio para saque PIX.\nEx: Se estiver "100", então 5000 Tokens = R\$ 50,00.\nSugestão: 100 (Cálculo fácil) ou 1000 (Para inflacionar a moeda e dar prêmios maiores no app).',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _globalWinChanceController,
+                        label: 'Chance de Vitória (%)',
+                        hint: 'Ex: 10',
+                        keyboardType: TextInputType.number,
+                        helpText: 'A probabilidade global (RNG) de qualquer raspadinha ser premiada.\nEx: 10 significa que 10% das jogadas ganharão um dos prêmios ativos.',
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentGold,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _quizRewardController,
-                              label: 'Prêmio por Acerto',
-                              hint: 'Ex: 250',
-                              keyboardType: TextInputType.number,
-                              helpText: 'Tokens ganhos DE GRAÇA ao acertar a pergunta da IA durante o jogo ao vivo.\nSugestão: 250 (Gera dopamina de ganho rápido).',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _tokensToRealRateController,
-                              label: 'Tokens para R\$ 1,00',
-                              hint: 'Ex: 100',
-                              keyboardType: TextInputType.number,
-                              helpText: 'Taxa de câmbio para saque PIX.\nEx: Se estiver "100", então 5000 Tokens = R\$ 50,00.\nSugestão: 100 (Cálculo fácil) ou 1000 (Para inflacionar a moeda e dar prêmios maiores no app).',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _globalWinChanceController,
-                              label: 'Chance de Vitória (%)',
-                              hint: 'Ex: 10',
-                              keyboardType: TextInputType.number,
-                              helpText: 'A probabilidade global (RNG) de qualquer raspadinha ser premiada.\nEx: 10 significa que 10% das jogadas ganharão um dos prêmios ativos.',
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          SizedBox(
-                            height: 56,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.accentGold,
-                                foregroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              icon: _isSaving
-                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                                  : const Icon(Icons.save),
-                              label: Text(_isSaving ? 'Salvando...' : 'Salvar Regras'),
-                              onPressed: _isSaving ? null : _saveSettings,
-                            ),
-                          ),
-                        ],
+                          icon: _isSaving
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                              : const Icon(Icons.save),
+                          label: Text(_isSaving ? 'Salvando...' : 'Salvar Regras', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          onPressed: _isSaving ? null : _saveSettings,
+                        ),
                       ),
                     ],
                   ),
@@ -399,15 +387,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
+          runSpacing: 12,
           children: [
-            ChoiceChip(
-              label: const Text('Global', style: TextStyle(fontWeight: FontWeight.bold)),
-              selected: _newPrizeScope == 'global',
-              onSelected: (v) => setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; }),
-              selectedColor: AppTheme.accentGold,
-              backgroundColor: Colors.grey.shade100,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
+
             ChoiceChip(
               label: const Text('Campeonato', style: TextStyle(fontWeight: FontWeight.bold)),
               selected: _newPrizeScope == 'league',
@@ -430,7 +412,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         if (_newPrizeScope == 'league' || _newPrizeScope == 'match') ...[
           const SizedBox(height: 20),
           _activeLeagues.isEmpty
-              ? const CircularProgressIndicator()
+              ? Row(
+                  children: [
+                    const Expanded(child: Text('Nenhum campeonato ativo no momento.', style: TextStyle(color: Colors.red))),
+                    TextButton(onPressed: _loadSettings, child: const Text('Tentar Novamente')),
+                  ],
+                )
               : DropdownButtonFormField<int>(
                   decoration: InputDecoration(labelText: 'Selecione o Campeonato', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   value: _selectedLeagueId,
@@ -511,29 +498,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           hint: _newPrizeType == 'pix' ? 'Ex: 50,00' : 'O que o usuário vai ganhar?',
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTextField(
-                controller: _newPrizeTokenCostCtrl,
-                label: 'Custo na Loja (Tokens)',
-                hint: 'Ex: 50000. 0 = Só na Sorte',
-                keyboardType: TextInputType.number,
-                helpText: 'Preço se o usuário quiser COMPRAR este prêmio na loja usando os tokens acumulados (sem contar com a sorte).\nDeixe 0 se o prêmio só puder ser ganho raspando.',
-              ),
-            ),
-            if (_newPrizeType == 'produto') ...[
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _newPrizeImageCtrl,
-                  label: 'URL da Imagem (Opcional)',
-                  hint: 'https://site.com/foto.png',
-                ),
-              ),
-            ],
-          ],
+        _buildTextField(
+          controller: _newPrizeTokenCostCtrl,
+          label: 'Custo na Loja (Tokens)',
+          hint: 'Ex: 50000. 0 = Só na Sorte',
+          keyboardType: TextInputType.number,
+          helpText: 'Preço se o usuário quiser COMPRAR este prêmio na loja usando os tokens acumulados (sem contar com a sorte).\nDeixe 0 se o prêmio só puder ser ganho raspando.',
         ),
+        if (_newPrizeType == 'produto') ...[
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _newPrizeImageCtrl,
+            label: 'URL da Imagem (Opcional)',
+            hint: 'https://site.com/foto.png',
+          ),
+        ],
         if (_newPrizeType == 'produto') ...[
           const SizedBox(height: 16),
           _buildTextField(
@@ -620,7 +599,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _newPrizeTokenCostCtrl.clear();
       _newPrizeImageCtrl.clear();
       _newPrizeLinkCtrl.clear();
-      setState(() { _newPrizeScope = 'global'; _selectedLeagueId = null; _selectedFixtureId = null; _fetchedMatches = []; });
+      setState(() { _newPrizeScope = 'league'; _selectedLeagueId = null; _selectedFixtureId = null; _fetchedMatches = []; });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prêmio adicionado com sucesso!'), backgroundColor: Colors.green));
@@ -720,10 +699,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             if (helpText != null) ...[
               const SizedBox(width: 4),
               IconButton(

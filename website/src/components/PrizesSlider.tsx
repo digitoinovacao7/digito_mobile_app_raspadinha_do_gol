@@ -38,13 +38,16 @@ export function PrizesSlider() {
   }, []);
 
   return (
-    <div className="relative w-full overflow-hidden h-[500px] bg-black group">
+    <div className="relative w-full overflow-hidden h-[600px] bg-black group">
       {/* Título fixo sobreposto ao banner */}
-      <div className="absolute top-10 left-0 w-full z-20 text-center pointer-events-none">
+      <div className="absolute top-16 left-0 w-full z-20 text-center pointer-events-none">
         <h3 className="text-3xl md:text-5xl font-black text-white drop-shadow-2xl tracking-wide">
           Prêmios incríveis te esperam
         </h3>
       </div>
+
+      {/* Fade no topo para misturar com o espaçamento preto acima */}
+      <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
 
       {slides.map((slide, index) => (
         <div
