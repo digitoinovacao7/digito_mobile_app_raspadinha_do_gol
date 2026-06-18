@@ -320,3 +320,144 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
         throw new HttpsError("internal", `Erro ao gerar quiz: ${error.message}`);
     }
 });
+
+/**
+ * Solicita o OTP para saque via PIX (Envia WhatsApp via Z-API)
+ */
+export const requestPixOtp = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
+    }
+    const uid = request.auth.uid;
+    const { pixKey, amount, phone } = request.data;
+
+    if (!pixKey || !amount || !phone) {
+        throw new HttpsError("invalid-argument", "Chave PIX, valor e telefone são obrigatórios.");
+    }
+
+    // Gerar OTP de 6 dígitos
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // OTP válido por 10 min
+
+    // Salvar no Firestore
+    await db.collection("users").doc(uid).collection("otp").doc("pix").set({
+        otp: otp,
+        pixKey: pixKey,
+        amount: amount,
+        expiresAt: expiresAt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Enviar WhatsApp via Z-API
+    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+    if (!zApiUrl) {
+        // Fallback: se não tiver Z-API configurada, apenas gera o OTP. 
+        console.warn("Z-API não configurada! O OTP gerado é:", otp);
+        return { success: true, message: "OTP gerado (mock)." };
+    }
+
+    try {
+        const cleanPhone = phone.replace(/\D/g, ""); // Remove não numéricos
+        const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
+        
+        const response = await fetch(targetUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                phone: `55${cleanPhone}`, // Assumindo Brasil (55)
+                message: `⚽ *Raspadinha do Gol* ⚽\n\nSeu código de segurança para confirmar o saque via PIX é: *${otp}*\n\nEste código expira em 10 minutos.`
+            })
+        });
+
+        if (!response.ok) {
+            console.error("Z-API error:", await response.text());
+            throw new Error("Falha ao enviar mensagem pela Z-API.");
+        }
+
+        return { success: true, message: "OTP enviado para o WhatsApp." };
+    } catch (e: any) {
+        console.error(e);
+        throw new HttpsError("internal", "Erro ao tentar enviar WhatsApp: " + e.message);
+    }
+});
+
+/**
+ * Valida o OTP e debita os tokens para o Saque PIX
+ */
+export const validatePixOtpAndWithdraw = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
+    }
+    const uid = request.auth.uid;
+    const { otp } = request.data;
+
+    if (!otp) {
+        throw new HttpsError("invalid-argument", "O código OTP é obrigatório.");
+    }
+
+    const otpRef = db.collection("users").doc(uid).collection("otp").doc("pix");
+    const userRef = db.collection("users").doc(uid);
+    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const tokensPerReal = Number(settingsDoc.data()?.economy?.tokens_per_real) || 100;
+
+    try {
+        const result = await db.runTransaction(async (t) => {
+            const otpDoc = await t.get(otpRef);
+            if (!otpDoc.exists) {
+                throw new HttpsError("not-found", "Nenhuma solicitação de PIX pendente.");
+            }
+
+            const otpData = otpDoc.data()!;
+            const now = new Date();
+            const expiresAt = otpData.expiresAt?.toDate();
+
+            if (!expiresAt || now > expiresAt) {
+                throw new HttpsError("failed-precondition", "O código OTP expirou.");
+            }
+
+            if (otpData.otp !== otp) {
+                throw new HttpsError("invalid-argument", "O código OTP está incorreto.");
+            }
+
+            const userDoc = await t.get(userRef);
+            const userTokens = userDoc.data()?.tokens || 0;
+            const amountTokens = Number(otpData.amount);
+
+            if (userTokens < amountTokens) {
+                throw new HttpsError("failed-precondition", "Saldo insuficiente.");
+            }
+
+            // Tudo válido: Deduzir tokens, apagar OTP e criar registro de resgate
+            t.update(userRef, {
+                tokens: admin.firestore.FieldValue.increment(-amountTokens)
+            });
+
+            t.delete(otpRef);
+
+            const redemptionRef = db.collection("redemptions").doc();
+            const valueInReais = amountTokens / tokensPerReal;
+
+            t.set(redemptionRef, {
+                userId: uid,
+                userName: userDoc.data()?.name || "Usuário",
+                userEmail: userDoc.data()?.email || "",
+                pixKey: otpData.pixKey,
+                tokensCost: amountTokens,
+                valueInReais: valueInReais,
+                type: 'pix',
+                status: 'pendente',
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            return { success: true, valueInReais };
+        });
+
+        return result;
+    } catch (e: any) {
+        throw new HttpsError("internal", e.message || "Erro interno na validação OTP.");
+    }
+});

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/app_user.dart';
 
 class DbService {
@@ -119,6 +120,31 @@ class DbService {
     return {};
   }
 
+  Future<void> requestPixOtp(String pixKey, int amount, String phone) async {
+    final functions = FirebaseFunctions.instance;
+    final callable = functions.httpsCallable('requestPixOtp');
+    final result = await callable.call({
+      'pixKey': pixKey,
+      'amount': amount,
+      'phone': phone,
+    });
+    final data = result.data as Map<String, dynamic>;
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Erro ao solicitar OTP');
+    }
+  }
+
+  Future<void> validatePixOtpAndWithdraw(String otp) async {
+    final functions = FirebaseFunctions.instance;
+    final callable = functions.httpsCallable('validatePixOtpAndWithdraw');
+    final result = await callable.call({
+      'otp': otp,
+    });
+    final data = result.data as Map<String, dynamic>;
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Erro ao validar OTP');
+    }
+  }
 
 }
 
