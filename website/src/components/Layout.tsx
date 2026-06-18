@@ -94,6 +94,7 @@ export function Layout() {
             <div>
               <h3 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Links Úteis</h3>
               <ul className="space-y-4">
+                <li><Link to="/sobre-nos" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Sobre Nós</Link></li>
                 <li><Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Como Funciona</Link></li>
                 <li><Link to="/faq" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Dúvidas Frequentes (FAQ)</Link></li>
                 <li><a href="https://app-raspadinhadogol.web.app" className="text-gray-400 hover:text-accent transition-colors text-sm">Baixar o Aplicativo</a></li>
