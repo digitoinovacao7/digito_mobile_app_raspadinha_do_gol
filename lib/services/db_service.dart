@@ -119,35 +119,6 @@ class DbService {
     return {};
   }
 
-  Future<Map<String, dynamic>> getEconomySettings() async {
-    final docSnap = await _db.collection('system_config').doc('general').get();
-    if (docSnap.exists) {
-      final data = docSnap.data()!;
-      if (data.containsKey('economy')) {
-        return data['economy'] as Map<String, dynamic>;
-      }
-    }
-    return {};
-  }
 
-  Future<void> saveApiKeys(Map<String, String> keys) async {
-    await _db.collection('settings').doc('api_keys').set(keys, SetOptions(merge: true));
-  }
-
-  Future<Map<String, dynamic>> getPrizeRules() async {
-    final docSnap = await _db.collection('settings').doc('prize_rules').get();
-    if (docSnap.exists) {
-      return docSnap.data()!;
-    }
-    return {
-      'prize_value': 0.0,
-      'total_prizes': 0,
-      'batch_size': 0,
-    };
-  }
-
-  Future<void> savePrizeRules(Map<String, dynamic> rules) async {
-    await _db.collection('settings').doc('prize_rules').set(rules, SetOptions(merge: true));
-  }
 }
 

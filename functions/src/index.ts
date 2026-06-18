@@ -7,7 +7,6 @@ admin.initializeApp();
 const db = admin.firestore();
 
 
-const COST_PER_SCRATCH = 50;
 
 /**
  * Registra o usuário no Firestore na primeira vez
@@ -137,6 +136,15 @@ export const playScratchcard = onCall(async (request) => {
     const userRef = db.collection("users").doc(uid);
 
     try {
+        const settingsDoc = await db.collection("system_config").doc("general").get();
+        const settingsData = settingsDoc.data() || {};
+        const economy = settingsData.economy || {};
+        const prizeRules = settingsData.prize_rules || {};
+
+        const costPerScratch = Number(economy.scratchcard_token_cost) || 1000;
+        const globalWinChancePercent = Number(prizeRules.global_win_chance) || 10;
+        const globalWinChance = globalWinChancePercent / 100.0;
+
         const result = await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) {
@@ -144,14 +152,17 @@ export const playScratchcard = onCall(async (request) => {
             }
 
             const currentTokens = userDoc.data()?.tokens || 0;
-            if (currentTokens < COST_PER_SCRATCH) {
+            if (currentTokens < costPerScratch) {
                 throw new HttpsError("failed-precondition", "Tokens insuficientes.");
             }
 
-            // Deduz os tokens
-            transaction.update(userRef, {
-                tokens: admin.firestore.FieldValue.increment(-COST_PER_SCRATCH)
-            });
+            // [CLEAN CODE] Regra do Firestore: TODAS as leituras devem ocorrer antes das escritas.
+            // Movemos a query de prêmios para o topo da transação.
+            const prizesSnapshot = await transaction.get(db.collection("prizes").where("active", "==", true));
+            const activePrizes = prizesSnapshot.docs;
+
+            // Variável para acumular o saldo final da transação em apenas uma operação de escrita
+            let tokenDelta = -costPerScratch; 
 
             // Motor de Probabilidade (RNG) simplificado:
             const rand = Math.random();
@@ -159,23 +170,43 @@ export const playScratchcard = onCall(async (request) => {
             let resultMessage = "Quase! Tente novamente.";
             let prizeType = "none";
             let wonTokens = 0;
+            let prizeLink = null;
+            let prizeName = null;
 
-            if (rand < 0.05) {
+            if (rand < globalWinChance) {
                 winCount = 3;
-                wonTokens = 1000;
-                resultMessage = `GOLAÇO! Você ganhou ${wonTokens} Tokens!`;
-                prizeType = "tokens";
-                transaction.update(userRef, {
-                    tokens: admin.firestore.FieldValue.increment(wonTokens)
-                });
-            } else if (rand < 0.20) {
+                
+                if (activePrizes.length > 0) {
+                    const randomPrizeDoc = activePrizes[Math.floor(Math.random() * activePrizes.length)];
+                    const prizeData = randomPrizeDoc.data();
+                    
+                    prizeType = prizeData.type || "produto";
+                    prizeName = prizeData.name || "Prêmio Surpresa";
+                    prizeLink = prizeData.prize_link || null;
+                    
+                    if (prizeType === "pix") {
+                        resultMessage = `GOLAÇO! Você ganhou um PIX: ${prizeName}!`;
+                    } else if (prizeType === "tokens") {
+                        wonTokens = prizeData.token_amount || 1000;
+                        resultMessage = `GOLAÇO! Você ganhou ${wonTokens} Tokens!`;
+                        tokenDelta += wonTokens; // Acumula na varredura, sem realizar duplo update no BD
+                    } else {
+                        resultMessage = `GOLAÇO! Você ganhou: ${prizeName}!`;
+                    }
+                } else {
+                    // Fallback se não tiver prêmio ativo
+                    wonTokens = 1000;
+                    prizeType = "tokens";
+                    resultMessage = `GOLAÇO! Você ganhou ${wonTokens} Tokens!`;
+                    tokenDelta += wonTokens;
+                }
+            } else if (rand < globalWinChance + 0.15) {
+                // Na trave logic: +15% chance of getting 2 balls
                 winCount = 2;
                 wonTokens = 100;
                 resultMessage = `Na Trave! Você ganhou ${wonTokens} Tokens extras.`;
                 prizeType = "tokens";
-                transaction.update(userRef, {
-                    tokens: admin.firestore.FieldValue.increment(wonTokens)
-                });
+                tokenDelta += wonTokens;
             } else {
                 winCount = Math.floor(Math.random() * 2);
             }
@@ -191,13 +222,18 @@ export const playScratchcard = onCall(async (request) => {
                 }
             }
 
+            // [CLEAN CODE] Executamos apenas UMA escrita no userRef para evitar crash de 'document written twice in transaction'
+            transaction.update(userRef, {
+                tokens: admin.firestore.FieldValue.increment(tokenDelta)
+            });
+
             const historyRef = db.collection("scratch_history").doc();
             transaction.set(historyRef, {
                 uid: uid,
                 date: admin.firestore.FieldValue.serverTimestamp(),
                 winCount: winCount,
                 prizeType: prizeType,
-                cost: COST_PER_SCRATCH
+                cost: costPerScratch
             });
 
             return { 
@@ -206,7 +242,8 @@ export const playScratchcard = onCall(async (request) => {
                 winCount, 
                 message: resultMessage,
                 prizeType,
-                wonTokens
+                wonTokens,
+                prizeLink
             };
         });
 
