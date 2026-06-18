@@ -21,7 +21,7 @@ export function Layout() {
   }, []);
 
   const headerClass = `w-full text-white py-4 transition-all duration-300 fixed top-0 z-50 ${
-    isHome && !isScrolled ? 'bg-transparent' : 'bg-primary shadow-md'
+    isHome && !isScrolled ? 'bg-transparent' : 'bg-primary/90 backdrop-blur-md shadow-md'
   }`;
 
   return (

@@ -58,13 +58,16 @@ export function Home() {
             </Link>
           </div>
         </div>
+
+        {/* Efeito de fade para transição suave com a próxima seção */}
+        <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
       </section>
 
+      {/* Espaçamento escuro de respiro */}
+      <div className="w-full h-24 bg-black"></div>
+
       {/* Seção do Slider de Prêmios */}
-      <section className="py-12 w-full bg-white">
-        <div className="max-w-6xl mx-auto text-center mb-4 px-4">
-          <h3 className="text-3xl md:text-4xl font-bold text-primary">Prêmios incríveis te esperam</h3>
-        </div>
+      <section className="w-full">
         <PrizesSlider />
       </section>
 
