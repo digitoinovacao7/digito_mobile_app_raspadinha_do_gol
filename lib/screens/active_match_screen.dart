@@ -8,6 +8,7 @@ import '../services/db_service.dart';
 import '../core/theme.dart';
 import 'scratch_game_screen.dart';
 import 'checkout_screen.dart';
+import 'arquibancada_screen.dart';
 
 class ActiveMatchScreen extends ConsumerStatefulWidget {
   final int fixtureId;
@@ -64,6 +65,29 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
         title: const Text('Sala da Partida'),
         backgroundColor: AppTheme.primaryGreen,
       ),
+      floatingActionButton: _ArquibancadaFab(
+        onTap: () {
+          final match = matchState.value;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ArquibancadaScreen(
+                fixtureId: widget.fixtureId,
+                homeTeam: match?.homeTeam.isNotEmpty == true
+                    ? match!.homeTeam
+                    : widget.homeTeam,
+                awayTeam: match?.awayTeam.isNotEmpty == true
+                    ? match!.awayTeam
+                    : widget.awayTeam,
+                homeScore: match?.homeScore ?? 0,
+                awayScore: match?.awayScore ?? 0,
+                elapsed: match?.elapsed.toString() ?? '0',
+                status: match?.status ?? 'NS',
+              ),
+            ),
+          );
+        },
+      ),
       body: matchState.when(
         data: (match) {
           if (match.fixtureId == -1) {
@@ -119,6 +143,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 48),
 
                   Padding(
@@ -463,3 +488,89 @@ class _AnimatedQuizButtonState extends State<_AnimatedQuizButton> with SingleTic
     );
   }
 }
+
+// ─── FAB: Arquibancada Digital ────────────────────────────────────────────────
+
+class _ArquibancadaFab extends StatefulWidget {
+  final VoidCallback onTap;
+  const _ArquibancadaFab({required this.onTap});
+
+  @override
+  State<_ArquibancadaFab> createState() => _ArquibancadaFabState();
+}
+
+class _ArquibancadaFabState extends State<_ArquibancadaFab>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _glowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _glowAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _glowAnim,
+      builder: (context, _) {
+        return GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF003300), Color(0xFF006400)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: const Color(0xFF39FF14).withOpacity(_glowAnim.value),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF39FF14)
+                      .withOpacity(_glowAnim.value * 0.5),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🏟️', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                const Text(
+                  'ARQUIBANCADA',
+                  style: TextStyle(
+                    color: Color(0xFF39FF14),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
