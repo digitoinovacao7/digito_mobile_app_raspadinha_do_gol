@@ -461,3 +461,49 @@ export const validatePixOtpAndWithdraw = onCall(async (request) => {
         throw new HttpsError("internal", e.message || "Erro interno na validação OTP.");
     }
 });
+
+/**
+ * Proxy para chamadas do Football-Data.org contornando CORS em ambientes Web
+ */
+export const proxyFootballData = onCall(async (request) => {
+    // Busca a API key do painel (salva no Firestore)
+    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const footballDataKey = settingsDoc.data()?.api_keys?.football_data;
+    
+    if (!footballDataKey) {
+        throw new HttpsError("failed-precondition", "Chave da API Football-Data.org não configurada.");
+    }
+
+    const endpoint = request.data.endpoint; 
+    const queryParams = request.data.queryParams || {};
+
+    if (!endpoint) {
+        throw new HttpsError("invalid-argument", "O endpoint é obrigatório.");
+    }
+
+    // Monta a querystring
+    const queryString = new URLSearchParams(queryParams).toString();
+    const targetUrl = `https://api.football-data.org/v4/${endpoint}${queryString ? `?${queryString}` : ''}`;
+
+    try {
+        const fetchResponse = await fetch(targetUrl, {
+            method: "GET",
+            headers: {
+                "X-Auth-Token": footballDataKey,
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (!fetchResponse.ok) {
+            const errorText = await fetchResponse.text();
+            console.error("Erro na API Football-Data.org:", targetUrl, fetchResponse.status, errorText);
+            throw new Error(`API retornou status ${fetchResponse.status}`);
+        }
+
+        const data = await fetchResponse.text();
+        return { success: true, data: data };
+    } catch (e: any) {
+        console.error("Falha ao consultar API Football-Data.org:", e);
+        throw new HttpsError("internal", `Erro interno no proxy: ${e.message}`);
+    }
+});

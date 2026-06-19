@@ -15,6 +15,8 @@ class AdminScreen extends ConsumerStatefulWidget {
 
 class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _apiFootballController = TextEditingController();
+  final _footballDataController = TextEditingController();
+  String _activeFootballApi = 'api_football';
   final _mercadoPagoController = TextEditingController();
   final _zApiController = TextEditingController();
   final _geminiApiController = TextEditingController();
@@ -55,6 +57,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         if (data.containsKey('api_keys')) {
           final apiKeys = data['api_keys'] as Map<String, dynamic>;
           _apiFootballController.text = apiKeys['api_football']?.toString() ?? '';
+          _footballDataController.text = apiKeys['football_data']?.toString() ?? '';
+          _activeFootballApi = data['active_football_api']?.toString() ?? 'api_football';
           _mercadoPagoController.text = apiKeys['mercado_pago']?.toString() ?? '';
           _zApiController.text = apiKeys['z_api']?.toString() ?? '';
           _geminiApiController.text = apiKeys['gemini']?.toString() ?? '';
@@ -90,6 +94,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   void dispose() {
     _apiFootballController.dispose();
+    _footballDataController.dispose();
     _mercadoPagoController.dispose();
     _zApiController.dispose();
     _geminiApiController.dispose();
@@ -108,8 +113,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     try {
       await FirebaseFirestore.instance.collection('system_config').doc('general').set({
+        'active_football_api': _activeFootballApi,
         'api_keys': {
           'api_football': _apiFootballController.text,
+          'football_data': _footballDataController.text,
           'mercado_pago': _mercadoPagoController.text,
           'z_api': _zApiController.text,
           'gemini': _geminiApiController.text,
@@ -186,15 +193,52 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader(Icons.api, 'Chaves de Integração'),
-                      const SizedBox(height: 24),
-                      _buildTextField(
-                        controller: _apiFootballController,
-                        label: 'Chave API-Football',
-                        hint: 'Usada para consultar jogos ao vivo',
-                        helpText: 'Chave da API-Football. Necessária para buscar os jogos do dia e detalhes das ligas. Obtenha em dashboard.api-football.com.',
-                      ),
+                      _buildSectionHeader(Icons.api, 'Provedor de Futebol ao Vivo'),
                       const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _activeFootballApi,
+                            icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryGreen),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) setState(() => _activeFootballApi = newValue);
+                            },
+                            items: const [
+                              DropdownMenuItem(value: 'api_football', child: Text('API-Football (Recomendado/Produção)')),
+                              DropdownMenuItem(value: 'football_data', child: Text('Football-Data.org (Testes/Gratuito)')),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      _buildSectionHeader(Icons.vpn_key, 'Chaves de Integração'),
+                      const SizedBox(height: 24),
+                      if (_activeFootballApi == 'api_football') ...[
+                        _buildTextField(
+                          controller: _apiFootballController,
+                          label: 'Chave API-Football',
+                          hint: 'Usada caso API-Football esteja ativa',
+                          helpText: 'Obtenha em dashboard.api-football.com.',
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (_activeFootballApi == 'football_data') ...[
+                        _buildTextField(
+                          controller: _footballDataController,
+                          label: 'Chave Football-Data.org',
+                          hint: 'Usada caso Football-Data esteja ativa',
+                          helpText: 'Obtenha em api.football-data.org.',
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildTextField(
                         controller: _geminiApiController,
                         label: 'Chave Gemini (Google IA)',
