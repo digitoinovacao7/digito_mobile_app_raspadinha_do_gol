@@ -91,7 +91,39 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
       body: matchState.when(
         data: (match) {
           if (match.fixtureId == -1) {
-            return const Center(child: Text('Erro ao conectar com a partida.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off_rounded, size: 64, color: Colors.orange.shade300),
+                    const SizedBox(height: 16),
+                    Text(
+                      'API de futebol não configurada',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Configure a chave em system_config/general no Firestore (campo api_keys.api_football ou api_keys.football_data).',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'O botão 🏟️ ARQUIBANCADA abaixo ainda funciona!',
+                      style: TextStyle(color: Colors.green.shade600, fontSize: 13, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return Center(
@@ -213,7 +245,16 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Conectando à partida...', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
         error: (err, stack) => Center(child: Text('Erro: $err')),
       ),
     );

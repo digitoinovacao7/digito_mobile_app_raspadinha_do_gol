@@ -19,13 +19,11 @@ final matchStreamProvider = StreamProvider.family<MatchState, int>((ref, fixture
   final service = ref.watch(footballServiceProvider);
   
   // Inicia o polling com o ID escolhido pelo usuário
-  service.startPollingLiveMatch(fixtureId);
+  await service.startPollingLiveMatch(fixtureId);
 
-  service.matchUpdates.listen((updatedMatch) {
-    ref.read(matchStateProvider.notifier).state = updatedMatch;
-  });
-
+  // Escuta e propaga as atualizações (um único listener evita duplo consumo do broadcast stream)
   await for (final update in service.matchUpdates) {
+    ref.read(matchStateProvider.notifier).state = update;
     yield update;
   }
 });

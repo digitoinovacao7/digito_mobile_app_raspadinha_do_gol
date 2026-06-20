@@ -17,35 +17,61 @@ class FootballService {
   final StreamController<MatchState> _matchStreamController = StreamController<MatchState>.broadcast();
   Stream<MatchState> get matchUpdates => _matchStreamController.stream;
 
+  /// Converte qualquer valor numérico (Int64, num, String) para int Dart.
+  /// Necessário no Flutter Web (dart2js) onde Int64 não é suportado diretamente.
+  static int _toInt(dynamic value, {int fallback = 0}) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    return int.tryParse(value.toString()) ?? fallback;
+  }
+
   Future<void> _initApiKey() async {
     try {
-      final docSnap = await FirebaseFirestore.instance.collection('system_config').doc('general').get();
-      if (docSnap.exists) {
-        final data = docSnap.data()!;
-        _activeApi = data['active_football_api']?.toString() ?? 'api_football';
-        
-        final keys = data['api_keys'] as Map<String, dynamic>? ?? {};
-        if (_activeApi == 'football_data') {
-          _apiKey = keys['football_data'];
-          if (_apiKey != null && _apiKey!.isNotEmpty) {
-            _dio.options.headers = {'X-Auth-Token': _apiKey!};
-          }
+      final docSnap = await FirebaseFirestore.instance
+          .collection('system_config')
+          .doc('general')
+          .get();
+      if (!docSnap.exists) {
+        print('[FootballService] ⚠️ Documento system_config/general NAO EXISTE no Firestore!');
+        return;
+      }
+      final data = docSnap.data()!;
+      _activeApi = data['active_football_api']?.toString() ?? 'api_football';
+      print('[FootballService] 🔧 API ativa: $_activeApi');
+
+      final keys = data['api_keys'] as Map<String, dynamic>? ?? {};
+      print('[FootballService] 🔑 Keys disponíveis: ${keys.keys.toList()}');
+
+      if (_activeApi == 'football_data') {
+        _apiKey = keys['football_data']?.toString();
+        if (_apiKey != null && _apiKey!.isNotEmpty) {
+          _dio.options.headers = {'X-Auth-Token': _apiKey!};
+          print('[FootballService] ✅ football_data key carregada (${_apiKey!.length} chars)');
         } else {
-          _apiKey = keys['api_football'];
-          if (_apiKey != null && _apiKey!.isNotEmpty) {
-            _dio.options.headers = {'x-apisports-key': _apiKey!};
-          }
+          print('[FootballService] ❌ Key football_data ausente ou vazia!');
+        }
+      } else {
+        _apiKey = keys['api_football']?.toString();
+        if (_apiKey != null && _apiKey!.isNotEmpty) {
+          _dio.options.headers = {'x-apisports-key': _apiKey!};
+          print('[FootballService] ✅ api_football key carregada (${_apiKey!.length} chars)');
+        } else {
+          print('[FootballService] ❌ Key api_football ausente ou vazia!');
         }
       }
     } catch (e) {
-      print('Erro ao carregar config da API: $e');
+      print('[FootballService] 💥 Erro ao carregar config da API: $e');
     }
   }
 
   // Busca as ligas que tem jogos hoje
   Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
     await _initApiKey();
-    if (_apiKey == null || _apiKey!.isEmpty) return [];
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      print('[FootballService] ⚠️ getActiveLeaguesForToday: sem API key. Retornando lista vazia.');
+      return [];
+    }
+    print('[FootballService] 🔍 Buscando ligas ativas (api=$_activeApi)...');
 
     if (_activeApi == 'football_data') {
       return _getActiveLeaguesFootballData();
@@ -71,14 +97,14 @@ class FootballService {
           final List<LeagueInfo> leagues = [];
           for (var match in data['response']) {
             final leagueData = match['league'];
-            final leagueId = leagueData['id'];
+            final leagueId = _toInt(leagueData['id']);
             if (!uniqueIds.contains(leagueId)) {
               uniqueIds.add(leagueId);
               leagues.add(LeagueInfo(
                 id: leagueId,
-                name: leagueData['name'],
-                logoUrl: leagueData['logo'],
-                season: leagueData['season'],
+                name: leagueData['name']?.toString() ?? '',
+                logoUrl: leagueData['logo']?.toString(),
+                season: _toInt(leagueData['season'], fallback: DateTime.now().year),
               ));
             }
           }
@@ -104,20 +130,23 @@ class FootballService {
       });
 
       if (response.data['success'] == true) {
-        final data = jsonDecode(response.data['data']);
+        dynamic rawData = response.data['data'];
+        final data = rawData is String ? jsonDecode(rawData) : rawData;
         if (data['matches'] != null) {
           final Set<int> uniqueIds = {};
           final List<LeagueInfo> leagues = [];
           for (var match in data['matches']) {
             final compData = match['competition'];
-            final compId = compData['id'];
+            final compId = _toInt(compData['id']);
             if (!uniqueIds.contains(compId)) {
               uniqueIds.add(compId);
               leagues.add(LeagueInfo(
                 id: compId,
-                name: compData['name'],
-                logoUrl: compData['emblem'],
-                season: int.tryParse(match['season']?['startDate']?.toString().substring(0, 4) ?? '') ?? today.year,
+                name: compData['name']?.toString() ?? '',
+                logoUrl: compData['emblem']?.toString(),
+                season: int.tryParse(
+                  match['season']?['startDate']?.toString().substring(0, 4) ?? ''
+                ) ?? today.year,
               ));
             }
           }
@@ -190,17 +219,52 @@ class FootballService {
       });
 
       if (response.data['success'] == true) {
-        final data = jsonDecode(response.data['data']);
+        dynamic rawData = response.data['data'];
+        final data = rawData is String ? jsonDecode(rawData) : rawData;
         if (data['matches'] != null) {
-          // Adaptador: Mapear o formato do Football-Data para o formato esperado pela tela admin_screen (que espera API-Football nativamente)
+          // Adaptador: mapeia Football-Data → formato API-Football esperado pelo MatchesScreen
           final matches = data['matches'] as List<dynamic>;
           return matches.map((m) {
+            // Converte status do Football-Data para short code do API-Football
+            final rawStatus = m['status'] ?? 'SCHEDULED';
+            String shortStatus;
+            switch (rawStatus) {
+              case 'IN_PLAY':
+                shortStatus = '1H'; // aproximação
+                break;
+              case 'PAUSED':
+                shortStatus = 'HT';
+                break;
+              case 'FINISHED':
+                shortStatus = 'FT';
+                break;
+              case 'POSTPONED':
+                shortStatus = 'PST';
+                break;
+              case 'CANCELLED':
+                shortStatus = 'CANC';
+                break;
+              default:
+                shortStatus = 'NS'; // Not Started
+            }
+
+            final homeScore = _toInt(m['score']?['fullTime']?['home']);
+            final awayScore = _toInt(m['score']?['fullTime']?['away']);
+
             return {
-              'fixture': {'id': m['id']},
+              'fixture': {
+                'id': _toInt(m['id']),
+                'date': m['utcDate']?.toString() ?? DateTime.now().toIso8601String(),
+                'status': {'short': shortStatus, 'elapsed': null},
+              },
               'teams': {
-                'home': {'name': m['homeTeam']['name']},
-                'away': {'name': m['awayTeam']['name']}
-              }
+                'home': {'name': m['homeTeam']?['shortName']?.toString() ?? m['homeTeam']?['name']?.toString() ?? 'Casa'},
+                'away': {'name': m['awayTeam']?['shortName']?.toString() ?? m['awayTeam']?['name']?.toString() ?? 'Visitante'},
+              },
+              'goals': {
+                'home': homeScore,
+                'away': awayScore,
+              },
             };
           }).toList();
         }
@@ -229,6 +293,7 @@ class FootballService {
 
   Future<void> _fetchFixtureStatus(int fixtureId) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
+      print('[FootballService] ⚠️ _fetchFixtureStatus: sem API key. Emitindo estado de erro.');
       _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
       return;
     }
@@ -298,7 +363,8 @@ class FootballService {
       });
 
       if (response.data['success'] == true) {
-        final match = jsonDecode(response.data['data']);
+        dynamic rawData = response.data['data'];
+        final match = rawData is String ? jsonDecode(rawData) : rawData;
         
         final String rawStatus = match['status'] ?? 'SCHEDULED';
         int elapsed = 0; 
@@ -320,11 +386,11 @@ class FootballService {
           status = 'SUSP';
         }
 
-        final int homeScore = match['score']?['fullTime']?['home'] ?? 0;
-        final int awayScore = match['score']?['fullTime']?['away'] ?? 0;
-        
-        final String homeTeam = match['homeTeam']?['name'] ?? 'Home';
-        final String awayTeam = match['awayTeam']?['name'] ?? 'Away';
+        final int homeScore = _toInt(match['score']?['fullTime']?['home']);
+        final int awayScore = _toInt(match['score']?['fullTime']?['away']);
+
+        final String homeTeam = match['homeTeam']?['name']?.toString() ?? 'Home';
+        final String awayTeam = match['awayTeam']?['name']?.toString() ?? 'Away';
 
         MatchEventType triggerEvent = MatchEventType.none;
         if (status == 'HT') triggerEvent = MatchEventType.halftime;

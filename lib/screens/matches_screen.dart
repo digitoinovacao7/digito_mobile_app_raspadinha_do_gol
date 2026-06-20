@@ -74,26 +74,32 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
                   itemCount: _matches.length,
                   itemBuilder: (context, index) {
                     final match = _matches[index];
-                    final fixtureId = match['fixture']['id'];
-                    final statusStr = match['fixture']['status']['short'] ?? 'NS';
-                    final dateStr = match['fixture']['date']; 
-                    final homeTeam = match['teams']['home']['name'];
-                    final awayTeam = match['teams']['away']['name'];
-                    
-                    final goalsHome = match['goals']['home'] ?? 0;
-                    final goalsAway = match['goals']['away'] ?? 0;
-                    
+                    final fixtureId = match['fixture']?['id'];
+                    final statusStr =
+                        (match['fixture']?['status'] as Map?)?['short'] ?? 'NS';
+                    final dateStr = match['fixture']?['date'];
+                    final homeTeam =
+                        (match['teams']?['home'] as Map?)?['name'] ?? 'Casa';
+                    final awayTeam =
+                        (match['teams']?['away'] as Map?)?['name'] ??
+                            'Visitante';
+
+                    final goalsHome = (match['goals'] as Map?)?['home'] ?? 0;
+                    final goalsAway = (match['goals'] as Map?)?['away'] ?? 0;
+
                     DateTime matchDate;
                     try {
-                      matchDate = DateTime.parse(dateStr).toLocal();
+                      matchDate = DateTime.parse(dateStr ?? '').toLocal();
                     } catch (_) {
                       matchDate = DateTime.now();
                     }
-                    
+
                     final timeFormat = DateFormat('HH:mm').format(matchDate);
 
-                    bool isLive = ['1H', '2H', 'HT', 'ET', 'P', 'LIVE'].contains(statusStr);
-                    bool isFinished = ['FT', 'AET', 'PEN'].contains(statusStr);
+                    bool isLive =
+                        ['1H', '2H', 'HT', 'ET', 'P', 'LIVE'].contains(statusStr);
+                    bool isFinished =
+                        ['FT', 'AET', 'PEN'].contains(statusStr);
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
