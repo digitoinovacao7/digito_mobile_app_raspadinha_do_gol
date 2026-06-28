@@ -110,20 +110,6 @@ class ProfileBottomSheet extends ConsumerWidget {
               );
             },
           ),
-          if (user?.isAdmin == true)
-            ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined, color: Colors.red),
-              title: const Text('Painel Admin', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.red),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AdminScreen()),
-                );
-              },
-            ),
-
           const SizedBox(height: 8),
           const Divider(),
           const SizedBox(height: 16),
