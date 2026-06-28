@@ -78,23 +78,6 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
     return Scaffold(
       appBar: showAppBar ? AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: InkWell(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const ProfileBottomSheet(),
-              );
-            },
-            child: CircleAvatar(
-              backgroundColor: AppTheme.textDark,
-              child: const Icon(Icons.person, color: AppTheme.accentGold, size: 20),
-            ),
-          ),
-        ),
         title: const Text('Raspadinha do Gol'),
         actions: [
           if (user != null)
@@ -129,6 +112,18 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                   ),
                 ),
               ),
+            ),
+          if (user != null)
+            IconButton(
+              icon: const Icon(Icons.person, color: AppTheme.textDark),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const ProfileBottomSheet(),
+                );
+              },
             ),
         ],
       ) : null,

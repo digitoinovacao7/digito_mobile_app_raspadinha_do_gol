@@ -36,16 +36,39 @@ class LandingScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.sports_soccer, color: Colors.white, size: 36),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Raspadinha do Gol',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 26,
+                    Row(
+                      children: [
+                        const Icon(Icons.sports_soccer, color: Colors.white, size: 36),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Raspadinha',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGold,
+                        foregroundColor: AppTheme.textDark,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
+                      },
+                      child: const Text(
+                        'Acesse',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -58,56 +81,18 @@ class LandingScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 32),
                       
-                      // CTA Button at the top (replacing headline)
-                      Container(
-                        width: 300,
-                        height: 300,
-                        padding: const EdgeInsets.all(24.0),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 10))
-                          ]
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Pronto para entrar em campo?',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppTheme.textDark,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryGreen,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 56),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 4,
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                );
-                              },
-                              child: const Text(
-                                'Acesse',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                      // A simple catchy headline instead of the white ball
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Text(
+                          'Pronto para entrar em campo?',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 36,
+                            height: 1.1,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),

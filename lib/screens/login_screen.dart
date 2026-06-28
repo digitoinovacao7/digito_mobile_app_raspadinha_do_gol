@@ -203,6 +203,7 @@ class _AnimatedGoogleLoginButtonState extends ConsumerState<AnimatedGoogleLoginB
                   ref.read(currentUserProvider.notifier).state = user;
                   ref.invalidate(appUserFutureProvider(user.id));
                   setState(() => _isLoading = false);
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 }
               } else {
                 if (mounted) {

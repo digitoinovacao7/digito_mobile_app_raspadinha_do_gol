@@ -83,60 +83,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Greeting Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: 1)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Olá, ${user?.name?.split(' ')[0] ?? 'Torcedor'}!',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Pronto para faturar hoje?',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentGold.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.accentGold.withOpacity(0.5)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.monetization_on, color: AppTheme.accentGold, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${user?.tokens ?? 0}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 16),
 
               // Hero CTA Banner
@@ -203,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
                               ),
                               child: const Text('Como jogar?', style: TextStyle(fontWeight: FontWeight.bold)),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -471,85 +417,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             'A API de futebol não encontrou partidas para hoje. Isso pode acontecer fora do período de temporada.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-          ),
-          const SizedBox(height: 40),
-          // Acesso direto à Arquibancada (modo demo)
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1A3A1A), Color(0xFF0D1F0D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF39FF14).withOpacity(0.5),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF39FF14).withOpacity(0.15),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ActiveMatchScreen(
-                        fixtureId: 999999,
-                        homeTeam: 'Brasil',
-                        awayTeam: 'Argentina',
-                      ),
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    children: [
-                      const Text('🏟️', style: TextStyle(fontSize: 40)),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'ARQUIBANCADA DIGITAL',
-                              style: TextStyle(
-                                color: Color(0xFF39FF14),
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Acesse o modo demo: chat ao vivo e raspadinhas simuladas',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Color(0xFF39FF14),
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ),
         ],
       ),
