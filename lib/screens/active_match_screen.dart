@@ -223,12 +223,14 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                   if (match.isScratchUnlocked)
                     ElevatedButton(
                       onPressed: () {
-                        if (freePlays > 0) {
+                        // Sempre navega para o jogo da raspadinha.
+                        // O backend (playScratchcard) vai verificar se ele tem jogadas gratuitas 
+                        // ou se ele tem tokens suficientes para comprar uma nova.
+                        final bool needsTokens = freePlays == 0;
+                        if (!needsTokens) {
                           ref.read(freePlaysProvider.notifier).state = freePlays - 1;
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ScratchGameScreen()));
-                        } else {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
                         }
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ScratchGameScreen(useTokens: needsTokens)));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accentGold,
@@ -236,7 +238,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      child: Text(freePlays > 0 ? 'Jogar Raspadinha' : 'Comprar Mais Raspadinhas'),
+                      child: Text(freePlays > 0 ? 'Jogar Raspadinha (Grátis)' : 'Comprar Raspadinha com Tokens'),
                     )
                   else
                     Column(

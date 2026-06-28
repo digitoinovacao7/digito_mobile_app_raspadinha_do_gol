@@ -75,16 +75,21 @@ export function Home() {
       <section className="py-20 px-4 w-full bg-gray-50">
         <div className="max-w-6xl mx-auto text-center">
           <h3 className="text-3xl md:text-4xl font-bold mb-12 text-primary">Por que a Raspadinha do Gol?</h3>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚡</div>
               <h4 className="text-2xl font-bold mb-3 text-primary">Raspadinhas Relâmpago</h4>
               <p className="text-gray-600 text-lg">A cada gol, intervalo ou fim de jogo, uma Raspadinha especial aparece na sua tela instantaneamente. Não perca a chance!</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🤖</div>
+              <h4 className="text-2xl font-bold mb-3 text-primary">Quiz com Inteligência Artificial</h4>
+              <p className="text-gray-600 text-lg">Teste seus conhecimentos! Responda às perguntas geradas por IA sobre os jogos em andamento e ganhe Tokens ao acertar.</p>
+            </div>
+            <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🎁</div>
-              <h4 className="text-2xl font-bold mb-3 text-primary">Prêmios Incríveis</h4>
-              <p className="text-gray-600 text-lg">Use suas chances na Raspadinha e concorra a camisas oficiais de times, cupons e brindes exclusivos.</p>
+              <h4 className="text-2xl font-bold mb-3 text-primary">Troque por Prêmios</h4>
+              <p className="text-gray-600 text-lg">Use seus Tokens para comprar mais Raspadinhas e concorra a camisas oficiais de times, cupons e brindes exclusivos.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-white text-primary border-4 border-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🔒</div>

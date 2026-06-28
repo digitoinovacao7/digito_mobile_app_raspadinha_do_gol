@@ -8,6 +8,7 @@ import 'wallet_store_screen.dart';
 import 'quiz_standalone_screen.dart';
 import 'my_scratchcards_screen.dart';
 import 'admin_screen.dart';
+import 'token_history_screen.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
@@ -95,6 +96,41 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
         ),
         title: const Text('Raspadinha do Gol'),
+        actions: [
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TokenHistoryScreen()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGold.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.accentGold, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.monetization_on, color: AppTheme.accentGold, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${user.tokens}',
+                        style: const TextStyle(
+                          color: AppTheme.accentGold,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ) : null,
       body: IndexedStack(
         index: _currentIndex >= screens.length ? 0 : _currentIndex,

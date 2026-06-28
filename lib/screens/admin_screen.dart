@@ -22,7 +22,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _geminiApiController = TextEditingController();
   final _scratchcardCostController = TextEditingController();
   final _quizRewardController = TextEditingController();
-  final _tokensToRealRateController = TextEditingController();
   final _globalWinChanceController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
@@ -67,7 +66,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           final economy = data['economy'] as Map<String, dynamic>;
           _scratchcardCostController.text = economy['scratchcard_token_cost']?.toString() ?? '1000';
           _quizRewardController.text = economy['quiz_reward']?.toString() ?? '250';
-          _tokensToRealRateController.text = economy['tokens_per_real']?.toString() ?? '100';
         }
 
         if (data.containsKey('prize_rules')) {
@@ -99,7 +97,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _geminiApiController.dispose();
     _scratchcardCostController.dispose();
     _quizRewardController.dispose();
-    _tokensToRealRateController.dispose();
     _globalWinChanceController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -123,7 +120,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'economy': {
           'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
           'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
-          'tokens_per_real': int.tryParse(_tokensToRealRateController.text) ?? 100,
         },
         'prize_rules': {
           'global_win_chance': int.tryParse(_globalWinChanceController.text) ?? 10,
@@ -327,17 +323,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       _buildTextField(
                         controller: _quizRewardController,
                         label: 'Prêmio por Acerto',
-                        hint: 'Ex: 250',
-                        keyboardType: TextInputType.number,
-                        helpText: 'Tokens ganhos DE GRAÇA ao acertar a pergunta da IA durante o jogo ao vivo.\nSugestão: 250 (Gera dopamina de ganho rápido).',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _tokensToRealRateController,
-                        label: 'Tokens para R\$ 1,00',
                         hint: 'Ex: 100',
                         keyboardType: TextInputType.number,
-                        helpText: 'Taxa de câmbio para saque PIX.\nEx: Se estiver "100", então 5000 Tokens = R\$ 50,00.\nSugestão: 100 (Cálculo fácil) ou 1000 (Para inflacionar a moeda e dar prêmios maiores no app).',
+                        helpText: 'Tokens ganhos DE GRAÇA ao acertar a pergunta da IA durante o jogo ao vivo.\nSugestão: 100 (Gera dopamina de ganho rápido).',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(

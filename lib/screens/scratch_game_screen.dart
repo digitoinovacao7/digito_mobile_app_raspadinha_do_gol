@@ -10,7 +10,8 @@ import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 
 class ScratchGameScreen extends ConsumerStatefulWidget {
-  const ScratchGameScreen({Key? key}) : super(key: key);
+  final bool useTokens;
+  const ScratchGameScreen({Key? key, this.useTokens = false}) : super(key: key);
 
   @override
   ConsumerState<ScratchGameScreen> createState() => _ScratchGameScreenState();
@@ -61,7 +62,9 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   Future<void> _playScratchcard() async {
     try {
       final functions = FirebaseFunctions.instance;
-      final result = await functions.httpsCallable('playScratchcard').call();
+      final result = await functions.httpsCallable('playScratchcard').call({
+        'useTokens': widget.useTokens,
+      });
       
       final data = result.data;
       if (data['success'] == true) {

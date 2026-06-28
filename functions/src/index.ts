@@ -132,6 +132,8 @@ export const playScratchcard = onCall(async (request) => {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
     }
 
+    const { useTokens } = request.data || {};
+
     const uid = request.auth.uid;
     const userRef = db.collection("users").doc(uid);
 
@@ -149,6 +151,13 @@ export const playScratchcard = onCall(async (request) => {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) {
                 throw new HttpsError("not-found", "Usuário não encontrado.");
+            }
+
+            const userData = userDoc.data() || {};
+            const userTokens = userData.tokens || 0;
+
+            if (useTokens && userTokens < costPerScratch) {
+                throw new HttpsError("failed-precondition", "Tokens insuficientes para jogar.");
             }
 
             // [CLEAN CODE] Regra do Firestore: TODAS as leituras devem ocorrer antes das escritas.
@@ -209,6 +218,13 @@ export const playScratchcard = onCall(async (request) => {
                 }
             }
 
+
+            if (useTokens || wonTokens > 0) {
+                const deduction = useTokens ? costPerScratch : 0;
+                transaction.update(userRef, {
+                    tokens: userTokens - deduction + wonTokens
+                });
+            }
 
             const historyRef = db.collection("scratch_history").doc();
             transaction.set(historyRef, {
