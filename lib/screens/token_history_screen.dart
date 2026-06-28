@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../core/theme.dart';
 import 'package:intl/intl.dart';
+import 'scratch_game_screen.dart';
 
 class TokenHistoryScreen extends ConsumerWidget {
   const TokenHistoryScreen({Key? key}) : super(key: key);
@@ -53,6 +54,47 @@ class TokenHistoryScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Quick Play Button with Cost Check
+                FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('settings').doc('general').get(),
+                  builder: (context, snapshot) {
+                    int cost = 1000; // Default
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
+                      if (data != null && data['economy'] != null) {
+                        cost = int.tryParse(data['economy']['scratchcard_token_cost']?.toString() ?? '1000') ?? 1000;
+                      }
+                    }
+
+                    final bool canPlay = user.tokens >= cost;
+
+                    return ElevatedButton.icon(
+                      onPressed: canPlay
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const ScratchGameScreen(useTokens: true)),
+                              );
+                            }
+                          : null,
+                      icon: Icon(Icons.star, color: canPlay ? AppTheme.primaryGreen : Colors.grey),
+                      label: Text(
+                        canPlay ? 'Jogar Raspadinha ($cost)' : 'Faltam Tokens ($cost)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGold,
+                        foregroundColor: AppTheme.primaryGreen,
+                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledForegroundColor: Colors.grey,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
