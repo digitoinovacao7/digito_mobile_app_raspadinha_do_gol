@@ -54,15 +54,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       if (docSnap.exists) {
         final data = docSnap.data() ?? {};
         
-        if (data.containsKey('api_keys')) {
-          final apiKeys = data['api_keys'] as Map<String, dynamic>;
-          _apiFootballController.text = apiKeys['api_football']?.toString() ?? '';
-          _footballDataController.text = apiKeys['football_data']?.toString() ?? '';
-          _activeFootballApi = data['active_football_api']?.toString() ?? 'api_football';
-          _mercadoPagoController.text = apiKeys['mercado_pago']?.toString() ?? '';
-          _zApiController.text = apiKeys['z_api']?.toString() ?? '';
-          _geminiApiController.text = apiKeys['gemini']?.toString() ?? '';
-        }
+        final apiKeys = (data['api_keys'] as Map<String, dynamic>?) ?? {};
+        
+        _apiFootballController.text = apiKeys['api_football']?.toString() ?? data['api_football_key']?.toString() ?? data['api_football']?.toString() ?? '';
+        _footballDataController.text = apiKeys['football_data']?.toString() ?? data['football_data_key']?.toString() ?? data['football_data']?.toString() ?? '';
+        _activeFootballApi = data['active_football_api']?.toString() ?? 'api_football';
+        _mercadoPagoController.text = apiKeys['mercado_pago']?.toString() ?? data['mercado_pago_key']?.toString() ?? data['mercado_pago']?.toString() ?? '';
+        _zApiController.text = apiKeys['z_api']?.toString() ?? data['z_api_key']?.toString() ?? data['z_api']?.toString() ?? '';
+        _geminiApiController.text = apiKeys['gemini']?.toString() ?? data['gemini_api_key']?.toString() ?? data['gemini_key']?.toString() ?? data['gemini']?.toString() ?? '';
 
         if (data.containsKey('economy')) {
           final economy = data['economy'] as Map<String, dynamic>;

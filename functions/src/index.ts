@@ -251,11 +251,11 @@ export const generateQuiz = onCall(async (request) => {
 
     // Busca a API key do painel (salva no Firestore em settings)
     const settingsDoc = await db.collection("settings").doc("general").get();
-    console.log("generateQuiz settings data:", settingsDoc.data());
-    const geminiKey = settingsDoc.data()?.api_keys?.gemini;
-    console.log("gemini key resolved:", geminiKey);
+    const data = settingsDoc.data() || {};
+    const geminiKey = data?.api_keys?.gemini || data?.gemini_api_key || data?.gemini_key || data?.gemini;
+    
     if (!geminiKey) {
-        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no painel admin. Data read: " + JSON.stringify(settingsDoc.data()));
+        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no banco de dados.");
     }
 
     const ai = new GoogleGenAI({ apiKey: geminiKey });
@@ -453,7 +453,8 @@ export const validatePixOtpAndWithdraw = onCall(async (request) => {
 export const proxyFootballData = onCall(async (request) => {
     // Busca a API key do painel (salva no Firestore)
     const settingsDoc = await db.collection("settings").doc("general").get();
-    const footballDataKey = settingsDoc.data()?.api_keys?.football_data;
+    const data = settingsDoc.data() || {};
+    const footballDataKey = data?.api_keys?.football_data || data?.football_data_key || data?.football_data;
     
     if (!footballDataKey) {
         const debugData = JSON.stringify(settingsDoc.data() || {});

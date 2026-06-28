@@ -103,7 +103,11 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
                       children: [
                         const Icon(Icons.error_outline, size: 48, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Erro: $_errorMessage', textAlign: TextAlign.center),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Text('Erro: $_errorMessage', textAlign: TextAlign.center),
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _fetchQuiz,

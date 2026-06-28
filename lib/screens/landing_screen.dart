@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
+import '../providers/game_provider.dart';
 import 'login_screen.dart';
+import 'dart:math';
+
+final publicFeaturedMatchesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final service = ref.watch(footballServiceProvider);
+  return await service.getFeaturedMatchesForToday();
+});
 
 class LandingScreen extends ConsumerWidget {
   const LandingScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final matchesAsync = ref.watch(publicFeaturedMatchesProvider);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -29,13 +38,14 @@ class LandingScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.sports_soccer, color: AppTheme.accentGold, size: 32),
+                    const Icon(Icons.sports_soccer, color: Colors.white, size: 36),
                     const SizedBox(width: 8),
                     Text(
                       'Raspadinha do Gol',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        fontSize: 26,
                       ),
                     ),
                   ],
@@ -44,73 +54,35 @@ class LandingScreen extends ConsumerWidget {
               
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     children: [
-                      const SizedBox(height: 40),
-                      // Hero Image / Icon
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.emoji_events,
-                          size: 100,
-                          color: AppTheme.accentGold,
-                        ),
-                      ),
                       const SizedBox(height: 32),
                       
-                      // Headline
-                      Text(
-                        'Acompanhe o Jogo.\nRaspe e Ganhe!',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Description
-                      Text(
-                        'Fique por dentro das partidas do seu time do coração, responda quizzes sobre futebol e ganhe tokens para concorrer a prêmios incríveis de verdade.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white70,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-
-                      // CTA Card
+                      // CTA Button at the top (replacing headline)
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
+                        width: 300,
+                        height: 300,
+                        padding: const EdgeInsets.all(24.0),
+                        decoration: const BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
+                          shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                            BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 10))
+                          ]
                         ),
                         child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               'Pronto para entrar em campo?',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
                                 color: AppTheme.textDark,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryGreen,
@@ -119,7 +91,7 @@ class LandingScreen extends ConsumerWidget {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                elevation: 0,
+                                elevation: 4,
                               ),
                               onPressed: () {
                                 Navigator.push(
@@ -128,7 +100,7 @@ class LandingScreen extends ConsumerWidget {
                                 );
                               },
                               child: const Text(
-                                'Fazer Login / Cadastrar',
+                                'Acesse',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -138,6 +110,93 @@ class LandingScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 32),
+
+                      // Jogos de Hoje (Public API call)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_fire_department, color: AppTheme.accentGold, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Jogos em Destaque Hoje',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        height: 140,
+                        child: matchesAsync.when(
+                          data: (matches) {
+                            if (matches.isEmpty) {
+                              return const Center(child: Text('Nenhum jogo em destaque no momento.', style: TextStyle(color: Colors.white70)));
+                            }
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: matches.length,
+                              itemBuilder: (context, index) {
+                                final match = matches[index];
+                                final homeTeam = match['teams']['home']['name'] ?? 'Casa';
+                                final awayTeam = match['teams']['away']['name'] ?? 'Fora';
+                                final status = match['fixture']['status']['short'] ?? 'NS';
+                                final homeGoals = match['goals']['home'] ?? 0;
+                                final awayGoals = match['goals']['away'] ?? 0;
+                                final isLive = ['1H', '2H', 'HT', 'ET', 'P'].contains(status);
+
+                                return Container(
+                                  width: 220,
+                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: isLive ? AppTheme.accentGold : Colors.white24, width: isLive ? 2 : 1),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (isLive)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                                          child: const Text('AO VIVO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        ),
+                                      if (isLive) const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(child: Text(homeTeam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                          Text('$homeGoals', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(child: Text(awayTeam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                          Text('$awayGoals', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentGold)),
+                          error: (err, stack) => const Center(child: Text('Erro ao carregar jogos.', style: TextStyle(color: Colors.white70))),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
