@@ -22,6 +22,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _geminiApiController = TextEditingController();
   final _scratchcardCostController = TextEditingController();
   final _quizRewardController = TextEditingController();
+  final _dailyQuizLimitController = TextEditingController();
   final _globalWinChanceController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
@@ -66,6 +67,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           final economy = data['economy'] as Map<String, dynamic>;
           _scratchcardCostController.text = economy['scratchcard_token_cost']?.toString() ?? '1000';
           _quizRewardController.text = economy['quiz_reward']?.toString() ?? '250';
+          _dailyQuizLimitController.text = economy['daily_quiz_limit']?.toString() ?? '3';
         }
 
         if (data.containsKey('prize_rules')) {
@@ -97,6 +99,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _geminiApiController.dispose();
     _scratchcardCostController.dispose();
     _quizRewardController.dispose();
+    _dailyQuizLimitController.dispose();
     _globalWinChanceController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -120,6 +123,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'economy': {
           'scratchcard_token_cost': int.tryParse(_scratchcardCostController.text) ?? 1000,
           'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
+          'daily_quiz_limit': int.tryParse(_dailyQuizLimitController.text) ?? 3,
         },
         'prize_rules': {
           'global_win_chance': int.tryParse(_globalWinChanceController.text) ?? 10,
@@ -334,6 +338,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         hint: 'Ex: 10',
                         keyboardType: TextInputType.number,
                         helpText: 'A probabilidade global (RNG) de qualquer raspadinha ser premiada.\nEx: 10 significa que 10% das jogadas ganharão um dos prêmios ativos.',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _dailyQuizLimitController,
+                        label: 'Limite Diário de Quizzes',
+                        hint: 'Ex: 3',
+                        keyboardType: TextInputType.number,
+                        helpText: 'Quantidade máxima de quizzes que um usuário pode gerar por dia (para controle de custos da API do Gemini).',
                       ),
                       const SizedBox(height: 24),
                       SizedBox(

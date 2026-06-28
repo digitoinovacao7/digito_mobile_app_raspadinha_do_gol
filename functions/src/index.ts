@@ -260,6 +260,8 @@ export const generateQuiz = onCall(async (request) => {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
     }
 
+    const uid = request.auth.uid;
+
     const { context } = request.data;
     if (!context) {
         throw new HttpsError("invalid-argument", "Contexto não fornecido.");
@@ -269,9 +271,22 @@ export const generateQuiz = onCall(async (request) => {
     const settingsDoc = await db.collection("settings").doc("general").get();
     const data = settingsDoc.data() || {};
     const geminiKey = data?.api_keys?.gemini || data?.gemini_api_key || data?.gemini_key || data?.gemini;
+    const dailyQuizLimit = Number(data?.economy?.daily_quiz_limit) || 3;
     
     if (!geminiKey) {
         throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no banco de dados.");
+    }
+
+    // Verifica limite diário do usuário
+    const userRef = db.collection("users").doc(uid);
+    const userDoc = await userRef.get();
+    const userData = userDoc.data() || {};
+    const todayStr = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const lastQuizDate = userData.last_quiz_date;
+    const dailyQuizzesGenerated = userData.daily_quizzes_generated || 0;
+
+    if (lastQuizDate === todayStr && dailyQuizzesGenerated >= dailyQuizLimit) {
+        throw new HttpsError("resource-exhausted", `Você atingiu o limite de ${dailyQuizLimit} quizzes diários. Volte amanhã!`);
     }
 
     const ai = new GoogleGenAI({ apiKey: geminiKey });
@@ -308,6 +323,12 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
             context: context,
             active: true,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Atualiza contagem do usuário
+        await userRef.update({
+            last_quiz_date: todayStr,
+            daily_quizzes_generated: lastQuizDate === todayStr ? dailyQuizzesGenerated + 1 : 1
         });
 
         // Retorna pro cliente o que foi gerado

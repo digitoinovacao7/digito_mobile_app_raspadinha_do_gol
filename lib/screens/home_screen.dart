@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
 import '../providers/game_provider.dart';
@@ -8,6 +10,8 @@ import 'matches_screen.dart';
 import 'active_match_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
+import '../services/db_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -22,10 +26,146 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _featuredPrize;
 
+  NativeAd? _nativeAd;
+  bool _isAdLoaded = false;
+  bool _isNativeAdFailed = false;
+
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoaded = false;
+
+  void _loadAdData() {
+    _loadDashboardData();
+    if (!kIsWeb) {
+      _loadNativeAd();
+      _loadRewardedAd();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    _loadAdData();
+  }
+
+  void _loadNativeAd() {
+    _nativeAd = NativeAd(
+      adUnitId: 'ca-app-pub-9124633416063149/3728390385',
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          debugPrint('Ad loaded.');
+          if (mounted) {
+            setState(() {
+              _nativeAd = ad as NativeAd;
+              _isAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('Ad failed to load: $error');
+          if (mounted) {
+            setState(() {
+              _isNativeAdFailed = true;
+            });
+          }
+          ad.dispose();
+        },
+      ),
+      nativeTemplateStyle: NativeTemplateStyle(
+        templateType: TemplateType.medium,
+        mainBackgroundColor: AppTheme.primaryGreen,
+        cornerRadius: 24.0,
+        callToActionTextStyle: NativeTemplateTextStyle(
+          textColor: AppTheme.textDark,
+          backgroundColor: AppTheme.accentGold,
+          style: NativeTemplateFontStyle.bold,
+          size: 16.0,
+        ),
+        primaryTextStyle: NativeTemplateTextStyle(
+          textColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          style: NativeTemplateFontStyle.bold,
+        ),
+      ),
+    )..load();
+  }
+
+  void _loadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: 'ca-app-pub-9124633416063149/3978038915',
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          debugPrint('Rewarded ad loaded.');
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _loadRewardedAd(); // Load another ad for the next time
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              debugPrint('Failed to show rewarded ad: $error');
+              ad.dispose();
+              _loadRewardedAd(); // Load another ad for the next time
+            },
+          );
+          if (mounted) {
+            setState(() {
+              _rewardedAd = ad;
+              _isRewardedAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('Rewarded ad failed to load: $error');
+          if (mounted) {
+            setState(() {
+              _isRewardedAdLoaded = false;
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  void _showRewardedAd() {
+    if (_rewardedAd == null) return;
+    
+    _rewardedAd!.show(
+      onUserEarnedReward: (AdWithoutView ad, RewardItem reward) async {
+        debugPrint('User earned reward: ${reward.amount} ${reward.type}');
+        final user = ref.read(currentUserProvider);
+        if (user != null) {
+          int amount = reward.amount.toInt();
+          // Fallback if ad is configured as 1 instead of 100/250.
+          if (amount <= 1) amount = 250; 
+          
+          await DbService().addTokens(user.id, amount);
+          await DbService().addTokenTransaction(user.id, amount, 'rewarded_ad', 'Vídeo Premiado');
+          
+          ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: user.tokens + amount);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('🎉 Você ganhou $amount Tokens!'),
+                backgroundColor: AppTheme.primaryGreen,
+              ),
+            );
+          }
+        }
+      },
+    );
+    _rewardedAd = null;
+    _isRewardedAdLoaded = false;
+  }
+
+  @override
+  void dispose() {
+    if (!kIsWeb) {
+      _nativeAd?.dispose();
+      _rewardedAd?.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -85,80 +225,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               const SizedBox(height: 16),
 
-              // Hero CTA Banner
+              // Hero CTA Banner / Native Ad
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppTheme.primaryGreen, Colors.green.shade800],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                child: _isAdLoaded && _nativeAd != null
+                    ? ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: double.infinity,
+                          minHeight: 320,
+                          maxHeight: 350,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: AdWidget(ad: _nativeAd!),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppTheme.primaryGreen, Colors.green.shade800],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
+                          ],
+                        ),
+                        child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: AppTheme.accentGold, borderRadius: BorderRadius.circular(12)),
-                              child: Text(
-                                _featuredPrize != null 
-                                    ? (_featuredPrize!['type'] == 'pix' ? 'SAQUE PIX 💸' : 'PRÊMIO FÍSICO 🎁')
-                                    : 'RASPADINHA GRÁTIS 🎟️',
-                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _featuredPrize != null 
-                                ? 'Raspe e ganhe\n${_featuredPrize!['name']}'
-                                : 'Assista aos jogos e ganhe raspadinhas!',
-                              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Como funciona?'),
-                                    content: const Text(
-                                      'Acompanhe os Jogos ao Vivo pelo aplicativo. Toda vez que rolar um evento importante na partida (como um Gol ou Fim de Jogo), você ganha uma chance GRATUITA de raspar a cartela e concorrer aos prêmios na hora!'
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(color: AppTheme.accentGold, borderRadius: BorderRadius.circular(12)),
+                                    child: Text(
+                                      _featuredPrize != null 
+                                          ? (_featuredPrize!['type'] == 'pix' ? 'SAQUE PIX 💸' : 'PRÊMIO FÍSICO 🎁')
+                                          : 'RASPADINHA GRÁTIS 🎟️',
+                                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10),
                                     ),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))
-                                    ],
-                                  )
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppTheme.primaryGreen,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _featuredPrize != null 
+                                      ? 'Raspe e ganhe\n${_featuredPrize!['name']}'
+                                      : 'Assista aos jogos e ganhe raspadinhas!',
+                                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Como funciona?'),
+                                          content: const Text(
+                                            'Acompanhe os Jogos ao Vivo pelo aplicativo. Toda vez que rolar um evento importante na partida (como um Gol ou Fim de Jogo), você ganha uma chance GRATUITA de raspar a cartela e concorrer aos prêmios na hora!'
+                                          ),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))
+                                          ],
+                                        )
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: AppTheme.primaryGreen,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
+                                    ),
+                                    child: const Text('Como jogar?', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
                               ),
-                              child: const Text('Como jogar?', style: TextStyle(fontWeight: FontWeight.bold)),
                             ),
+                            const SizedBox(width: 16),
+                            Icon(_featuredPrize?['type'] == 'pix' ? Icons.pix : Icons.sports_soccer, size: 70, color: Colors.white.withOpacity(0.9)),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Icon(_featuredPrize?['type'] == 'pix' ? Icons.pix : Icons.sports_soccer, size: 70, color: Colors.white.withOpacity(0.9)),
-                    ],
+              ),
+
+              const SizedBox(height: 16),
+              
+              // Rewarded Ad CTA
+              if (_isRewardedAdLoaded)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: InkWell(
+                    onTap: _showRewardedAd,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentGold,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(color: AppTheme.accentGold.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.play_circle_fill, color: Colors.black, size: 28),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Ganhe Tokens Grátis! 🎬',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
 
               const SizedBox(height: 32),
 

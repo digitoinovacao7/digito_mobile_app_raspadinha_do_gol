@@ -105,7 +105,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
                         const SizedBox(height: 16),
                         Expanded(
                           child: SingleChildScrollView(
-                            child: Text('Erro: $_errorMessage', textAlign: TextAlign.center),
+                            child: Text(_errorMessage!.replaceAll('Exception: ', ''), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
                           ),
                         ),
                         const SizedBox(height: 16),
