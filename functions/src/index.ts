@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import { GoogleGenAI } from "@google/genai";
 
@@ -405,6 +406,62 @@ export const requestPixOtp = onCall(async (request) => {
         console.error(e);
         throw new HttpsError("internal", "Erro ao tentar enviar WhatsApp: " + e.message);
     }
+});
+
+/**
+ * Rotina Diária: Enviar alerta via WhatsApp para usuários inativos com saldo
+ * Roda todo dia às 10:00 da manhã.
+ */
+export const retentionAlertDaily = onSchedule("0 10 * * *", async (event) => {
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+    if (!zApiUrl) {
+        console.warn("Z-API não configurada. Abortando alerta de retenção.");
+        return;
+    }
+    
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Busca usuários que aceitaram alertas no zap e tem tokens guardados
+    const snapshot = await db.collection("users")
+        .where("wants_whatsapp_notifications", "==", true)
+        .where("tokens", ">=", 1000)
+        .get();
+
+    let count = 0;
+    const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
+    
+    for (const doc of snapshot.docs) {
+        const userData = doc.data();
+        if (!userData.phone || userData.phone.trim() === "") continue;
+        
+        // Se o usuário já jogou o quiz hoje, ele já está ativo, então pulamos
+        if (userData.lastQuizDate === today) {
+            continue;
+        }
+
+        const cleanPhone = userData.phone.replace(/\D/g, "");
+        const msg = `Fala campeão! ⚽\n\nVocê tem *${userData.tokens} Tokens* acumulados dando sopa no *Raspadinha do Gol*!\n\nEntre no aplicativo agora, jogue a raspadinha e concorra a Pix e prêmios na hora. A sorte está do seu lado? 🍀`;
+        
+        try {
+            await fetch(targetUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    phone: `55${cleanPhone}`,
+                    message: msg
+                })
+            });
+            count++;
+            
+            // Pausa de 2 segundos entre mensagens para evitar bloqueios de SPAM no Z-API/WhatsApp
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (err) {
+            console.error(`Erro ao enviar Z-API para ${userData.phone}:`, err);
+        }
+    }
+    
+    console.log(`Rotina diária concluída. ${count} alertas de retenção enviados via Z-API.`);
 });
 
 /**
