@@ -108,11 +108,13 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
                             child: Text(_errorMessage!.replaceAll('Exception: ', ''), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchQuiz,
-                          child: const Text('Tentar Novamente'),
-                        )
+                        if (!_errorMessage!.toLowerCase().contains('limite')) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _fetchQuiz,
+                            child: const Text('Tentar Novamente'),
+                          ),
+                        ]
                       ],
                     ),
                   )

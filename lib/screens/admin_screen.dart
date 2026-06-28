@@ -524,7 +524,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     children: [
                       Icon(Icons.card_giftcard, color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey, size: 36),
                       const SizedBox(height: 12),
-                      Text('Produto Físico', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey.shade700)),
+                      Text('Produto / Link', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey.shade700)),
                     ],
                   ),
                 ),
@@ -560,8 +560,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: _newPrizeLinkCtrl,
-            label: 'URL do Prêmio/Cupom (Opcional)',
-            hint: 'Link que o usuário acessa para resgatar o voucher',
+            label: 'URL do Link Afiliado / Cupom (Opcional)',
+            hint: 'Link de indicação (Ex: Shopee, Betano, etc)',
           ),
         ],
         const SizedBox(height: 32),
