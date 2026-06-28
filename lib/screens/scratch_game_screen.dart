@@ -114,7 +114,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx); // Fechar dialog
-              Navigator.pop(context); // Voltar pra home
+              Navigator.pop(context); // Voltar
             },
             child: const Text('Voltar'),
           ),
@@ -180,11 +180,9 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Ache 3 bolas e multiplique seus TOKENS!',
+                'Ache 3 bolas para ganhar prêmios!',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              Text('Custo: $_ticketCost 🟡'),
               const SizedBox(height: 32),
               Scratcher(
                 key: scratchKey,

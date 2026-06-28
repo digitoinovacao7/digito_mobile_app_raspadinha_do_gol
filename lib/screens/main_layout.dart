@@ -8,6 +8,7 @@ import 'home_screen.dart';
 import 'my_scratchcards_screen.dart';
 import 'admin_screen.dart';
 import 'wallet_store_screen.dart';
+import 'quiz_standalone_screen.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
@@ -21,6 +22,8 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    QuizStandaloneScreen(),
+    WalletStoreScreen(),
     MyScratchcardsScreen(),
   ];
 
@@ -32,11 +35,19 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     final List<BottomNavigationBarItem> navItems = [
       const BottomNavigationBarItem(
         icon: Icon(Icons.sports_soccer),
-        label: 'Jogo Ao Vivo',
+        label: 'Jogos Ao Vivo',
       ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.style),
-        label: 'Raspadinhas',
+        icon: Icon(Icons.psychology),
+        label: 'Quiz Extra',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.card_giftcard),
+        label: 'Prêmios',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.history),
+        label: 'Histórico',
       ),
       if (isAdmin)
         const BottomNavigationBarItem(
@@ -51,7 +62,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
     void onTabTapped(int index) {
       final isSettingsIndex = index == navItems.length - 1;
-      final isAdminIndex = isAdmin && index == 2;
+      final isAdminIndex = isAdmin && index == navItems.length - 2;
 
       if (isSettingsIndex) {
         Navigator.push(
@@ -90,31 +101,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
         ),
         title: const Text('Raspadinha do Gol'),
-        actions: [
-          Center(
-            child: InkWell(
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletStoreScreen()));
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet, size: 20, color: AppTheme.accentGold),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${user?.tokens ?? 0}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: IndexedStack(
-        index: _currentIndex > 1 ? 0 : _currentIndex, // Safe fallback
+        index: _currentIndex >= _screens.length ? 0 : _currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(

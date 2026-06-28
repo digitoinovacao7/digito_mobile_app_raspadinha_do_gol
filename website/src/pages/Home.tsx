@@ -44,10 +44,10 @@ export function Home() {
             />
           </div>
           <h2 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
-            Seu conhecimento de futebol vale <span className="text-accent drop-shadow-md">PIX e Prêmios!</span>
+            Seu conhecimento de futebol vale <span className="text-accent drop-shadow-md">Prêmios!</span>
           </h2>
           <p className="text-lg md:text-2xl mb-10 text-gray-100 max-w-2xl">
-            Acompanhe jogos ao vivo, responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens! Troque por raspadinhas e concorra a Pix, camisas oficiais e muito mais!
+            Acompanhe jogos ao vivo e ganhe raspadinhas gratuitas a cada gol, intervalo ou fim do jogo! Raspe na hora e concorra a camisas oficiais e prêmios incríveis.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full md:w-auto mt-4">
             <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark text-xl px-8 py-4 rounded-xl font-black hover:scale-110 transition-all duration-300 shadow-[0_0_25px_rgba(252,211,77,0.8)] text-center animate-pulse border-2 border-accent">
@@ -78,13 +78,13 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">⚡</div>
-              <h4 className="text-2xl font-bold mb-3 text-primary">Quizzes Relâmpago</h4>
-              <p className="text-gray-600 text-lg">Mostre que você entende de futebol! Responda a quizzes rápidos a cada gol, intervalo ou fim do jogo e ganhe Tokens Virtuais imediatamente.</p>
+              <h4 className="text-2xl font-bold mb-3 text-primary">Raspadinhas Relâmpago</h4>
+              <p className="text-gray-600 text-lg">A cada gol, intervalo ou fim de jogo, uma Raspadinha especial aparece na sua tela instantaneamente. Não perca a chance!</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🎁</div>
               <h4 className="text-2xl font-bold mb-3 text-primary">Prêmios Incríveis</h4>
-              <p className="text-gray-600 text-lg">Use seus Tokens na Raspadinha e concorra a Pix na hora, camisas oficiais de times, cupons e brindes exclusivos.</p>
+              <p className="text-gray-600 text-lg">Use suas chances na Raspadinha e concorra a camisas oficiais de times, cupons e brindes exclusivos.</p>
             </div>
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="w-20 h-20 bg-white text-primary border-4 border-primary rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">🔒</div>
@@ -99,7 +99,7 @@ export function Home() {
       <section className="py-16 px-4 w-full bg-primary text-white text-center">
         <div className="max-w-4xl mx-auto">
           <h3 className="text-3xl md:text-4xl font-bold mb-6">Ainda com dúvidas de como jogar?</h3>
-          <p className="text-xl mb-8 text-gray-200">Preparamos um guia passo a passo de como ganhar tokens e resgatar prêmios incríveis!</p>
+          <p className="text-xl mb-8 text-gray-200">Preparamos um guia passo a passo de como ganhar brindes e resgatar prêmios incríveis!</p>
           <Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="inline-block bg-white text-primary text-xl px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg">
             Ver o Passo a Passo Completo
           </Link>
@@ -114,19 +114,19 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
-              <p className="text-gray-200 italic mb-6">"Fui assistir ao jogo do Flamengo, respondi certinho quem fez o gol e ganhei Tokens. Fui na raspadinha e ganhei a camisa oficial! Sensacional!"</p>
+              <p className="text-gray-200 italic mb-6">"Fui assistir ao jogo do Flamengo pelo app, na hora do gol ganhei uma chance na raspadinha. Fui lá e ganhei a camisa oficial! Sensacional!"</p>
               <div className="font-bold text-lg">- Marcos T. <span className="text-sm font-normal text-gray-300 ml-2">Rio de Janeiro</span></div>
             </div>
 
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
-              <p className="text-gray-200 italic mb-6">"Muito mais divertido do que aposta. A gente vibra com o jogo e ainda testa nossos conhecimentos no quiz. Acumulei tokens e fiz um Pix de R$ 50."</p>
+              <p className="text-gray-200 italic mb-6">"Muito mais divertido do que aposta. A gente vibra com o jogo e ainda tem a surpresa da raspadinha na hora do gol. E as camisas são originais mesmo!"</p>
               <div className="font-bold text-lg">- Juliana S. <span className="text-sm font-normal text-gray-300 ml-2">São Paulo</span></div>
             </div>
 
             <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-sm border border-white/20">
               <div className="flex text-accent mb-4">★★★★★</div>
-              <p className="text-gray-200 italic mb-6">"Duvidei que o PIX caía na hora, mas é verdade. Ganhei num domingo à tarde e 2 minutos depois o dinheiro tava na conta. Recomendo."</p>
+              <p className="text-gray-200 italic mb-6">"Duvidei que o prêmio chegava, mas é verdade. Ganhei num domingo à tarde e logo depois a equipe entrou em contato para o envio. Recomendo."</p>
               <div className="font-bold text-lg">- Carlos E. <span className="text-sm font-normal text-gray-300 ml-2">Minas Gerais</span></div>
             </div>
           </div>

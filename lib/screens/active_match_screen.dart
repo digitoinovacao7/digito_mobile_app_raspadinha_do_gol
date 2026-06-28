@@ -27,14 +27,23 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
-  Future<void> _openQuizModal() async {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) {
-        return _QuizWidget(homeTeam: widget.homeTeam, awayTeam: widget.awayTeam, fixtureId: widget.fixtureId);
+  Future<void> _openScratchGame() async {
+    // Registra otimisticamente a jogada localmente e no banco (usando o count de quizzes como "raspadas")
+    final auth = ref.read(authServiceProvider);
+    final user = auth.currentUser;
+    if (user != null) {
+      try {
+        final dbService = DbService();
+        await dbService.incrementQuizCount(user.uid, widget.fixtureId.toString());
+        ref.invalidate(appUserFutureProvider(user.uid));
+      } catch (e) {
+        // ignora
       }
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ScratchGameScreen()),
     );
   }
 
@@ -56,9 +65,9 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     if (elapsed >= 45 || ['HT', '2H', 'FT', 'AET', 'PEN'].contains(status)) totalEventos += 1;
     if (elapsed >= 90 || ['FT', 'AET', 'PEN'].contains(status)) totalEventos += 1;
 
-    final int quizzesRespondidos = appUserAsync?.value?.answeredQuizzesCount[widget.fixtureId.toString()] ?? 0;
-    final int quizzesDisponiveis = totalEventos - quizzesRespondidos;
-    final bool temQuizDisponivel = quizzesDisponiveis > 0;
+    final int raspadinhasConsumidas = appUserAsync?.value?.answeredQuizzesCount[widget.fixtureId.toString()] ?? 0;
+    final int raspadinhasDisponiveis = totalEventos - raspadinhasConsumidas;
+    final bool temRaspadinhaDisponivel = raspadinhasDisponiveis > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -182,10 +191,10 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                     padding: const EdgeInsets.only(bottom: 32.0),
                     child: Column(
                       children: [
-                        if (temQuizDisponivel)
-                          _AnimatedQuizButton(
-                            onPressed: _openQuizModal,
-                            badgeCount: quizzesDisponiveis,
+                        if (temRaspadinhaDisponivel)
+                          _AnimatedScratchButton(
+                            onPressed: _openScratchGame,
+                            badgeCount: raspadinhasDisponiveis,
                           )
                         else
                           Container(
@@ -202,8 +211,8 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                           ),
                         const SizedBox(height: 12),
                         Text(
-                          temQuizDisponivel 
-                            ? 'Você tem $quizzesDisponiveis chance(s) pendente(s)!' 
+                          temRaspadinhaDisponivel 
+                            ? 'Você tem $raspadinhasDisponiveis chance(s) pendente(s)!' 
                             : 'Aguarde o próximo gol, intervalo ou fim de jogo para ganhar mais chances.',
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                         ),
@@ -260,215 +269,16 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     );
   }
 }
-
-class _QuizWidget extends ConsumerStatefulWidget {
-  final String homeTeam;
-  final String awayTeam;
-  final int fixtureId;
-  const _QuizWidget({required this.homeTeam, required this.awayTeam, required this.fixtureId});
-
-  @override
-  ConsumerState<_QuizWidget> createState() => _QuizWidgetState();
-}
-
-class _QuizWidgetState extends ConsumerState<_QuizWidget> {
-  bool _isLoading = true;
-  Map<String, dynamic>? _quizData;
-  String? _errorMessage;
-  int? _selectedOption;
-  bool _isAnswered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchQuiz();
-  }
-
-  Future<void> _fetchQuiz() async {
-    try {
-      final aiService = ref.read(aiQuizServiceProvider);
-      final quiz = await aiService.generateQuiz(widget.homeTeam, widget.awayTeam);
-      if (mounted) {
-        setState(() {
-          _quizData = quiz;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _submitAnswer(int index) async {
-    if (_isAnswered) return;
-    setState(() {
-      _selectedOption = index;
-      _isAnswered = true;
-      _isLoading = true;
-    });
-
-    try {
-      final functions = FirebaseFunctions.instance;
-      final result = await functions.httpsCallable('answerQuiz').call({
-        'quizId': _quizData!['quizId'],
-        'answerId': index,
-        'fixtureId': widget.fixtureId,
-        'matchName': '${widget.homeTeam} x ${widget.awayTeam}',
-      });
-
-      final data = result.data;
-      final isCorrect = data['isCorrect'] == true;
-      final earnedTokens = data['earnedTokens'] ?? 0;
-
-      final auth = ref.read(authServiceProvider);
-      final user = auth.currentUser;
-      if (user != null) {
-        ref.invalidate(appUserFutureProvider(user.uid));
-      }
-
-      if (mounted) {
-        setState(() {
-          _quizData!['respostaCorreta'] = isCorrect ? index : -1;
-          _isLoading = false;
-        });
-
-        if (isCorrect) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Resposta Exata! Você ganhou $earnedTokens Tokens 🪙'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Resposta Incorreta! Tente outro quiz depois.'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ));
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _quizData!['respostaCorreta'] = -1;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao enviar resposta: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ));
-      }
-    }
-
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      height: MediaQuery.of(context).size.height * 0.75,
-      child: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppTheme.primaryGreen),
-                  SizedBox(height: 24),
-                  Text('A Inteligência Artificial está formulando uma pergunta curiosa...', textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
-                ],
-              ),
-            )
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Erro: $_errorMessage', textAlign: TextAlign.center),
-                    ],
-                  ),
-                )
-              : _quizData == null
-                  ? const Center(child: Text('Não foi possível gerar a pergunta.'))
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text('Ganhe Tokens Respondendo:', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Text(
-                          _quizData!['pergunta'] ?? 'Pergunta Indisponível',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                        ),
-                        const SizedBox(height: 32),
-                        if (_quizData!['opcoes'] != null)
-                          ...List.generate(
-                            (_quizData!['opcoes'] as List).length,
-                            (index) {
-                              final text = _quizData!['opcoes'][index];
-                              final isCorrect = index == _quizData!['respostaCorreta'];
-                              
-                              Color btnColor = Colors.grey.shade50;
-                              Color textColor = Colors.black87;
-                              Color borderColor = Colors.grey.shade300;
-                              
-                              if (_isAnswered) {
-                                if (isCorrect) {
-                                  btnColor = Colors.green.shade100;
-                                  textColor = Colors.green.shade900;
-                                  borderColor = Colors.green;
-                                } else if (index == _selectedOption) {
-                                  btnColor = Colors.red.shade100;
-                                  textColor = Colors.red.shade900;
-                                  borderColor = Colors.red;
-                                }
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12.0),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: btnColor,
-                                    foregroundColor: textColor,
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(color: borderColor, width: 1.5),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  onPressed: _isAnswered ? null : () => _submitAnswer(index),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(text, style: const TextStyle(fontSize: 16)),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-    );
-  }
-}
-
-class _AnimatedQuizButton extends StatefulWidget {
+class _AnimatedScratchButton extends StatefulWidget {
   final VoidCallback onPressed;
   final int badgeCount;
-  const _AnimatedQuizButton({required this.onPressed, this.badgeCount = 1});
+  const _AnimatedScratchButton({required this.onPressed, this.badgeCount = 1});
 
   @override
-  State<_AnimatedQuizButton> createState() => _AnimatedQuizButtonState();
+  State<_AnimatedScratchButton> createState() => _AnimatedScratchButtonState();
 }
 
-class _AnimatedQuizButtonState extends State<_AnimatedQuizButton> with SingleTickerProviderStateMixin {
+class _AnimatedScratchButtonState extends State<_AnimatedScratchButton> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
@@ -501,8 +311,8 @@ class _AnimatedQuizButtonState extends State<_AnimatedQuizButton> with SingleTic
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.psychology, size: 28),
-                  label: const Text('NOVO QUIZ DISPONÍVEL! (Ganhar Tokens)'),
+                  icon: const Icon(Icons.style, size: 28),
+                  label: const Text('NOVA RASPADINHA DISPONÍVEL!'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.textDark,
                     foregroundColor: AppTheme.accentGold,

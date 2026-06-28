@@ -10,7 +10,7 @@ export function Regulamento() {
           <li>A participação é estritamente restrita a pessoas físicas maiores de 18 (dezoito) anos no momento do cadastro.</li>
           <li>É obrigatório possuir um CPF válido e regular junto à Receita Federal do Brasil.</li>
           <li>Cada usuário poderá manter apenas uma conta ativa na plataforma. Contas duplicadas serão bloqueadas e os prêmios retidos.</li>
-          <li>A conta deve estar obrigatoriamente vinculada a uma chave PIX correspondente ao CPF do titular para recebimento de prêmios.</li>
+          <li>A conta deve estar devidamente preenchida com os dados corretos (Telefone e Endereço) para o recebimento de prêmios físicos.</li>
         </ul>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">2. Mecânica do Jogo e Gatilhos de Liberação</h2>
@@ -24,7 +24,7 @@ export function Regulamento() {
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">3. Premiação e Pagamentos</h2>
         <ul className="list-disc pl-6 space-y-2">
           <li>Todos os prêmios anunciados são valores brutos e serão creditados diretamente na carteira digital do usuário na plataforma.</li>
-          <li>O saque é realizado exclusivamente via <strong>PIX</strong>, processado em até 10 minutos após a solicitação, desde que a chave cadastrada seja o CPF do titular da conta.</li>
+          <li>A entrega de prêmios físicos é realizada após verificação dos dados, podendo levar alguns dias úteis dependendo da sua localidade.</li>
           <li>Não serão realizados pagamentos para contas de terceiros (CPFs divergentes).</li>
         </ul>
 
@@ -46,14 +46,14 @@ export function Privacidade() {
         <p>Coletamos dados estritamente necessários para o funcionamento seguro da plataforma:</p>
         <ul className="list-disc pl-6 space-y-2">
           <li><strong>Dados Cadastrais:</strong> Nome completo, CPF, E-mail, Data de Nascimento e número de telefone.</li>
-          <li><strong>Dados Financeiros:</strong> Chave PIX (limitada ao CPF cadastrado) e histórico de transações.</li>
+          <li><strong>Dados Básicos:</strong> Telefone e endereço para recebimento de prêmios.</li>
           <li><strong>Dados de Navegação:</strong> Endereço IP, tipo de dispositivo, navegador e logs de acesso por motivos de segurança e prevenção a fraudes.</li>
         </ul>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">2. Uso das Informações</h2>
         <p>Seus dados são utilizados exclusivamente para:</p>
         <ul className="list-disc pl-6 space-y-2">
-          <li>Processamento de depósitos, saques e pagamentos de prêmios.</li>
+          <li>Processamento e envio de prêmios.</li>
           <li>Verificação de idade (maioridade) e autenticação de identidade.</li>
           <li>Melhoria contínua da sua experiência no aplicativo.</li>
           <li>Envio de comunicações importantes sobre segurança, atualizações e promoções (com opção de <em>opt-out</em>).</li>
@@ -62,7 +62,7 @@ export function Privacidade() {
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">3. Compartilhamento de Dados</h2>
         <p>A Raspadinha do Gol <strong>não vende ou aluga</strong> seus dados pessoais. Compartilhamos informações apenas com:</p>
         <ul className="list-disc pl-6 space-y-2">
-          <li>Provedores de pagamento parceiros autorizados pelo Banco Central para o processamento do PIX.</li>
+          <li>Parceiros logísticos responsáveis pelo envio dos prêmios físicos.</li>
           <li>Autoridades legais, quando exigido por lei ou ordem judicial.</li>
         </ul>
 
@@ -105,7 +105,7 @@ export function JogoResponsavel() {
     <div className="w-full max-w-4xl mx-auto px-4 py-12 text-gray-800">
       <h1 className="text-4xl font-bold text-primary mb-8">Política de Jogo Responsável</h1>
       <div className="prose prose-lg max-w-none text-gray-700 space-y-6">
-        <p>A diversão deve ser o único objetivo ao acessar a <strong>Raspadinha do Gol</strong>. Apostar ou jogar com dinheiro real não deve ser encarado como uma forma de gerar renda ou pagar dívidas.</p>
+        <p>A diversão deve ser o único objetivo ao acessar a <strong>Raspadinha do Gol</strong>. Jogar não deve ser encarado como uma forma de gerar renda ou lucro.</p>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Aviso de Risco (+18)</h2>
         <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
@@ -125,7 +125,7 @@ export function JogoResponsavel() {
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Dicas para um Jogo Seguro</h2>
         <ul className="list-disc pl-6 space-y-2">
           <li>Jogue apenas o que você pode perder sem afetar seu padrão de vida.</li>
-          <li>Estabeleça um limite de tempo e de dinheiro antes de começar.</li>
+          <li>Estabeleça um limite de tempo antes de começar a jogar.</li>
           <li>Nunca tente "recuperar" perdas com novas compras.</li>
           <li>Se o jogo deixar de ser divertido ou gerar ansiedade, pare imediatamente.</li>
         </ul>
@@ -146,15 +146,15 @@ export function SobreNos() {
         
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Nosso Propósito</h2>
         <p>No mercado atual, somos bombardeados por inúmeras casas de aposta (Betting), que exigem risco financeiro dos usuários e têm gerado discussões severas sobre vício e regulação. A <strong>Raspadinha do Gol</strong> nasce como uma alternativa saudável, transparente e 100% focada em <strong>habilidade e engajamento</strong>.</p>
-        <p>Nós criamos uma experiência Freemium onde <strong>você não aposta o seu dinheiro para jogar</strong>. Você joga com o seu conhecimento esportivo e paixão pelo seu time!</p>
+        <p>Nós criamos uma experiência 100% gratuita onde <strong>você não precisa pagar para jogar</strong>. Você joga com o seu conhecimento esportivo e paixão pelo seu time!</p>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">Como Revolucionamos a Dinâmica</h2>
         <p>O funcionamento é empolgante e sincronizado com a emoção das partidas em tempo real:</p>
         <ol className="list-decimal pl-6 space-y-3">
           <li><strong>O Gatilho:</strong> O torcedor acompanha as partidas de futebol no nosso app. Quando um evento relevante acontece no mundo real (um gol, um cartão amarelo, o intervalo do jogo), o app reage instantaneamente.</li>
           <li><strong>O Quiz Relâmpago:</strong> Uma pergunta de conhecimentos gerais sobre futebol ou sobre a partida aparece na tela, gerada por nossa IA.</li>
-          <li><strong>A Recompensa em Tokens:</strong> Os torcedores que respondem corretamente e rapidamente são recompensados com nossa moeda virtual: os Tokens.</li>
-          <li><strong>O Grande Prêmio:</strong> Com esses Tokens, o usuário joga a tradicional "Raspadinha do Gol" para concorrer a recompensas físicas (Camisas de Time Oficiais), cupons de desconto ou até transferências via PIX.</li>
+          <li><strong>A Recompensa:</strong> Os torcedores que respondem corretamente e rapidamente ganham novas chances de jogar.</li>
+          <li><strong>O Grande Prêmio:</strong> Com essas chances, o usuário joga a tradicional "Raspadinha do Gol" para concorrer a recompensas físicas (Camisas de Time Oficiais) ou cupons de desconto.</li>
         </ol>
 
         <h2 className="text-2xl font-bold text-primary mt-8 mb-4">A Oportunidade</h2>

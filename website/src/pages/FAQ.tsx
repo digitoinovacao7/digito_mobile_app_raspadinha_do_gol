@@ -7,12 +7,12 @@ export function FAQ() {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <h4 className="text-xl font-bold text-primary mb-2">Como eu participo do Quiz?</h4>
-            <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Sempre que rolar um gol, o intervalo ou o fim do jogo, o quiz aparece e você ganha Tokens se acertar.</p>
+            <p className="text-gray-600">Fique de olho no app durante as partidas ao vivo. Sempre que rolar um gol, o intervalo ou o fim do jogo, o quiz aparece e você ganha prêmios se acertar.</p>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <h4 className="text-xl font-bold text-primary mb-2">Como eu recebo meu prêmio?</h4>
-            <p className="text-gray-600">Todos os prêmios são pagos via PIX. Para isso, sua chave PIX deve ser o mesmo CPF cadastrado na sua conta Raspadinha do Gol.</p>
+            <p className="text-gray-600">Para resgatar os prêmios físicos, sua conta deve estar devidamente cadastrada com um endereço válido e telefone de contato na Raspadinha do Gol.</p>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -22,12 +22,12 @@ export function FAQ() {
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <h4 className="text-xl font-bold text-primary mb-2">A Raspadinha do Gol é uma casa de apostas?</h4>
-            <p className="text-gray-600">Não! Nós não somos uma casa de apostas. Somos uma plataforma gratuita de quizzes de futebol e jogos de habilidade onde você ganha tokens pelo seu conhecimento.</p>
+            <p className="text-gray-600">Não! Nós não somos uma casa de apostas. Somos uma plataforma gratuita de quizzes de futebol e jogos de habilidade onde você ganha brindes pelo seu conhecimento.</p>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <h4 className="text-xl font-bold text-primary mb-2">É de graça?</h4>
-            <p className="text-gray-600">Sim! A participação nos quizzes é totalmente gratuita. Você ganha tokens pelo seu conhecimento do jogo e usa esses tokens na raspadinha para concorrer aos prêmios reais.</p>
+            <p className="text-gray-600">Sim! A participação nos quizzes é totalmente gratuita. Você usa o seu conhecimento na raspadinha para concorrer a prêmios reais.</p>
           </div>
         </div>
       </div>
