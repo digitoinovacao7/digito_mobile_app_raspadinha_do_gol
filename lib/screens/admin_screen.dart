@@ -49,7 +49,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _loadSettings() async {
     try {
-      final docSnap = await FirebaseFirestore.instance.collection('system_config').doc('general').get();
+      final docSnap = await FirebaseFirestore.instance.collection('settings').doc('general').get();
 
       if (docSnap.exists) {
         final data = docSnap.data() ?? {};
@@ -112,7 +112,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await FirebaseFirestore.instance.collection('system_config').doc('general').set({
+      await FirebaseFirestore.instance.collection('settings').doc('general').set({
         'active_football_api': _activeFootballApi,
         'api_keys': {
           'api_football': _apiFootballController.text,

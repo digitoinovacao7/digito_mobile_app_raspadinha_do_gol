@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
-import '../screens/my_scratchcards_screen.dart';
-import '../screens/profile_edit_screen.dart';
+import '../core/auth_wrapper.dart';
 import '../screens/settings_screen.dart';
+import '../screens/admin_screen.dart';
+import '../screens/profile_edit_screen.dart';
 import '../core/theme.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -75,11 +76,6 @@ class ProfileBottomSheet extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'ID: ${user?.id}',
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
-                    ),
                   ],
                 ),
               ),
@@ -103,25 +99,30 @@ class ProfileBottomSheet extends ConsumerWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.style_outlined, color: AppTheme.primaryGreen),
-            title: const Text('Minhas Raspadinhas', style: TextStyle(fontWeight: FontWeight.bold)),
+            leading: const Icon(Icons.settings_outlined, color: AppTheme.primaryGreen),
+            title: const Text('Configurações', style: TextStyle(fontWeight: FontWeight.bold)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => Scaffold(
-                    appBar: AppBar(
-                      title: const Text('Minhas Raspadinhas'),
-                      backgroundColor: AppTheme.primaryGreen,
-                    ),
-                    body: const MyScratchcardsScreen(),
-                  ),
-                ),
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
           ),
+          if (user?.isAdmin == true)
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings_outlined, color: Colors.red),
+              title: const Text('Painel Admin', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.red),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminScreen()),
+                );
+              },
+            ),
 
           const SizedBox(height: 8),
           const Divider(),
@@ -146,9 +147,9 @@ class ProfileBottomSheet extends ConsumerWidget {
                 await authService.signOut();
                 
                 if (context.mounted) {
-                  // Limpa as rotas e volta para o login
+                  // Limpa as rotas e volta para a raiz (AuthWrapper)
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    MaterialPageRoute(builder: (context) => const AuthWrapper()),
                     (Route<dynamic> route) => false,
                   );
                 }

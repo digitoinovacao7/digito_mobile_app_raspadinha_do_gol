@@ -48,7 +48,7 @@ export const answerQuiz = onCall(async (request) => {
     const userQuizAttemptRef = db.collection("users").doc(uid).collection("quiz_attempts").doc(quizId);
     
     try {
-        const settingsDoc = await db.collection("system_config").doc("general").get();
+        const settingsDoc = await db.collection("settings").doc("general").get();
         const economy = settingsDoc.data()?.economy || {};
         const quizReward = Number(economy.quiz_reward) || 250;
 
@@ -136,7 +136,7 @@ export const playScratchcard = onCall(async (request) => {
     const userRef = db.collection("users").doc(uid);
 
     try {
-        const settingsDoc = await db.collection("system_config").doc("general").get();
+        const settingsDoc = await db.collection("settings").doc("general").get();
         const settingsData = settingsDoc.data() || {};
         const economy = settingsData.economy || {};
         const prizeRules = settingsData.prize_rules || {};
@@ -249,11 +249,13 @@ export const generateQuiz = onCall(async (request) => {
         throw new HttpsError("invalid-argument", "Contexto não fornecido.");
     }
 
-    // Busca a API key do painel (salva no Firestore)
-    const settingsDoc = await db.collection("settings").doc("api_keys").get();
-    const geminiKey = settingsDoc.data()?.gemini_api_key;
+    // Busca a API key do painel (salva no Firestore em settings)
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    console.log("generateQuiz settings data:", settingsDoc.data());
+    const geminiKey = settingsDoc.data()?.api_keys?.gemini;
+    console.log("gemini key resolved:", geminiKey);
     if (!geminiKey) {
-        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no painel admin.");
+        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no painel admin. Data read: " + JSON.stringify(settingsDoc.data()));
     }
 
     const ai = new GoogleGenAI({ apiKey: geminiKey });
@@ -333,7 +335,7 @@ export const requestPixOtp = onCall(async (request) => {
     });
 
     // Enviar WhatsApp via Z-API
-    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const settingsDoc = await db.collection("settings").doc("general").get();
     const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
     if (!zApiUrl) {
         // Fallback: se não tiver Z-API configurada, apenas gera o OTP. 
@@ -384,7 +386,7 @@ export const validatePixOtpAndWithdraw = onCall(async (request) => {
 
     const otpRef = db.collection("users").doc(uid).collection("otp").doc("pix");
     const userRef = db.collection("users").doc(uid);
-    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const settingsDoc = await db.collection("settings").doc("general").get();
     const tokensPerReal = Number(settingsDoc.data()?.economy?.tokens_per_real) || 100;
 
     try {
@@ -450,7 +452,7 @@ export const validatePixOtpAndWithdraw = onCall(async (request) => {
  */
 export const proxyFootballData = onCall(async (request) => {
     // Busca a API key do painel (salva no Firestore)
-    const settingsDoc = await db.collection("system_config").doc("general").get();
+    const settingsDoc = await db.collection("settings").doc("general").get();
     const footballDataKey = settingsDoc.data()?.api_keys?.football_data;
     
     if (!footballDataKey) {

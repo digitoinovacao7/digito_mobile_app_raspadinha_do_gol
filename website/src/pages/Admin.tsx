@@ -32,7 +32,7 @@ export function Admin() {
   useEffect(() => {
     async function loadData() {
       try {
-        const configDoc = await getDoc(doc(db, "system_config", "general"));
+        const configDoc = await getDoc(doc(db, "settings", "general"));
         if (configDoc.exists()) {
           const data = configDoc.data();
           
@@ -60,7 +60,7 @@ export function Admin() {
     setSaving(true);
     setMessage('');
     try {
-      await setDoc(doc(db, "system_config", "general"), {
+      await setDoc(doc(db, "settings", "general"), {
         api_keys: {
           api_football: apiFootball,
           mercado_pago: mercadoPago,

@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../core/theme.dart';
-import 'settings_screen.dart';
 import 'home_screen.dart';
-import 'my_scratchcards_screen.dart';
-import 'admin_screen.dart';
 import 'wallet_store_screen.dart';
 import 'quiz_standalone_screen.dart';
+import 'my_scratchcards_screen.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
@@ -20,17 +18,18 @@ class MainLayout extends ConsumerStatefulWidget {
 class _MainLayoutState extends ConsumerState<MainLayout> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    QuizStandaloneScreen(),
-    WalletStoreScreen(),
-    MyScratchcardsScreen(),
-  ];
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final isAdmin = user?.isAdmin == true;
+
+    final List<Widget> screens = const [
+      HomeScreen(),
+      QuizStandaloneScreen(),
+      WalletStoreScreen(),
+      MyScratchcardsScreen(),
+    ];
 
     final List<BottomNavigationBarItem> navItems = [
       const BottomNavigationBarItem(
@@ -46,39 +45,15 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         label: 'Prêmios',
       ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.history),
-        label: 'Histórico',
-      ),
-      if (isAdmin)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.admin_panel_settings),
-          label: 'Admin',
-        ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.settings),
-        label: 'Configurações',
+        icon: Icon(Icons.style),
+        label: 'Minhas Rasp.',
       ),
     ];
 
     void onTabTapped(int index) {
-      final isSettingsIndex = index == navItems.length - 1;
-      final isAdminIndex = isAdmin && index == navItems.length - 2;
-
-      if (isSettingsIndex) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        );
-      } else if (isAdminIndex) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminScreen()),
-        );
-      } else {
-        setState(() {
-          _currentIndex = index;
-        });
-      }
+      setState(() {
+        _currentIndex = index;
+      });
     }
 
     return Scaffold(
@@ -103,11 +78,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         title: const Text('Raspadinha do Gol'),
       ),
       body: IndexedStack(
-        index: _currentIndex >= _screens.length ? 0 : _currentIndex,
-        children: _screens,
+        index: _currentIndex >= screens.length ? 0 : _currentIndex,
+        children: screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: (_currentIndex >= navItems.length - 1) ? 0 : _currentIndex, 
+        currentIndex: (_currentIndex >= navItems.length) ? 0 : _currentIndex, 
         onTap: onTabTapped,
         selectedItemColor: AppTheme.primaryGreen,
         unselectedItemColor: Colors.grey,

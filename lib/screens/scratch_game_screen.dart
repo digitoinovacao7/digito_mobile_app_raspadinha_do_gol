@@ -41,7 +41,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
 
   Future<void> _fetchCost() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('system_config').doc('general').get();
+      final doc = await FirebaseFirestore.instance.collection('settings').doc('general').get();
       if (doc.exists && doc.data() != null && doc.data()!.containsKey('economy')) {
         setState(() {
           _ticketCost = doc.data()!['economy']['scratchcard_token_cost'] ?? 1000;

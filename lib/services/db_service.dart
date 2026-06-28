@@ -59,6 +59,12 @@ class DbService {
     });
   }
 
+  Future<void> incrementQuizCount(String uid, String fixtureId) async {
+    await _db.collection('users').doc(uid).update({
+      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
+    });
+  }
+
   Future<void> redeemPrize(String uid, int cost, Map<String, dynamic> redemptionData, String prizeName) async {
     await _db.runTransaction((transaction) async {
       final userRef = _db.collection('users').doc(uid);
@@ -110,7 +116,7 @@ class DbService {
   }
 
   Future<Map<String, dynamic>> getApiKeys() async {
-    final docSnap = await _db.collection('system_config').doc('general').get();
+    final docSnap = await _db.collection('settings').doc('general').get();
     if (docSnap.exists) {
       final data = docSnap.data()!;
       if (data.containsKey('api_keys')) {

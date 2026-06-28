@@ -28,11 +28,11 @@ class FootballService {
   Future<void> _initApiKey() async {
     try {
       final docSnap = await FirebaseFirestore.instance
-          .collection('system_config')
+          .collection('settings')
           .doc('general')
           .get();
       if (!docSnap.exists) {
-        print('[FootballService] ⚠️ Documento system_config/general NAO EXISTE no Firestore!');
+        print('[FootballService] ⚠️ Documento settings/general NAO EXISTE no Firestore!');
         return;
       }
       final data = docSnap.data()!;

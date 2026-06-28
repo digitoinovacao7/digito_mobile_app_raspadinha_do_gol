@@ -119,7 +119,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Configure a chave em system_config/general no Firestore (campo api_keys.api_football ou api_keys.football_data).',
+                      'Configure a chave em settings/general no Firestore (campo api_keys.api_football ou api_keys.football_data).',
                       style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
