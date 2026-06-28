@@ -276,6 +276,101 @@ class FootballService {
     }
   }
 
+  // --- FEATURED MATCHES ---
+
+  Future<List<dynamic>> getFeaturedMatchesForToday() async {
+    await _initApiKey();
+    if (_apiKey == null || _apiKey!.isEmpty) return [];
+
+    final today = DateTime.now();
+    final dateStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+    if (_activeApi == 'football_data') {
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable('proxyFootballData');
+        final response = await callable.call({
+          'endpoint': 'matches',
+          'queryParams': {'dateFrom': dateStr, 'dateTo': dateStr}
+        });
+
+        if (response.data['success'] == true) {
+          dynamic rawData = response.data['data'];
+          final data = rawData is String ? jsonDecode(rawData) : rawData;
+          if (data['matches'] != null) {
+            final matches = data['matches'] as List<dynamic>;
+            // Priority: IN_PLAY first, then others
+            matches.sort((a, b) {
+              final statusA = a['status'];
+              final statusB = b['status'];
+              if (statusA == 'IN_PLAY' && statusB != 'IN_PLAY') return -1;
+              if (statusB == 'IN_PLAY' && statusA != 'IN_PLAY') return 1;
+              return 0;
+            });
+            final top5 = matches.take(5).toList();
+            
+            return top5.map((m) {
+              final rawStatus = m['status'] ?? 'SCHEDULED';
+              String shortStatus;
+              switch (rawStatus) {
+                case 'IN_PLAY': shortStatus = '1H'; break;
+                case 'PAUSED': shortStatus = 'HT'; break;
+                case 'FINISHED': shortStatus = 'FT'; break;
+                default: shortStatus = 'NS';
+              }
+              final homeScore = _toInt(m['score']?['fullTime']?['home']);
+              final awayScore = _toInt(m['score']?['fullTime']?['away']);
+              return {
+                'fixture': {
+                  'id': _toInt(m['id']),
+                  'date': m['utcDate']?.toString() ?? DateTime.now().toIso8601String(),
+                  'status': {'short': shortStatus},
+                },
+                'teams': {
+                  'home': {'name': m['homeTeam']?['shortName']?.toString() ?? m['homeTeam']?['name']?.toString() ?? 'Casa', 'logo': m['homeTeam']?['crest']},
+                  'away': {'name': m['awayTeam']?['shortName']?.toString() ?? m['awayTeam']?['name']?.toString() ?? 'Visitante', 'logo': m['awayTeam']?['crest']},
+                },
+                'goals': {'home': homeScore, 'away': awayScore},
+              };
+            }).toList();
+          }
+        }
+        return [];
+      } catch (e) {
+        print('Erro ao buscar destaques (Football-Data): $e');
+        return [];
+      }
+    } else {
+      // API Football
+      try {
+        final response = await _dio.get(
+          'https://v3.football.api-sports.io/fixtures',
+          queryParameters: {'date': dateStr, 'timezone': 'America/Sao_Paulo'},
+        );
+
+        if (response.statusCode == 200) {
+          final data = response.data;
+          if (data['response'] != null) {
+            final matches = data['response'] as List<dynamic>;
+            // Priority: Live matches
+            matches.sort((a, b) {
+              final sA = a['fixture']['status']['short'];
+              final sB = b['fixture']['status']['short'];
+              final liveStatuses = ['1H', '2H', 'HT', 'ET', 'P'];
+              if (liveStatuses.contains(sA) && !liveStatuses.contains(sB)) return -1;
+              if (liveStatuses.contains(sB) && !liveStatuses.contains(sA)) return 1;
+              return 0;
+            });
+            return matches.take(5).toList();
+          }
+        }
+        return [];
+      } catch (e) {
+        print('Erro ao buscar destaques (API-Football): $e');
+        return [];
+      }
+    }
+  }
+
   // Inicia o polling
   Future<void> startPollingLiveMatch(int fixtureId) async {
     await _initApiKey();

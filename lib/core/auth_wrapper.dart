@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
+import '../screens/landing_screen.dart';
 import '../screens/main_layout.dart';
 import '../screens/admin_screen.dart';
 
@@ -18,8 +19,8 @@ class AuthWrapper extends ConsumerWidget {
           // Usuário autenticado no Firebase, agora vamos buscar os dados no Firestore
           return _AppUserLoader(uid: user.uid);
         } else {
-          // Não autenticado, vai pro login
-          return const LoginScreen();
+          // Não autenticado, vai pro landing page
+          return const LandingScreen();
         }
       },
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),

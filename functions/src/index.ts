@@ -456,7 +456,8 @@ export const proxyFootballData = onCall(async (request) => {
     const footballDataKey = settingsDoc.data()?.api_keys?.football_data;
     
     if (!footballDataKey) {
-        throw new HttpsError("failed-precondition", "Chave da API Football-Data.org não configurada.");
+        const debugData = JSON.stringify(settingsDoc.data() || {});
+        throw new HttpsError("failed-precondition", "Chave da API Football-Data.org não configurada. Dados lidos: " + debugData);
     }
 
     const endpoint = request.data.endpoint; 

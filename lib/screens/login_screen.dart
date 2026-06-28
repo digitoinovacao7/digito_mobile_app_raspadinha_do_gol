@@ -10,6 +10,15 @@ class LoginScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -64,15 +73,8 @@ class LoginScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(32.0),
                     decoration: BoxDecoration(
-                      color: AppTheme.backgroundWhite,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
                     ),
                     child: Column(
                       children: [
@@ -80,6 +82,7 @@ class LoginScreen extends ConsumerWidget {
                           'Acesse sua conta',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -88,12 +91,12 @@ class LoginScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.lock_outline, color: Colors.green[700], size: 20),
+                            const Icon(Icons.lock_outline, color: Colors.white70, size: 20),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               'Ambiente 100% Seguro',
                               style: TextStyle(
-                                color: Colors.green[700],
+                                color: Colors.white70,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -103,21 +106,9 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 64),
                   
-                  // Trust Badges / Footer Info
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildTrustBadge(Icons.security, 'Site Seguro'),
-                      const SizedBox(width: 24),
-                      _buildTrustBadge(Icons.verified, 'Empresa Verificada'),
-                      const SizedBox(width: 24),
-                      _buildTrustBadge(Icons.health_and_safety, 'Jogo Responsável'),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
+                  // Footer Info
                   TextButton(
                     onPressed: () async {
                       final url = Uri.parse('https://raspadinhadogol.web.app');
@@ -132,6 +123,7 @@ class LoginScreen extends ConsumerWidget {
                       style: TextStyle(
                         color: Colors.white70,
                         decoration: TextDecoration.underline,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -141,23 +133,6 @@ class LoginScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildTrustBadge(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.accentGold, size: 28),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -211,8 +186,11 @@ class _AnimatedGoogleLoginButtonState extends ConsumerState<AnimatedGoogleLoginB
               final user = await authService.signInWithGoogle();
               
               if (user != null) {
-                ref.read(currentUserProvider.notifier).state = user;
-                ref.invalidate(appUserFutureProvider(user.id));
+                if (mounted) {
+                  ref.read(currentUserProvider.notifier).state = user;
+                  ref.invalidate(appUserFutureProvider(user.id));
+                  setState(() => _isLoading = false);
+                }
               } else {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falha ao fazer login.')));
@@ -225,7 +203,12 @@ class _AnimatedGoogleLoginButtonState extends ConsumerState<AnimatedGoogleLoginB
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 24, width: 24, errorBuilder: (_,__,___) => const Icon(Icons.login)),
+                      Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/240px-Google_%22G%22_logo.svg.png',
+                        height: 24,
+                        width: 24,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.login),
+                      ),
                       const SizedBox(width: 12),
                       const Text('Continuar com Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ],

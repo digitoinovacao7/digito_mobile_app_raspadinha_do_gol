@@ -3,25 +3,25 @@ import { useState, useEffect } from "react";
 const slides = [
   {
     id: 1,
-    title: "Troque tokens por PIX!",
+    title: "Camisa Oficial do seu Clube",
     description:
-      "Acumulou tokens nos quizzes? Troque por dinheiro na sua conta via PIX rapidamente.",
-    icon: "💸",
-    image: "/pix_transfer.png",
+      "Acompanhe seu time e concorra a camisas oficiais entregues na sua casa.",
+    icon: "👕",
+    image: "/soccer_jersey.png",
   },
   {
     id: 2,
-    title: "Camisa Oficial do seu Clube",
+    title: "Bolas Oficiais",
     description:
-      "Use seus tokens para resgatar a camisa oficial do seu time do coração.",
-    icon: "👕",
-    image: "/soccer_jersey.png",
+      "Jogue como os craques com bolas oficiais das grandes ligas e campeonatos.",
+    icon: "⚽",
+    image: "/stadium_crowd.png",
   },
   {
     id: 3,
     title: "Outros Brindes Exclusivos",
     description:
-      "Vouchers, ingressos e diversos outros prêmios incríveis te esperam.",
+      "Vouchers, ingressos e diversos outros prêmios incríveis te esperam a cada jogo.",
     icon: "🎁",
     image: "/gifts_vouchers.png",
   },
