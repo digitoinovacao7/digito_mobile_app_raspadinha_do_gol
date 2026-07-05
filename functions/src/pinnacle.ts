@@ -21,18 +21,88 @@ async function getPinnacleAuth() {
 export const pinnacleGetBalance = functions.https.onCall(async (request: any) => {
     try {
         const auth = await getPinnacleAuth();
+        const headers = {
+            "Authorization": `Basic ${auth}`,
+            "Accept": "application/json"
+        };
         const response = await axios.get("https://api.pinnacle.com/v1/client/balance", {
-            headers: {
-                "Authorization": `Basic ${auth}`,
-                "Accept": "application/json"
-            }
+            headers
         });
+
+        let earnings30Days = 0;
+        let netProfit30Days = 0;
+        let settledBets30Days = 0;
+        let historyError: string | null = null;
+
+        try {
+            const toDate = new Date();
+            const fromDate = new Date(toDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+            let fromRecord = 0;
+            let moreAvailable = true;
+            let pageCount = 0;
+
+            while (moreAvailable && pageCount < 20) {
+                pageCount++;
+                const betsResponse = await axios.get("https://api.pinnacle.com/v4/bets", {
+                    headers,
+                    params: {
+                        betlist: "SETTLED",
+                        fromDate: fromDate.toISOString(),
+                        toDate: toDate.toISOString(),
+                        sortDir: "DESC",
+                        pageSize: 1000,
+                        fromRecord
+                    }
+                });
+
+                const betGroups = [
+                    betsResponse.data.straightBets,
+                    betsResponse.data.parlayBets,
+                    betsResponse.data.teaserBets,
+                    betsResponse.data.specialBets,
+                    betsResponse.data.manualBets
+                ];
+
+                for (const bets of betGroups) {
+                    if (!Array.isArray(bets)) continue;
+                    for (const bet of bets) {
+                        const winLoss = Number(bet.winLoss);
+                        if (!Number.isFinite(winLoss)) continue;
+                        netProfit30Days += winLoss;
+                        if (winLoss > 0) earnings30Days += winLoss;
+                        settledBets30Days++;
+                    }
+                }
+
+                moreAvailable = betsResponse.data.moreAvailable === true;
+                const toRecord = Number(betsResponse.data.toRecord);
+                if (!moreAvailable || !Number.isFinite(toRecord)) break;
+                fromRecord = toRecord + 1;
+            }
+        } catch (historyException: any) {
+            historyError = String(
+                historyException.response?.data?.message ||
+                historyException.response?.data?.code ||
+                historyException.message
+            );
+        }
+
+        const toMoneyString = (value: unknown) => {
+            const numberValue = Number(value);
+            return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "0.00";
+        };
 
         return {
             success: true,
             // Keep callable payload web-safe: dart2js cannot decode Int64 values.
-            balance: String(response.data.availableBalance),
-            currency: String(response.data.currency)
+            balance: toMoneyString(response.data.availableBalance),
+            outstandingTransactions: toMoneyString(response.data.outstandingTransactions),
+            givenCredit: toMoneyString(response.data.givenCredit),
+            currency: String(response.data.currency),
+            earnings30Days: earnings30Days.toFixed(2),
+            netProfit30Days: netProfit30Days.toFixed(2),
+            settledBets30Days: String(settledBets30Days),
+            historyError
         };
     } catch (e: any) {
         console.error("Pinnacle Balance Error:", e.response?.data || e.message);

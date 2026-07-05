@@ -22,7 +22,7 @@ echo ""
 echo "☁️ 3. Enviando tudo para o Firebase Hosting..."
 # Como o firebase.json na raiz tem dois sites configurados,
 # esse comando envia o website para um link e o app para o outro automaticamente.
-firebase deploy --only hosting
+firebase deploy
 
 echo ""
 echo "✅ Deploy concluído com sucesso!"

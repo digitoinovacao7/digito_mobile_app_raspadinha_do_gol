@@ -46,6 +46,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isSavingPrize = false;
   bool _isAnalyzing = false;
   String? _pinnacleBalance;
+  String? _pinnacleCurrency;
+  String? _pinnacleOutstanding;
+  String? _pinnacleEarnings30Days;
+  String? _pinnacleNetProfit30Days;
+  String? _pinnacleSettledBets30Days;
+  String? _pinnacleHistoryError;
 
   @override
   void initState() {
@@ -223,14 +229,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.circle, color: Colors.orange, size: 16),
+                            Icon(Icons.circle, color: _pinnacleBalance == null ? Colors.orange : Colors.green, size: 16),
                             const SizedBox(width: 8),
-                            const Text('Status: Desconectado / Aguardando Teste', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              _pinnacleBalance == null ? 'Status: Aguardando teste' : 'Status: Conectado',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             const Spacer(),
                             ElevatedButton.icon(
                               onPressed: _testPinnacleConnection,
                               icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Testar Conexão / Ver Saldo'),
+                              label: const Text('Atualizar saldo e ganhos'),
                             )
                           ],
                         ),
@@ -238,7 +247,33 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       if (_pinnacleBalance != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 12.0),
-                          child: Text('Saldo Disponível: R\$ $_pinnacleBalance', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              _buildPinnacleMetric('Saldo disponível', '$_pinnacleCurrency $_pinnacleBalance', Colors.green),
+                              _buildPinnacleMetric('Apostas pendentes', '$_pinnacleCurrency ${_pinnacleOutstanding ?? '0.00'}', Colors.orange),
+                              _buildPinnacleMetric('Ganhos (30 dias)', '$_pinnacleCurrency ${_pinnacleEarnings30Days ?? '0.00'}', Colors.green),
+                              _buildPinnacleMetric(
+                                'Resultado líquido (30 dias)',
+                                '$_pinnacleCurrency ${_pinnacleNetProfit30Days ?? '0.00'}',
+                                (double.tryParse(_pinnacleNetProfit30Days ?? '0') ?? 0) >= 0 ? Colors.green : Colors.red,
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_pinnacleBalance != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            _pinnacleHistoryError == null
+                                ? '${_pinnacleSettledBets30Days ?? '0'} apostas liquidadas consideradas.'
+                                : 'Saldo carregado, mas o histórico não pôde ser consultado: $_pinnacleHistoryError',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _pinnacleHistoryError == null ? Colors.grey : Colors.orange.shade800,
+                            ),
+                          ),
                         ),
                       const SizedBox(height: 32),
                       _buildSectionHeader(Icons.settings, 'Configurações de Aposta Automática'),
@@ -918,11 +953,26 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       if (mounted) {
         setState(() {
           _pinnacleBalance = balance;
+          _pinnacleCurrency = data['currency']?.toString() ?? '';
+          _pinnacleOutstanding = data['outstandingTransactions']?.toString() ?? '0.00';
+          _pinnacleEarnings30Days = data['earnings30Days']?.toString() ?? '0.00';
+          _pinnacleNetProfit30Days = data['netProfit30Days']?.toString() ?? '0.00';
+          _pinnacleSettledBets30Days = data['settledBets30Days']?.toString() ?? '0';
+          _pinnacleHistoryError = data['historyError']?.toString();
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: \$ $_pinnacleBalance'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: $_pinnacleCurrency $_pinnacleBalance'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _pinnacleBalance = null;
+          _pinnacleCurrency = null;
+          _pinnacleOutstanding = null;
+          _pinnacleEarnings30Days = null;
+          _pinnacleNetProfit30Days = null;
+          _pinnacleSettledBets30Days = null;
+          _pinnacleHistoryError = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao conectar: $e'), backgroundColor: Colors.red));
       }
     }
@@ -1026,6 +1076,26 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         const SizedBox(width: 8),
         Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
       ],
+    );
+  }
+
+  Widget _buildPinnacleMetric(String label, String value, Color valueColor) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: valueColor)),
+        ],
+      ),
     );
   }
 
