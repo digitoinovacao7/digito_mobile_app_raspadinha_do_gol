@@ -25,9 +25,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _quizRewardController = TextEditingController();
   final _dailyQuizLimitController = TextEditingController();
   final _globalWinChanceController = TextEditingController();
-  final _betfairAppKeyController = TextEditingController();
-  final _betfairUsernameController = TextEditingController();
-  final _betfairPasswordController = TextEditingController();
+  final _pinnacleUsernameController = TextEditingController();
+  final _pinnaclePasswordController = TextEditingController();
   final _geminiTestContextController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
@@ -46,7 +45,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isSaving = false;
   bool _isSavingPrize = false;
   bool _isAnalyzing = false;
-  String? _betfairBalance;
+  String? _pinnacleBalance;
 
   @override
   void initState() {
@@ -81,10 +80,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _globalWinChanceController.text = data['prize_rules']['global_win_chance']?.toString() ?? '10';
         }
         
-        if (data.containsKey('betfair')) {
-          _betfairAppKeyController.text = data['betfair']['app_key'] ?? '';
-          _betfairUsernameController.text = data['betfair']['username'] ?? '';
-          _betfairPasswordController.text = data['betfair']['password'] ?? '';
+        if (data.containsKey('pinnacle')) {
+          _pinnacleUsernameController.text = data['pinnacle']['username'] ?? '';
+          _pinnaclePasswordController.text = data['pinnacle']['password'] ?? '';
         }
       }
       
@@ -114,9 +112,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _quizRewardController.dispose();
     _dailyQuizLimitController.dispose();
     _globalWinChanceController.dispose();
-    _betfairAppKeyController.dispose();
-    _betfairUsernameController.dispose();
-    _betfairPasswordController.dispose();
+    _pinnacleUsernameController.dispose();
+    _pinnaclePasswordController.dispose();
     _geminiTestContextController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -145,10 +142,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'prize_rules': {
           'global_win_chance': int.tryParse(_globalWinChanceController.text) ?? 10,
         },
-        'betfair': {
-          'app_key': _betfairAppKeyController.text,
-          'username': _betfairUsernameController.text,
-          'password': _betfairPasswordController.text,
+        'pinnacle': {
+          'username': _pinnacleUsernameController.text,
+          'password': _pinnaclePasswordController.text,
         }
       }, SetOptions(merge: true));
 
@@ -181,7 +177,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
-              Tab(icon: Icon(Icons.smart_toy), text: 'Robô Betfair'),
+              Tab(icon: Icon(Icons.smart_toy), text: 'Robô Pinnacle'),
             ],
           ),
         ),
@@ -192,14 +188,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   _buildPrizesTab(),
                   _buildIntegrationsTab(),
                   _buildRedemptionsTab(),
-                  _buildBetfairBotTab(),
+                  _buildPinnacleBotTab(),
                 ],
               ),
       ),
     );
   }
 
-  Widget _buildBetfairBotTab() {
+  Widget _buildPinnacleBotTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Center(
@@ -216,7 +212,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader(Icons.smart_toy, 'Status do Robô Betfair'),
+                      _buildSectionHeader(Icons.smart_toy, 'Status do Robô Pinnacle'),
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -232,17 +228,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                             const Text('Status: Desconectado / Aguardando Teste', style: TextStyle(fontWeight: FontWeight.bold)),
                             const Spacer(),
                             ElevatedButton.icon(
-                              onPressed: _testBetfairConnection,
+                              onPressed: _testPinnacleConnection,
                               icon: const Icon(Icons.refresh, size: 16),
                               label: const Text('Testar Conexão / Ver Saldo'),
                             )
                           ],
                         ),
                       ),
-                      if (_betfairBalance != null)
+                      if (_pinnacleBalance != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 12.0),
-                          child: Text('Saldo Disponível: R\$ $_betfairBalance', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
+                          child: Text('Saldo Disponível: R\$ $_pinnacleBalance', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
                         ),
                       const SizedBox(height: 32),
                       _buildSectionHeader(Icons.settings, 'Configurações de Aposta Automática'),
@@ -254,16 +250,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         label: 'Gestão de Banca (%)',
                         hint: 'Ex: 5.00',
                         keyboardType: TextInputType.number,
-                        helpText: 'Porcentagem do saldo total da Betfair que será apostada em cada sinal.',
+                        helpText: 'Porcentagem do saldo total da Pinnacle que será apostada em cada sinal.',
                       ),
                       const SizedBox(height: 16),
                       SwitchListTile(
                         title: const Text('Ativar Trading Automático'),
-                        subtitle: const Text('Se ativo, o robô irá colocar apostas reais na Betfair usando o saldo da conta Master.'),
+                        subtitle: const Text('Se ativo, o robô irá colocar apostas reais na Pinnacle usando o saldo da conta Master.'),
                         value: false,
                         activeColor: AppTheme.primaryGreen,
                         onChanged: (val) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Em breve: Ativação requer validação da licença Betfair.')));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Em breve: Ativação requer validação de saldo Pinnacle.')));
                         },
                       ),
                       const SizedBox(height: 32),
@@ -304,7 +300,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     children: [
                       _buildSectionHeader(Icons.list_alt, 'Últimas Operações (Logs)'),
                       const SizedBox(height: 16),
-                      _buildBetfairLogsList(),
+                      _buildPinnacleLogsList(),
                     ],
                   ),
                 ),
@@ -418,27 +414,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         helpText: 'Chave de instância da Z-API. Necessária para enviar comprovantes e notificações de premiação diretamente no WhatsApp do ganhador.',
                       ),
                       const SizedBox(height: 32),
-                      _buildSectionHeader(Icons.smart_toy, 'Robô de Apostas (Betfair)'),
+                      _buildSectionHeader(Icons.smart_toy, 'Robô de Apostas (Pinnacle)'),
                       const SizedBox(height: 8),
-                      const Text('Configuração da conta Master (Admin) para o Robô da Betfair operar.', style: TextStyle(color: Colors.grey)),
+                      const Text('Configuração da conta Master (Admin) para o Robô da Pinnacle operar.', style: TextStyle(color: Colors.grey)),
                       const SizedBox(height: 24),
                       _buildTextField(
-                        controller: _betfairAppKeyController,
-                        label: 'Betfair App Key (Application Key)',
-                        hint: 'Ex: XyZ123...',
-                        helpText: 'Chave de API do Betfair Developer Program.',
+                        controller: _pinnacleUsernameController,
+                        label: 'Client ID (Usuário) Pinnacle',
+                        hint: 'Ex: AC123456',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
-                        controller: _betfairUsernameController,
-                        label: 'Betfair Username',
-                        hint: 'Seu usuário da Betfair',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _betfairPasswordController,
-                        label: 'Betfair Password',
-                        hint: 'Sua senha da Betfair',
+                        controller: _pinnaclePasswordController,
+                        label: 'Senha da Pinnacle',
+                        hint: 'Sua senha da Pinnacle',
+                        obscureText: true,
                       ),
                     ],
                   ),
@@ -910,16 +900,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Future<void> _testBetfairConnection() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Testando conexão com Betfair...')));
+  Future<void> _testPinnacleConnection() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Testando conexão com Pinnacle...')));
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('betfairGetBalance');
+      final callable = FirebaseFunctions.instance.httpsCallable('pinnacleGetBalance');
       final result = await callable.call();
       if (mounted) {
         setState(() {
-          _betfairBalance = result.data['balance'].toString();
+          _pinnacleBalance = result.data['balance'].toString();
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: R\$ $_betfairBalance'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: \$ $_pinnacleBalance'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
@@ -937,7 +927,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     setState(() => _isAnalyzing = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBet');
+      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBetPinnacle');
       final result = await callable.call({
         'matchContext': contextText,
         'marketId': '1.123456', // ID fake para teste
@@ -975,9 +965,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     }
   }
 
-  Widget _buildBetfairLogsList() {
+  Widget _buildPinnacleLogsList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('betfair_logs').orderBy('createdAt', descending: true).limit(10).snapshots(),
+      stream: FirebaseFirestore.instance.collection('pinnacle_logs').orderBy('createdAt', descending: true).limit(10).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         if (snapshot.hasError) return const Text('Erro ao carregar logs.', style: TextStyle(color: Colors.red));
@@ -1029,7 +1019,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType, String? helpText, int maxLines = 1}) {
+  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType, String? helpText, int maxLines = 1, bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1051,7 +1041,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          controller: controller, keyboardType: keyboardType,
+          controller: controller, keyboardType: keyboardType, obscureText: obscureText, maxLines: obscureText ? 1 : maxLines,
           decoration: InputDecoration(
             hintText: hint, filled: true, fillColor: Colors.grey.shade50,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),

@@ -589,6 +589,5 @@ export const proxyFootballData = onCall(async (request) => {
     }
 });
 
-// Exports das funções da Betfair
-export * from "./betfair";
 
+export * from "./pinnacle";
