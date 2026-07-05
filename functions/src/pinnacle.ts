@@ -28,14 +28,18 @@ export const pinnacleGetBalance = functions.https.onCall(async (request: any) =>
             }
         });
 
-        return { 
-            success: true, 
-            balance: response.data.availableBalance,
-            currency: response.data.currency
+        return {
+            success: true,
+            // Keep callable payload web-safe: dart2js cannot decode Int64 values.
+            balance: String(response.data.availableBalance),
+            currency: String(response.data.currency)
         };
     } catch (e: any) {
         console.error("Pinnacle Balance Error:", e.response?.data || e.message);
-        return { success: false, error: e.response?.data?.message || e.message };
+        return {
+            success: false,
+            error: String(e.response?.data?.message || e.message)
+        };
     }
 });
 

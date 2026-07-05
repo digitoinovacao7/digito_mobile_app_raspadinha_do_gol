@@ -148,7 +148,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('YouTube'),
             trailing: const Icon(Icons.open_in_new, size: 16),
             onTap: () async {
-              final url = Uri.parse('https://www.youtube.com/@guiadoplayeroficial');
+              final url = Uri.parse('https://www.youtube.com/@digitoinovacao');
               try {
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               } catch (e) {
@@ -157,15 +157,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.music_note, color: Colors.black),
-            title: const Text('TikTok'),
+            leading: const Icon(Icons.camera_alt_outlined, color: Colors.pink),
+            title: const Text('Instagram'),
             trailing: const Icon(Icons.open_in_new, size: 16),
             onTap: () async {
-              final url = Uri.parse('https://www.tiktok.com/@guiadoplayeroficial');
+              final url = Uri.parse('https://www.instagram.com/digitoinovacaooficial/');
               try {
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               } catch (e) {
-                debugPrint('Could not launch TikTok: $e');
+                debugPrint('Could not launch Instagram: $e');
               }
             },
           ),

@@ -114,8 +114,8 @@ export function Layout() {
             <div>
               <h3 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Redes Sociais</h3>
               <ul className="space-y-4">
-                <li><a href="https://www.youtube.com/@guiadoplayeroficial" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-2">▶️ YouTube</a></li>
-                <li><a href="https://www.tiktok.com/@guiadoplayeroficial" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-2">🎵 TikTok</a></li>
+                <li><a href="https://www.youtube.com/@digitoinovacao" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-red-500 transition-colors text-sm flex items-center gap-2">▶️ YouTube</a></li>
+                <li><a href="https://www.instagram.com/digitoinovacaooficial/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors text-sm flex items-center gap-2">📷 Instagram</a></li>
               </ul>
             </div>
           </div>

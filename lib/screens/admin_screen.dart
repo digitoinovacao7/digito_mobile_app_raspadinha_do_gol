@@ -905,9 +905,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       final callable = FirebaseFunctions.instance.httpsCallable('pinnacleGetBalance');
       final result = await callable.call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (data['success'] != true) {
+        throw Exception(data['error']?.toString() ?? 'Falha desconhecida ao consultar a Pinnacle.');
+      }
+
+      final balance = data['balance']?.toString();
+      if (balance == null || balance.isEmpty || balance == 'null') {
+        throw Exception('A Pinnacle não retornou o saldo disponível.');
+      }
+
       if (mounted) {
         setState(() {
-          _pinnacleBalance = result.data['balance'].toString();
+          _pinnacleBalance = balance;
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: \$ $_pinnacleBalance'), backgroundColor: Colors.green));
       }
