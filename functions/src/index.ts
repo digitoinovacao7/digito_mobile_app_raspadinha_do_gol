@@ -588,3 +588,7 @@ export const proxyFootballData = onCall(async (request) => {
         throw new HttpsError("internal", `Erro interno no proxy: ${e.message}`);
     }
 });
+
+// Exports das funções da Betfair
+export * from "./betfair";
+

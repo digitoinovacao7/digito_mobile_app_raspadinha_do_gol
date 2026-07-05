@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../providers/game_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
@@ -24,6 +25,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _quizRewardController = TextEditingController();
   final _dailyQuizLimitController = TextEditingController();
   final _globalWinChanceController = TextEditingController();
+  final _betfairAppKeyController = TextEditingController();
+  final _betfairUsernameController = TextEditingController();
+  final _betfairPasswordController = TextEditingController();
+  final _geminiTestContextController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
   final _newPrizeImageCtrl = TextEditingController();
@@ -40,6 +45,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isSavingPrize = false;
+  bool _isAnalyzing = false;
+  String? _betfairBalance;
 
   @override
   void initState() {
@@ -73,6 +80,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         if (data.containsKey('prize_rules')) {
           _globalWinChanceController.text = data['prize_rules']['global_win_chance']?.toString() ?? '10';
         }
+        
+        if (data.containsKey('betfair')) {
+          _betfairAppKeyController.text = data['betfair']['app_key'] ?? '';
+          _betfairUsernameController.text = data['betfair']['username'] ?? '';
+          _betfairPasswordController.text = data['betfair']['password'] ?? '';
+        }
       }
       
       // Load leagues for the dropdowns
@@ -101,6 +114,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _quizRewardController.dispose();
     _dailyQuizLimitController.dispose();
     _globalWinChanceController.dispose();
+    _betfairAppKeyController.dispose();
+    _betfairUsernameController.dispose();
+    _betfairPasswordController.dispose();
+    _geminiTestContextController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
     _newPrizeTokenCostCtrl.dispose();
@@ -127,6 +144,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         },
         'prize_rules': {
           'global_win_chance': int.tryParse(_globalWinChanceController.text) ?? 10,
+        },
+        'betfair': {
+          'app_key': _betfairAppKeyController.text,
+          'username': _betfairUsernameController.text,
+          'password': _betfairPasswordController.text,
         }
       }, SetOptions(merge: true));
 
@@ -145,7 +167,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Painel Administrativo'),
@@ -159,6 +181,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
+              Tab(icon: Icon(Icons.smart_toy), text: 'Robô Betfair'),
             ],
           ),
         ),
@@ -169,8 +192,126 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   _buildPrizesTab(),
                   _buildIntegrationsTab(),
                   _buildRedemptionsTab(),
+                  _buildBetfairBotTab(),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildBetfairBotTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.smart_toy, 'Status do Robô Betfair'),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, color: Colors.orange, size: 16),
+                            const SizedBox(width: 8),
+                            const Text('Status: Desconectado / Aguardando Teste', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Spacer(),
+                            ElevatedButton.icon(
+                              onPressed: _testBetfairConnection,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Testar Conexão / Ver Saldo'),
+                            )
+                          ],
+                        ),
+                      ),
+                      if (_betfairBalance != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Text('Saldo Disponível: R\$ $_betfairBalance', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
+                        ),
+                      const SizedBox(height: 32),
+                      _buildSectionHeader(Icons.settings, 'Configurações de Aposta Automática'),
+                      const SizedBox(height: 16),
+                      const Text('Defina as regras de quanto o robô deve apostar a cada sinal gerado.', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 24),
+                      _buildTextField(
+                        controller: TextEditingController(text: '5.00'),
+                        label: 'Gestão de Banca (%)',
+                        hint: 'Ex: 5.00',
+                        keyboardType: TextInputType.number,
+                        helpText: 'Porcentagem do saldo total da Betfair que será apostada em cada sinal.',
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        title: const Text('Ativar Trading Automático'),
+                        subtitle: const Text('Se ativo, o robô irá colocar apostas reais na Betfair usando o saldo da conta Master.'),
+                        value: false,
+                        activeColor: AppTheme.primaryGreen,
+                        onChanged: (val) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Em breve: Ativação requer validação da licença Betfair.')));
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      _buildSectionHeader(Icons.psychology, 'Analista de Apostas (Gemini IA)'),
+                      const SizedBox(height: 16),
+                      const Text('Cole o contexto de um jogo abaixo e peça para a Inteligência Artificial analisar se vale a pena apostar.', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _geminiTestContextController,
+                        label: 'Contexto do Jogo (Ex: Flamengo 0x1 Vasco, 75 min, 80% posse...)',
+                        maxLines: 4,
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800, foregroundColor: Colors.white),
+                          onPressed: _isAnalyzing ? null : _testGeminiAnalysis,
+                          icon: _isAnalyzing 
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                              : const Icon(Icons.analytics),
+                          label: Text(_isAnalyzing ? 'Analisando...' : 'Pedir Análise ao Gemini'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(Icons.list_alt, 'Últimas Operações (Logs)'),
+                      const SizedBox(height: 16),
+                      _buildBetfairLogsList(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -227,6 +368,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           hint: 'Usada caso API-Football esteja ativa',
                           helpText: 'Obtenha em dashboard.api-football.com.',
                         ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: TextButton.icon(
+                            onPressed: () => launchUrl(Uri.parse('https://dashboard.api-football.com/'), mode: LaunchMode.externalApplication),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Obter Chave no Dashboard da API-Football'),
+                            style: TextButton.styleFrom(foregroundColor: Colors.blue, padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                          ),
+                        ),
                         const SizedBox(height: 16),
                       ],
                       if (_activeFootballApi == 'football_data') ...[
@@ -235,6 +385,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           label: 'Chave Football-Data.org',
                           hint: 'Usada caso Football-Data esteja ativa',
                           helpText: 'Obtenha em api.football-data.org.',
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: TextButton.icon(
+                            onPressed: () => launchUrl(Uri.parse('https://www.football-data.org/'), mode: LaunchMode.externalApplication),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Obter Chave no Football-Data.org'),
+                            style: TextButton.styleFrom(foregroundColor: Colors.blue, padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -257,6 +416,29 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         label: 'Chave Z-API',
                         hint: 'Usada para notificações via WhatsApp',
                         helpText: 'Chave de instância da Z-API. Necessária para enviar comprovantes e notificações de premiação diretamente no WhatsApp do ganhador.',
+                      ),
+                      const SizedBox(height: 32),
+                      _buildSectionHeader(Icons.smart_toy, 'Robô de Apostas (Betfair)'),
+                      const SizedBox(height: 8),
+                      const Text('Configuração da conta Master (Admin) para o Robô da Betfair operar.', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 24),
+                      _buildTextField(
+                        controller: _betfairAppKeyController,
+                        label: 'Betfair App Key (Application Key)',
+                        hint: 'Ex: XyZ123...',
+                        helpText: 'Chave de API do Betfair Developer Program.',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _betfairUsernameController,
+                        label: 'Betfair Username',
+                        hint: 'Seu usuário da Betfair',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _betfairPasswordController,
+                        label: 'Betfair Password',
+                        hint: 'Sua senha da Betfair',
                       ),
                     ],
                   ),
@@ -728,6 +910,115 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
+  Future<void> _testBetfairConnection() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Testando conexão com Betfair...')));
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('betfairGetBalance');
+      final result = await callable.call();
+      if (mounted) {
+        setState(() {
+          _betfairBalance = result.data['balance'].toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Conexão OK! Saldo: R\$ $_betfairBalance'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao conectar: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _testGeminiAnalysis() async {
+    final contextText = _geminiTestContextController.text.trim();
+    if (contextText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insira o contexto do jogo primeiro.')));
+      return;
+    }
+
+    setState(() => _isAnalyzing = true);
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBet');
+      final result = await callable.call({
+        'matchContext': contextText,
+        'marketId': '1.123456', // ID fake para teste
+        'selectionId': '12345', // ID fake para teste
+        'stakePercentage': 5.0, // 5% do saldo
+      });
+      
+      final decision = result.data['decision'];
+      final String msg = decision['apostar'] == true 
+          ? 'Aposta Aceita! Tipo: ${decision['tipo']} | Odd: ${decision['odd_sugerida']}\nMotivo: ${decision['justificativa']}'
+          : 'Aposta Recusada.\nMotivo: ${decision['justificativa']}';
+          
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(decision['apostar'] == true ? Icons.check_circle : Icons.cancel, color: decision['apostar'] == true ? Colors.green : Colors.red),
+                const SizedBox(width: 8),
+                const Text('Decisão da IA'),
+              ],
+            ),
+            content: Text(msg),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro na IA: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isAnalyzing = false);
+    }
+  }
+
+  Widget _buildBetfairLogsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('betfair_logs').orderBy('createdAt', descending: true).limit(10).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return const Text('Erro ao carregar logs.', style: TextStyle(color: Colors.red));
+        
+        final logs = snapshot.data?.docs ?? [];
+        if (logs.isEmpty) return const Text('Nenhuma operação registrada ainda.', style: TextStyle(color: Colors.grey));
+        
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: logs.length,
+          itemBuilder: (context, index) {
+            final doc = logs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final decision = data['decision'] as Map<String, dynamic>? ?? {};
+            final bool apostou = decision['apostar'] == true;
+            final status = data['status'] ?? 'UNKNOWN';
+            
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Icon(apostou ? Icons.check_circle : Icons.do_not_disturb_on, color: apostou ? Colors.green : Colors.grey),
+                title: Text(apostou ? 'APOSTA: ${decision['tipo']} | Odd: ${decision['odd_sugerida']}' : 'Análise Recusada', style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    Text('Motivo: ${decision['justificativa'] ?? 'Sem justificativa'}'),
+                    const SizedBox(height: 4),
+                    Text('Status: $status', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                  ],
+                ),
+                isThreeLine: true,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildSectionHeader(IconData icon, String title) {
     return Row(
       children: [
@@ -738,7 +1029,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType, String? helpText}) {
+  Widget _buildTextField({required TextEditingController controller, required String label, String? hint, TextInputType? keyboardType, String? helpText, int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
