@@ -15,11 +15,18 @@ npm run build
 cd ..
 
 echo ""
-echo "📱 2. Buildando o App Flutter (Web)..."
+echo "⚙️  2. Buildando as Funções (Firebase)..."
+cd functions
+npm install
+npm run build
+cd ..
+
+echo ""
+echo "📱 3. Buildando o App Flutter (Web)..."
 flutter build web
 
 echo ""
-echo "☁️ 3. Enviando tudo para o Firebase Hosting..."
+echo "☁️ 4. Enviando tudo para o Firebase Hosting..."
 # Como o firebase.json na raiz tem dois sites configurados,
 # esse comando envia o website para um link e o app para o outro automaticamente.
 firebase deploy

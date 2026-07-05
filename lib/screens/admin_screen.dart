@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -990,14 +991,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBetPinnacle');
       final result = await callable.call({
         'matchContext': contextText,
-        'marketId': '1.123456', // ID fake para teste
-        'selectionId': '12345', // ID fake para teste
-        'stakePercentage': 5.0, // 5% do saldo
       });
-      
-      final decision = result.data['decision'];
-      final String msg = decision['apostar'] == true 
-          ? 'Aposta Aceita! Tipo: ${decision['tipo']} | Odd: ${decision['odd_sugerida']}\nMotivo: ${decision['justificativa']}'
+
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (data['success'] != true) {
+        throw Exception(data['error']?.toString() ?? 'Falha desconhecida na análise.');
+      }
+
+      final payloadStr = data['payload'] as String?;
+      final payload = payloadStr != null ? jsonDecode(payloadStr) : data['decision'];
+      final decision = Map<String, dynamic>.from(payload as Map);
+      final String msg = decision['apostar'] == true
+          ? 'Sugestão de aposta: ${decision['tipo']}\nSeleção: ${decision['selecao']}\nConfiança: ${decision['confianca']}%\nMotivo: ${decision['justificativa']}\n\nModo demonstração: nenhuma aposta foi enviada.'
           : 'Aposta Recusada.\nMotivo: ${decision['justificativa']}';
           
       if (mounted) {
@@ -1042,25 +1047,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           itemBuilder: (context, index) {
             final doc = logs[index];
             final data = doc.data() as Map<String, dynamic>;
-            final decision = data['decision'] as Map<String, dynamic>? ?? {};
-            final bool apostou = decision['apostar'] == true;
-            final status = data['status'] ?? 'UNKNOWN';
+            final type = data['type']?.toString() ?? 'info';
+            final message = data['message']?.toString() ?? 'Operação sem descrição.';
+            final isSuccess = type == 'success';
+            final isError = type == 'error';
             
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                leading: Icon(apostou ? Icons.check_circle : Icons.do_not_disturb_on, color: apostou ? Colors.green : Colors.grey),
-                title: Text(apostou ? 'APOSTA: ${decision['tipo']} | Odd: ${decision['odd_sugerida']}' : 'Análise Recusada', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text('Motivo: ${decision['justificativa'] ?? 'Sem justificativa'}'),
-                    const SizedBox(height: 4),
-                    Text('Status: $status', style: const TextStyle(fontSize: 12, color: Colors.blue)),
-                  ],
+                leading: Icon(
+                  isSuccess ? Icons.check_circle : (isError ? Icons.error : Icons.info),
+                  color: isSuccess ? Colors.green : (isError ? Colors.red : Colors.blueGrey),
                 ),
-                isThreeLine: true,
+                title: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             );
           },

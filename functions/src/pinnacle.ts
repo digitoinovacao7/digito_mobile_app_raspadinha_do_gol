@@ -3,9 +3,6 @@ import * as admin from "firebase-admin";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
 
-const geminiApiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_KEY_HERE"; // In production, use Firebase Secret Manager
-const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
 // Helper to get Basic Auth header
 async function getPinnacleAuth() {
     const db = admin.firestore();
@@ -125,7 +122,19 @@ export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request:
 
     try {
         const settings = await db.collection("settings").doc("general").get();
-        const botData = settings.data()?.pinnacle || {};
+        const settingsData = settings.data() || {};
+        const botData = settingsData.pinnacle || {};
+        const geminiApiKey =
+            settingsData.api_keys?.gemini ||
+            settingsData.gemini_api_key ||
+            settingsData.gemini_key ||
+            settingsData.gemini;
+
+        if (!geminiApiKey) {
+            throw new Error("Chave de API do Gemini não configurada.");
+        }
+
+        const ai = new GoogleGenAI({ apiKey: String(geminiApiKey) });
         
         // 1. Analyze with Gemini
         const prompt = `Você é um Analista de Apostas Esportivas focado na Pinnacle. Analise este jogo e retorne um JSON com a decisão. Se as chances forem baixas, pule (SKIP). Contexto: ${matchContext}`;
@@ -157,8 +166,29 @@ export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request:
             type: analysis.decision === "BET" ? "success" : "warning"
         });
 
-        if (analysis.decision === "SKIP" || analysis.confidence < (botData.minConfidence || 80)) {
-            return { success: true, message: "Aposta ignorada pelo critério de confiança." };
+        const confidence = Number(analysis.confidence);
+        const minConfidence = Number(botData.minConfidence) || 80;
+        const shouldBet =
+            analysis.decision === "BET" &&
+            Number.isFinite(confidence) &&
+            confidence >= minConfidence;
+
+        const decision = {
+            apostar: shouldBet,
+            tipo: String(analysis.suggestedMarket || "NÃO INFORMADO"),
+            selecao: String(analysis.suggestedSelection || "NÃO INFORMADA"),
+            confianca: Number.isFinite(confidence) ? confidence.toFixed(0) : "0",
+            justificativa: String(analysis.reasoning || "Sem justificativa.")
+        };
+
+        const payloadStr = JSON.stringify(decision);
+
+        if (!shouldBet) {
+            return {
+                success: true,
+                payload: payloadStr,
+                message: "Aposta ignorada pelo critério de confiança."
+            };
         }
 
         // 2. Place Bet on Pinnacle (Simulated structure for demonstration, requires exact eventId and lineId in real scenario)
@@ -170,7 +200,11 @@ export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request:
             type: "info"
         });
 
-        return { success: true, message: "Análise concluída e ordem processada." };
+        return {
+            success: true,
+            payload: payloadStr,
+            message: "Análise concluída em modo demonstração."
+        };
 
     } catch (e: any) {
         await db.collection("pinnacle_logs").add({
@@ -178,6 +212,6 @@ export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request:
             message: `❌ Erro Crítico: ${e.message}`,
             type: "error"
         });
-        return { success: false, error: e.message };
+        return { success: false, error: String(e.message) };
     }
 });
