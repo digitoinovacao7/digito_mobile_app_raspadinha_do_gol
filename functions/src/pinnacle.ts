@@ -10,20 +10,33 @@ async function getPinnacleAuth() {
     const settings = await db.collection("settings").doc("general").get();
     const pinnacleData = settings.data()?.pinnacle || {};
 
-    if (!pinnacleData.username || !pinnacleData.password) {
+    const username = (pinnacleData.username || "").trim();
+    const password = (pinnacleData.password || "").trim();
+
+    if (!username || !password) {
         throw new Error("Credenciais da Pinnacle não configuradas.");
     }
-    return Buffer.from(`${pinnacleData.username}:${pinnacleData.password}`).toString('base64');
+    return Buffer.from(`${username}:${password}`).toString('base64');
+}
+
+async function getPinnacleBaseUrl() {
+    const db = admin.firestore();
+    const settings = await db.collection("settings").doc("general").get();
+    const pinnacleData = settings.data()?.pinnacle || {};
+    
+    // Default to the official API, but allow overriding for local development server
+    return pinnacleData.apiUrl || "https://api.pinnacle.com";
 }
 
 export const pinnacleGetBalance = onCall({ region: "southamerica-east1" }, async (request: any) => {
     try {
         const auth = await getPinnacleAuth();
+        const baseUrl = await getPinnacleBaseUrl();
         const headers = {
             "Authorization": `Basic ${auth}`,
             "Accept": "application/json"
         };
-        const response = await axios.get("https://api.pinnacle.com/v1/client/balance", {
+        const response = await axios.get(`${baseUrl}/v1/client/balance`, {
             headers
         });
 
@@ -41,7 +54,7 @@ export const pinnacleGetBalance = onCall({ region: "southamerica-east1" }, async
 
             while (moreAvailable && pageCount < 20) {
                 pageCount++;
-                const betsResponse = await axios.get("https://api.pinnacle.com/v4/bets", {
+                const betsResponse = await axios.get(`${baseUrl}/v4/bets`, {
                     headers,
                     params: {
                         betlist: "SETTLED",

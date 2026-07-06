@@ -20,7 +20,7 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 
 - O aplicativo exibe as partidas em andamento e os campeonatos disponíveis.
 - Durante a partida, o usuário acessa a "Sala da Partida" para acompanhar o tempo e eventos importantes.
-- **Gatilhos Dinâmicos (Eventos Reais):** O aplicativo monitora os eventos da partida ao vivo (Ex: Fim do 1º Tempo, Fim de Jogo, ou Gols de qualquer um dos times). 
+- **Gatilhos Dinâmicos (Eventos Reais):** O aplicativo monitora os eventos da partida ao vivo (Ex: Fim do 1º Tempo, Fim de Jogo, ou Gols de qualquer um dos times).
 - **Raspadinha Imediata:** Cada evento real desses gera 1 "Chance" para o usuário jogar a Raspadinha do Gol. O botão da raspadinha surge em tempo real na tela da partida.
 - **Acúmulo de Chances:** Se saírem 3 gols, o usuário ganha 3 chances de raspar cartelas. A chance é consumida assim que o usuário abre e joga a Raspadinha referente àquele evento.
 
@@ -48,10 +48,12 @@ Apenas usuários com a role `admin` podem acessar a tela de Painel Administrativ
 O aplicativo foca na entrega de prêmios físicos e engajamento, com o seguinte plano de monetização e expansão B2B:
 
 ### A. Parcerias B2B e Marcas Patrocinadoras
-- **Raspadinhas Patrocinadas:** Marcas parceiras podem comprar o espaço visual de uma raspadinha ou de um evento específico (ex: "Raspadinha Zé Delivery no Gol do Flamengo") oferecendo prêmios da própria marca.
+
+- **Raspadinhas Patrocinadas:** Marcas parceiras podem comprar o espaço visual de uma raspadinha ou de um evento específico (ex: "Raspadinha Zé Delivery no Gol do Atletico") oferecendo prêmios da própria marca.
 - **Cupons de Afiliados (CPA):** A Vitrine de Prêmios pode distribuir vouchers de desconto para grandes e-commerces como prêmios menores da raspadinha. A plataforma recebe uma comissão (Custo Por Aquisição) sempre que o usuário utilizar o cupom.
 - **Naming Rights de Salas:** Possibilidade de comercializar "espaços" e banners dentro da Sala da Partida de jogos de alto tráfego.
 
 ### B. Publicidade Gamificada (Ads)
+
 - **Vídeos Premiados:** Futura integração onde o usuário pode assistir a um vídeo publicitário para ganhar chances extras na raspadinha caso a partida termine sem gols.
 - **Banners e Interstitiais:** Exibição de anúncios tradicionais no rodapé do aplicativo ou em telas de transição.
