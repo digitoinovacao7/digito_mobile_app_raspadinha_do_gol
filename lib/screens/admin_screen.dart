@@ -455,6 +455,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       _buildSectionHeader(Icons.smart_toy, 'Robô de Apostas (Pinnacle)'),
                       const SizedBox(height: 8),
                       const Text('Configuração da conta Master (Admin) para o Robô da Pinnacle operar.', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => launchUrl(Uri.parse('https://pinnacle.bet.br/sportsbook')),
+                        child: const Text(
+                          'Acessar Pinnacle (https://pinnacle.bet.br/sportsbook)',
+                          style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                        ),
+                      ),
                       const SizedBox(height: 24),
                       _buildTextField(
                         controller: _pinnacleUsernameController,
@@ -941,7 +949,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   Future<void> _testPinnacleConnection() async {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Testando conexão com Pinnacle...')));
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('pinnacleGetBalance');
+      final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1').httpsCallable('pinnacleGetBalance');
       final result = await callable.call();
       final data = Map<String, dynamic>.from(result.data as Map);
       if (data['success'] != true) {
@@ -995,7 +1003,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         // Evita o codec de versões antigas do cloud_functions_web, que tenta
         // acessar Int64List e falha no dart2js antes de entregar a resposta.
         final response = await Dio().post<Map<String, dynamic>>(
-          'https://us-central1-raspadinhadogol.cloudfunctions.net/analyzeMatchAndBetPinnacle',
+          'https://southamerica-east1-raspadinhadogol.cloudfunctions.net/analyzeMatchAndBetPinnacle',
           data: {
             'data': {'matchContext': contextText},
           },
@@ -1007,7 +1015,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         }
         data = Map<String, dynamic>.from(resultData);
       } else {
-        final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBetPinnacle');
+        final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1').httpsCallable('analyzeMatchAndBetPinnacle');
         final result = await callable.call({
           'matchContext': contextText,
         });

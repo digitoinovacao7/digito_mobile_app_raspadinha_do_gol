@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onCall } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -16,7 +16,7 @@ async function getPinnacleAuth() {
     return Buffer.from(`${pinnacleData.username}:${pinnacleData.password}`).toString('base64');
 }
 
-export const pinnacleGetBalance = functions.https.onCall(async (request: any) => {
+export const pinnacleGetBalance = onCall({ region: "southamerica-east1" }, async (request: any) => {
     try {
         const auth = await getPinnacleAuth();
         const headers = {
@@ -111,7 +111,7 @@ export const pinnacleGetBalance = functions.https.onCall(async (request: any) =>
     }
 });
 
-export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request: any) => {
+export const analyzeMatchAndBetPinnacle = onCall({ region: "southamerica-east1" }, async (request: any) => {
     const matchContext = request.matchContext || request.data?.matchContext;
     const db = admin.firestore();
     
