@@ -23,7 +23,10 @@ cd ..
 
 echo ""
 echo "📱 3. Buildando o App Flutter (Web)..."
-flutter build web
+# O app precisa sempre buscar o bundle atual; um service worker antigo mantém
+# versões do cloud_functions_web em cache e pode reintroduzir o erro de Int64.
+flutter build web --pwa-strategy=none
+cp web/flutter_service_worker_cleanup.js build/web/flutter_service_worker.js
 
 echo ""
 echo "☁️ 4. Enviando tudo para o Firebase Hosting..."

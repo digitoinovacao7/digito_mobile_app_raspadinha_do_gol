@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
+import { generateGeminiContent } from "./gemini";
 
 // Helper to get Basic Auth header
 async function getPinnacleAuth() {
@@ -139,8 +140,7 @@ export const analyzeMatchAndBetPinnacle = functions.https.onCall(async (request:
         // 1. Analyze with Gemini
         const prompt = `Você é um Analista de Apostas Esportivas focado na Pinnacle. Analise este jogo e retorne um JSON com a decisão. Se as chances forem baixas, pule (SKIP). Contexto: ${matchContext}`;
         
-        const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        const result = await generateGeminiContent(ai, {
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:dio/dio.dart';
 import '../providers/game_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
@@ -988,12 +990,30 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     setState(() => _isAnalyzing = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBetPinnacle');
-      final result = await callable.call({
-        'matchContext': contextText,
-      });
+      final Map<String, dynamic> data;
+      if (kIsWeb) {
+        // Evita o codec de versões antigas do cloud_functions_web, que tenta
+        // acessar Int64List e falha no dart2js antes de entregar a resposta.
+        final response = await Dio().post<Map<String, dynamic>>(
+          'https://us-central1-raspadinhadogol.cloudfunctions.net/analyzeMatchAndBetPinnacle',
+          data: {
+            'data': {'matchContext': contextText},
+          },
+          options: Options(contentType: Headers.jsonContentType),
+        );
+        final resultData = response.data?['result'];
+        if (resultData is! Map) {
+          throw Exception('Resposta inválida do serviço de análise.');
+        }
+        data = Map<String, dynamic>.from(resultData);
+      } else {
+        final callable = FirebaseFunctions.instance.httpsCallable('analyzeMatchAndBetPinnacle');
+        final result = await callable.call({
+          'matchContext': contextText,
+        });
+        data = Map<String, dynamic>.from(result.data as Map);
+      }
 
-      final data = Map<String, dynamic>.from(result.data as Map);
       if (data['success'] != true) {
         throw Exception(data['error']?.toString() ?? 'Falha desconhecida na análise.');
       }

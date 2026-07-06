@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import { GoogleGenAI } from "@google/genai";
+import { generateGeminiContent } from "./gemini";
 
 admin.initializeApp();
 
@@ -300,8 +301,7 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
 "question" (string), "options" (array de 4 strings), e "correctIndex" (número inteiro de 0 a 3 indicando a opção certa).`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+        const response = await generateGeminiContent(ai, {
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
