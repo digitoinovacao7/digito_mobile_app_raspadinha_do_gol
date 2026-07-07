@@ -30,7 +30,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _globalWinChanceController = TextEditingController();
   final _pinnacleUsernameController = TextEditingController();
   final _pinnaclePasswordController = TextEditingController();
-  final _pinnacleApiUrlController = TextEditingController();
   final _geminiTestContextController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
@@ -93,7 +92,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         if (data.containsKey('pinnacle')) {
           _pinnacleUsernameController.text = data['pinnacle']['username'] ?? '';
           _pinnaclePasswordController.text = data['pinnacle']['password'] ?? '';
-          _pinnacleApiUrlController.text = data['pinnacle']['apiUrl'] ?? '';
         }
       }
       
@@ -125,7 +123,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _globalWinChanceController.dispose();
     _pinnacleUsernameController.dispose();
     _pinnaclePasswordController.dispose();
-    _pinnacleApiUrlController.dispose();
     _geminiTestContextController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -157,7 +154,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'pinnacle': {
           'username': _pinnacleUsernameController.text.trim(),
           'password': _pinnaclePasswordController.text.trim(),
-          'apiUrl': _pinnacleApiUrlController.text.trim(),
         }
       }, SetOptions(merge: true));
 
@@ -479,13 +475,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         label: 'Senha da Pinnacle',
                         hint: 'Sua senha da Pinnacle',
                         obscureText: true,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _pinnacleApiUrlController,
-                        label: 'API URL da Pinnacle (Para Testes Locais)',
-                        hint: 'Ex: http://192.168.0.x:3000 (Opcional)',
-                        helpText: 'Deixe em branco para usar a API oficial (https://api.pinnacle.com).',
                       ),
                     ],
                   ),
