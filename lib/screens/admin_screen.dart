@@ -174,10 +174,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Painel Administrativo'),
-          backgroundColor: AppTheme.primaryGreen,
-          bottom: const TabBar(
+        backgroundColor: AppTheme.primaryGreen,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: const TabBar(
             indicatorColor: AppTheme.accentGold,
             indicatorWeight: 4,
             labelColor: Colors.white,

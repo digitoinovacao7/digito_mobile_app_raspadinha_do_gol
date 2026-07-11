@@ -1,194 +1,239 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
-import '../providers/game_provider.dart';
 import 'login_screen.dart';
-import 'dart:math';
-
-final publicFeaturedMatchesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final service = ref.watch(footballServiceProvider);
-  return await service.getFeaturedMatchesForToday();
-});
 
 class LandingScreen extends ConsumerWidget {
-  const LandingScreen({Key? key}) : super(key: key);
+  const LandingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final matchesAsync = ref.watch(publicFeaturedMatchesProvider);
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppTheme.primaryGreen.withValues(alpha: 0.9),
-              AppTheme.primaryGreen,
+              AppTheme.primaryGreen.withValues(alpha: 0.95),
+              const Color(0xFF003300), // Darker green
             ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
         child: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.sports_soccer, color: Colors.white, size: 36),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Raspadinha',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentGold,
-                        foregroundColor: AppTheme.textDark,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        );
-                      },
-                      child: const Text(
-                        'Acesse',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
+              // Fundo com ícone gigante
+              Positioned(
+                top: -50,
+                right: -50,
+                child: Icon(
+                  Icons.sports_soccer,
+                  size: 300,
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
               
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 32),
-                      
-                      // A simple catchy headline instead of the white ball
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Text(
-                          'Pronto para entrar em campo?',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 36,
-                            height: 1.1,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Jogos de Hoje (Public API call)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Row(
+              Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            const Icon(Icons.local_fire_department, color: AppTheme.accentGold, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Jogos em Destaque Hoje',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.sports_soccer, color: Colors.white, size: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Raspadinha',
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 24,
+                                letterSpacing: -0.5,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      SizedBox(
-                        height: 140,
-                        child: matchesAsync.when(
-                          data: (matches) {
-                            if (matches.isEmpty) {
-                              return const Center(child: Text('Nenhum jogo em destaque no momento.', style: TextStyle(color: Colors.white70)));
-                            }
-                            return ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: matches.length,
-                              itemBuilder: (context, index) {
-                                final match = matches[index];
-                                final homeTeam = match['teams']['home']['name'] ?? 'Casa';
-                                final awayTeam = match['teams']['away']['name'] ?? 'Fora';
-                                final status = match['fixture']['status']['short'] ?? 'NS';
-                                final homeGoals = match['goals']['home'] ?? 0;
-                                final awayGoals = match['goals']['away'] ?? 0;
-                                final isLive = ['1H', '2H', 'HT', 'ET', 'P'].contains(status);
-
-                                return Container(
-                                  width: 220,
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: isLive ? AppTheme.accentGold : Colors.white24, width: isLive ? 2 : 1),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (isLive)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
-                                          child: const Text('AO VIVO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                        ),
-                                      if (isLive) const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(child: Text(homeTeam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                                          Text('$homeGoals', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(child: Text(awayTeam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                                          Text('$awayGoals', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
                             );
                           },
-                          loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentGold)),
-                          error: (err, stack) => const Center(child: Text('Erro ao carregar jogos.', style: TextStyle(color: Colors.white70))),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.accentGold,
+                            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          child: const Text('Entrar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 32),
+                          
+                          // Hero Text
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentGold,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              '⚽ O JOGO VIROU',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Pronto para\nentrar em campo?',
+                            style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 42,
+                              height: 1.1,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Acompanhe jogos ao vivo, raspe cartelas premiadas e concorra a PIX na hora!',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 18,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 48),
+
+                          // Funcionalidades (Substituindo a lista infinita)
+                          _buildFeatureCard(
+                            icon: Icons.live_tv,
+                            title: 'Jogos ao Vivo',
+                            subtitle: 'Acompanhe os lances em tempo real das maiores ligas.',
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFeatureCard(
+                            icon: Icons.confirmation_number,
+                            title: 'Raspadinhas',
+                            subtitle: 'Eventos na partida geram chances de raspar e ganhar.',
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFeatureCard(
+                            icon: Icons.pix,
+                            title: 'Prêmios em PIX',
+                            subtitle: 'Resgate seus tokens direto na sua conta bancária.',
+                          ),
+                          
+                          const SizedBox(height: 48),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Call to Action Inferior
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentGold,
+                          foregroundColor: Colors.black,
+                          elevation: 10,
+                          shadowColor: AppTheme.accentGold.withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          );
+                        },
+                        child: const Text(
+                          'Começar a Jogar Agora',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
-                      
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard({required IconData icon, required String title, required String subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.accentGold.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppTheme.accentGold, size: 32),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          )
+        ],
       ),
     );
   }

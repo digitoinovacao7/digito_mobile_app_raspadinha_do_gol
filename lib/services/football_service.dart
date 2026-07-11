@@ -65,6 +65,36 @@ class FootballService {
     }
   }
 
+  Future<List<LeagueInfo>> getPopularLeagues() async {
+    await _initApiKey();
+    final today = DateTime.now();
+    int season = today.year;
+
+    if (_activeApi == 'football_data') {
+      return [
+        LeagueInfo(id: 2013, name: 'Brasileirão Série A', season: season, logoUrl: 'https://crests.football-data.org/764.svg'),
+        LeagueInfo(id: 2152, name: 'Copa Libertadores', season: season, logoUrl: 'https://crests.football-data.org/libertadores.png'),
+        LeagueInfo(id: 2000, name: 'Copa do Mundo', season: season, logoUrl: 'https://crests.football-data.org/wc.png'),
+      ];
+    } else {
+      return [
+        LeagueInfo(id: 71, name: 'Brasileirão Série A', season: season, logoUrl: 'https://media.api-sports.io/football/leagues/71.png'),
+        LeagueInfo(id: 13, name: 'Copa Libertadores', season: season, logoUrl: 'https://media.api-sports.io/football/leagues/13.png'),
+        LeagueInfo(id: 1, name: 'Copa do Mundo', season: season, logoUrl: 'https://media.api-sports.io/football/leagues/1.png'),
+      ];
+    }
+  }
+
+  Future<List<LeagueInfo>> getCombinedLeagues() async {
+    final popular = await getPopularLeagues();
+    final active = await getActiveLeaguesForToday();
+    
+    final popularIds = popular.map((e) => e.id).toSet();
+    final filteredActive = active.where((e) => !popularIds.contains(e.id)).take(7).toList();
+    
+    return [...popular, ...filteredActive];
+  }
+
   // Busca as ligas que tem jogos hoje
   Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
     await _initApiKey();
@@ -298,16 +328,21 @@ class FootballService {
           dynamic rawData = response.data['data'];
           final data = rawData is String ? jsonDecode(rawData) : rawData;
           if (data['matches'] != null) {
+            final popular = await getPopularLeagues();
+            final popularIds = popular.map((l) => l.id).toSet();
+
             final matches = data['matches'] as List<dynamic>;
+            final mainMatches = matches.where((m) => popularIds.contains(_toInt(m['competition']?['id']))).toList();
+
             // Priority: IN_PLAY first, then others
-            matches.sort((a, b) {
+            mainMatches.sort((a, b) {
               final statusA = a['status'];
               final statusB = b['status'];
               if (statusA == 'IN_PLAY' && statusB != 'IN_PLAY') return -1;
               if (statusB == 'IN_PLAY' && statusA != 'IN_PLAY') return 1;
               return 0;
             });
-            final top5 = matches.take(5).toList();
+            final top5 = mainMatches.take(5).toList();
             
             return top5.map((m) {
               final rawStatus = m['status'] ?? 'SCHEDULED';
@@ -351,9 +386,14 @@ class FootballService {
         if (response.statusCode == 200) {
           final data = response.data;
           if (data['response'] != null) {
+            final popular = await getPopularLeagues();
+            final popularIds = popular.map((l) => l.id).toSet();
+
             final matches = data['response'] as List<dynamic>;
+            final mainMatches = matches.where((m) => popularIds.contains(_toInt(m['league']?['id']))).toList();
+
             // Priority: Live matches
-            matches.sort((a, b) {
+            mainMatches.sort((a, b) {
               final sA = a['fixture']['status']['short'];
               final sB = b['fixture']['status']['short'];
               final liveStatuses = ['1H', '2H', 'HT', 'ET', 'P'];
@@ -361,7 +401,7 @@ class FootballService {
               if (liveStatuses.contains(sB) && !liveStatuses.contains(sA)) return 1;
               return 0;
             });
-            return matches.take(5).toList();
+            return mainMatches.take(5).toList();
           }
         }
         return [];

@@ -74,15 +74,36 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       });
     }
 
-    final bool showAppBar = !(isAdmin && _currentIndex == 1);
+    String getAppBarTitle() {
+      if (isAdmin) {
+        if (_currentIndex == 1) return 'Painel Admin';
+        return 'Raspadinha do Gol';
+      }
+      switch (_currentIndex) {
+        case 1: return 'Quiz por Diversão';
+        case 2: return 'Loja de Prêmios';
+        case 3: return 'Minhas Cartelas';
+        default: return 'Raspadinha do Gol';
+      }
+    }
+
+    final bool showAppBar = true; // Always show AppBar since it has the unified layout
 
     return Scaffold(
       appBar: showAppBar ? AppBar(
-        title: const Text('Raspadinha do Gol'),
+        backgroundColor: AppTheme.primaryGreen,
+        centerTitle: false,
+        titleSpacing: 0,
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Image.asset('assets/logo_transparent.png', fit: BoxFit.contain, errorBuilder: (c,e,s) => const Icon(Icons.sports_soccer, color: Colors.white)),
+        ),
+        title: Text(getAppBarTitle(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
           if (user != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
               child: GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -91,7 +112,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppTheme.accentGold.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -114,16 +135,24 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
               ),
             ),
           if (user != null)
-            IconButton(
-              icon: const Icon(Icons.person, color: AppTheme.textDark),
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => const ProfileBottomSheet(),
-                );
-              },
+            Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4.0),
+                  child: Text('Olá, ${user.name.split(' ').first}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.person, color: Colors.white),
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const ProfileBottomSheet(),
+                    );
+                  },
+                ),
+              ],
             ),
         ],
       ) : null,

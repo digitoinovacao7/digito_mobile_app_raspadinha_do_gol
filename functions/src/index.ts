@@ -308,7 +308,11 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
             }
         });
 
-        const jsonText = response.text || "{}";
+        let jsonText = response.text || "{}";
+        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonText = jsonMatch[0];
+        }
         const quizData = JSON.parse(jsonText);
 
         if (!quizData.question || !Array.isArray(quizData.options) || quizData.options.length !== 4 || quizData.correctIndex === undefined) {
@@ -340,6 +344,7 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
             options: quizData.options 
         };
     } catch (error: any) {
+        console.error("ERRO COMPLETO EM GENERATE_QUIZ:", error);
         throw new HttpsError("internal", `Erro ao gerar quiz: ${error.message}`);
     }
 });

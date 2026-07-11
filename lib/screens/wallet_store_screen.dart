@@ -33,9 +33,6 @@ class _WalletStoreScreenState extends ConsumerState<WalletStoreScreen> {
     final currentTokens = user?.tokens ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Vitrine de Prêmios'),
-      ),
       body: Column(
         children: [
           Container(

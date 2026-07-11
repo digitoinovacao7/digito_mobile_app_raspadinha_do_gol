@@ -1,21 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/app_user.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
 import '../core/theme.dart';
 import '../models/league_info.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
-import 'matches_screen.dart';
-import 'active_match_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
 import '../services/db_service.dart';
 
+import 'matches_screen.dart';
+import 'active_match_screen.dart';
+import 'my_scratchcards_screen.dart';
+import 'quiz_standalone_screen.dart';
+import 'wallet_store_screen.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -29,6 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   NativeAd? _nativeAd;
   bool _isAdLoaded = false;
+  // ignore: unused_field
   bool _isNativeAdFailed = false;
 
   RewardedAd? _rewardedAd;
@@ -101,12 +105,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (ad) {
               ad.dispose();
-              _loadRewardedAd(); // Load another ad for the next time
+              _loadRewardedAd();
             },
             onAdFailedToShowFullScreenContent: (ad, error) {
               debugPrint('Failed to show rewarded ad: $error');
               ad.dispose();
-              _loadRewardedAd(); // Load another ad for the next time
+              _loadRewardedAd();
             },
           );
           if (mounted) {
@@ -130,21 +134,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showRewardedAd() {
     if (_rewardedAd == null) return;
-    
+
     _rewardedAd!.show(
       onUserEarnedReward: (AdWithoutView ad, RewardItem reward) async {
         debugPrint('User earned reward: ${reward.amount} ${reward.type}');
         final user = ref.read(currentUserProvider);
         if (user != null) {
           int amount = reward.amount.toInt();
-          // Fallback if ad is configured as 1 instead of 100/250.
-          if (amount <= 1) amount = 250; 
-          
+          if (amount <= 1) amount = 250;
+
           await DbService().addTokens(user.id, amount);
-          await DbService().addTokenTransaction(user.id, amount, 'rewarded_ad', 'Vídeo Premiado');
-          
-          ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: user.tokens + amount);
-          
+          await DbService().addTokenTransaction(
+            user.id,
+            amount,
+            'rewarded_ad',
+            'Vídeo Premiado',
+          );
+
+          ref.read(currentUserProvider.notifier).state = user.copyWith(
+            tokens: user.tokens + amount,
+          );
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -171,16 +181,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _loadDashboardData() async {
     final service = ref.read(footballServiceProvider);
-    
-    // Load Leagues and Featured Matches in parallel
-    final results = await Future.wait([
-      service.getActiveLeaguesForToday(),
-      service.getFeaturedMatchesForToday(),
-    ]);
 
-    List<LeagueInfo> leagues = results[0] as List<LeagueInfo>;
-    List<dynamic> featuredMatches = results[1] as List<dynamic>;
-    
+    final leaguesFuture = service.getCombinedLeagues();
+    final featuredMatchesFuture = service.getFeaturedMatchesForToday();
+
+    final leagues = await leaguesFuture;
+    final featuredMatches = await featuredMatchesFuture;
+
     try {
       final prizesSnap = await FirebaseFirestore.instance
           .collection('prizes')
@@ -193,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _featuredPrize = null;
       }
     } catch (e) {
-      print('[HomeScreen] Erro ao carregar prêmios: $e');
+      debugPrint('[HomeScreen] Erro ao carregar prêmios: $e');
     }
 
     if (mounted) {
@@ -207,229 +214,546 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundWhite,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {
-            _isLoading = true;
-          });
-          await _loadDashboardData();
-        },
-        color: AppTheme.primaryGreen,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-
-              // Hero CTA Banner / Native Ad
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: _isAdLoaded && _nativeAd != null
-                    ? ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: double.infinity,
-                          minHeight: 320,
-                          maxHeight: 350,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(color: AppTheme.primaryGreen.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8)),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: AdWidget(ad: _nativeAd!),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppTheme.primaryGreen, Colors.green.shade800],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(color: AppTheme.primaryGreen.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8)),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(color: AppTheme.accentGold, borderRadius: BorderRadius.circular(12)),
-                                    child: Text(
-                                      _featuredPrize != null 
-                                          ? (_featuredPrize!['type'] == 'pix' ? 'SAQUE PIX 💸' : 'PRÊMIO FÍSICO 🎁')
-                                          : 'RASPADINHA GRÁTIS 🎟️',
-                                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    _featuredPrize != null 
-                                      ? 'Raspe e ganhe\n${_featuredPrize!['name']}'
-                                      : 'Assista aos jogos e ganhe raspadinhas!',
-                                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: const Text('Como funciona?'),
-                                          content: const Text(
-                                            'Acompanhe os Jogos ao Vivo pelo aplicativo. Toda vez que rolar um evento importante na partida (como um Gol ou Fim de Jogo), você ganha uma chance GRATUITA de raspar a cartela e concorrer aos prêmios na hora!'
-                                          ),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))
-                                          ],
-                                        )
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: AppTheme.primaryGreen,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
-                                    ),
-                                    child: const Text('Como jogar?', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Icon(_featuredPrize?['type'] == 'pix' ? Icons.pix : Icons.sports_soccer, size: 70, color: Colors.white.withValues(alpha: 0.9)),
-                          ],
-                        ),
-                      ),
-              ),
-
-              const SizedBox(height: 16),
-              
-              // Rewarded Ad CTA
-              if (_isRewardedAdLoaded)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: InkWell(
-                    onTap: _showRewardedAd,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentGold,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(color: AppTheme.accentGold.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.play_circle_fill, color: Colors.black, size: 28),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Ganhe Tokens Grátis! 🎬',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 32),
-
-              // Featured Matches Carousel
-              if (_isLoading)
-                const Center(child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()))
-              else if (_featuredMatches.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Text(
-                    'Jogos em Destaque',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              _isLoading = true;
+            });
+            await _loadDashboardData();
+          },
+          color: AppTheme.primaryGreen,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                _buildHeroBanner(),
                 const SizedBox(height: 16),
-                SizedBox(
-                  height: 160,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _featuredMatches.length,
-                    itemBuilder: (context, index) {
-                      final match = _featuredMatches[index];
-                      return _buildFeaturedMatchCard(context, match);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
+                _buildQuickActions(),
+                if (_featuredPrize != null) ...[
+                  const SizedBox(height: 16),
+                  _buildPrizeSpotlight(),
+                ],
+                if (_isRewardedAdLoaded) ...[
+                  const SizedBox(height: 16),
+                  _buildRewardedAdButton(),
+                ],
+                if (_isAdLoaded && _nativeAd != null) ...[
+                  const SizedBox(height: 16),
+                  _buildNativeAdCard(),
+                ],
+                const SizedBox(height: 28),
+                if (_isLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_featuredMatches.isNotEmpty) ...[
+                  _buildSectionTitle('Jogos em Destaque'),
+                  const SizedBox(height: 16),
+                  _buildFeaturedMatchesCarousel(),
+                  const SizedBox(height: 32),
+                ],
+                if (!_isLoading) ...[
+                  _buildSectionTitle('Campeonatos'),
+                  const SizedBox(height: 16),
+                  _activeLeagues.isEmpty
+                      ? _buildEmptyState()
+                      : _buildLeaguesGrid(),
+                  const SizedBox(height: 40),
+                ],
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-              // Active Leagues List
-              if (!_isLoading) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Text(
-                    'Explorar Campeonatos',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.confirmation_number_outlined,
+              label: 'Cartelas',
+              caption: 'Suas chances',
+              color: const Color(0xFF7C3AED),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MyScratchcardsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.psychology_outlined,
+              label: 'Quiz IA',
+              caption: 'Ganhe tokens',
+              color: const Color(0xFF2563EB),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const QuizStandaloneScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.storefront_outlined,
+              label: 'Prêmios',
+              caption: 'Troque saldo',
+              color: const Color(0xFFF97316),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletStoreScreen()),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required String caption,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 116,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.16)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    color: AppTheme.textDark,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _activeLeagues.isEmpty
-                    ? _buildEmptyState(context)
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _activeLeagues.length,
-                        itemBuilder: (context, index) {
-                          final league = _activeLeagues[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: _buildLeagueCard(
-                              context,
-                              title: league.name,
-                              id: league.id,
-                              season: league.season,
-                              logoUrl: league.logoUrl,
-                            ),
-                          );
-                        },
+                const SizedBox(height: 2),
+                Text(
+                  caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 22,
+            decoration: BoxDecoration(
+              color: AppTheme.accentGold,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroBanner() {
+    final user = ref.watch(currentUserProvider);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF063D1F), AppTheme.primaryGreen],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryGreen.withValues(alpha: 0.24),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Image.asset(
+                    'assets/logo_transparent.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.sports_soccer, color: Colors.white),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.monetization_on,
+                        color: Colors.black,
+                        size: 16,
                       ),
-                const SizedBox(height: 40),
-              ]
+                      const SizedBox(width: 4),
+                      Text(
+                        '${user?.tokens ?? 0}',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'Raspadinha do Gol',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                height: 1.02,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Acompanhe jogos, responda quizzes e junte tokens para concorrer aos prêmios.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.84),
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                _buildHeroMetric(
+                  Icons.live_tv_outlined,
+                  '${_featuredMatches.length}',
+                  'jogos',
+                ),
+                const SizedBox(width: 10),
+                _buildHeroMetric(
+                  Icons.emoji_events_outlined,
+                  '${_activeLeagues.length}',
+                  'ligas',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroMetric(IconData icon, String value, String label) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.accentGold, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.76),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrizeSpotlight() {
+    final prize = _featuredPrize!;
+    final name = prize['name']?.toString() ?? 'Prêmio Surpresa';
+    final cost = (prize['token_cost'] as num?)?.toInt();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const WalletStoreScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppTheme.accentGold.withValues(alpha: 0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGold.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textDark,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      cost == null
+                          ? 'Prêmio ativo na loja'
+                          : '$cost tokens para resgatar',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.textDark),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNativeAdCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: double.infinity,
+          minHeight: 300,
+          maxHeight: 330,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: AdWidget(ad: _nativeAd!),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRewardedAdButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: InkWell(
+        onTap: _showRewardedAd,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          decoration: BoxDecoration(
+            color: AppTheme.accentGold,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.accentGold.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.play_circle_fill, color: Colors.black, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Ganhe tokens grátis',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedMatchesCarousel() {
+    return SizedBox(
+      height: 180,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _featuredMatches.length,
+        itemBuilder: (context, index) {
+          final match = _featuredMatches[index];
+          return _buildFeaturedMatchCard(context, match);
+        },
       ),
     );
   }
@@ -444,6 +768,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final status = match['fixture']['status']['short'];
     final isLive = ['1H', '2H', 'HT', 'ET', 'P'].contains(status);
 
+    final scoreText = (homeScore == null || awayScore == null)
+        ? 'VS'
+        : '$homeScore - $awayScore';
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -457,17 +785,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: 280,
-        margin: const EdgeInsets.only(right: 16),
+        width: 300,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200, width: 1.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade100, width: 2),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Column(
@@ -476,21 +808,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: isLive ? Colors.red.withValues(alpha: 0.1) : Colors.grey.shade100,
+                    color: isLive
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       if (isLive) ...[
-                        Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
                       ],
                       Text(
                         isLive ? 'AO VIVO' : status,
                         style: TextStyle(
-                          color: isLive ? Colors.red : Colors.grey.shade600,
+                          color: isLive ? Colors.red : Colors.grey.shade700,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
                         ),
@@ -498,24 +842,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
               ],
             ),
             const Spacer(),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildTeamColumn(homeTeam, homeLogo),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$homeScore - $awayScore',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1),
-                    ),
-                  ],
+                Expanded(child: _buildTeamColumn(homeTeam, homeLogo)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        scoreText,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                _buildTeamColumn(awayTeam, awayLogo),
+                Expanded(child: _buildTeamColumn(awayTeam, awayLogo)),
               ],
             ),
             const Spacer(),
@@ -529,95 +880,153 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Column(
       children: [
         if (logoUrl != null)
-          Image.network(logoUrl, width: 40, height: 40, errorBuilder: (_,__,___) => const Icon(Icons.shield, color: Colors.grey, size: 40))
+          Image.network(
+            logoUrl,
+            width: 48,
+            height: 48,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.shield, color: Colors.grey, size: 48),
+          )
         else
-          const Icon(Icons.shield, color: Colors.grey, size: 40),
+          const Icon(Icons.shield, color: Colors.grey, size: 48),
         const SizedBox(height: 8),
-        SizedBox(
-          width: 80,
-          child: Text(
-            name,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        Text(
+          name,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: AppTheme.textDark,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLeagueCard(BuildContext context, {required String title, required int id, int? season, String? logoUrl}) {
+  Widget _buildLeaguesGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 0.9,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _activeLeagues.length,
+      itemBuilder: (context, index) {
+        final league = _activeLeagues[index];
+        return _buildLeagueCard(
+          context,
+          title: league.name,
+          id: league.id,
+          season: league.season,
+          logoUrl: league.logoUrl,
+        );
+      },
+    );
+  }
+
+  Widget _buildLeagueCard(
+    BuildContext context, {
+    required String title,
+    required int id,
+    int? season,
+    String? logoUrl,
+  }) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => MatchesScreen(leagueId: id, leagueName: title, season: season)),
+          MaterialPageRoute(
+            builder: (_) =>
+                MatchesScreen(leagueId: id, leagueName: title, season: season),
+          ),
         );
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200, width: 1.5),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            if (logoUrl != null)
-              Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
-                padding: const EdgeInsets.all(8),
-                child: Image.network(logoUrl, errorBuilder: (c,e,s) => const Icon(Icons.sports_soccer, color: Colors.grey)),
-              )
-            else
-              const Icon(Icons.sports_soccer, color: Colors.grey, size: 48),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(color: AppTheme.textDark, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text('Ver todos os jogos', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                ],
-              ),
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
-          ],
-        ),
+            padding: const EdgeInsets.all(8),
+            child: logoUrl != null
+                ? Image.network(
+                    logoUrl,
+                    errorBuilder: (c, e, s) =>
+                        const Icon(Icons.sports_soccer, color: Colors.grey),
+                  )
+                : const Icon(Icons.sports_soccer, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textDark,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              height: 1.1,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          const SizedBox(height: 24),
-          Icon(Icons.sports_soccer, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum jogo disponível hoje',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.grey.shade200,
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.sports_soccer, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum jogo disponível hoje',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'A API de futebol não encontrou partidas para hoje. Isso pode acontecer fora do período de temporada.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'A API de futebol não encontrou partidas para hoje. Volte mais tarde!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            ),
+          ],
+        ),
       ),
     );
   }
