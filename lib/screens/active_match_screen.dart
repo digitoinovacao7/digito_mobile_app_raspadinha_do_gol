@@ -159,7 +159,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(colors: [AppTheme.primaryGreen, Colors.green.shade700]),
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: [BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))],
+                            boxShadow: [BoxShadow(color: AppTheme.primaryGreen.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 4))],
                           ),
                           child: Text('${match.homeScore} - ${match.awayScore}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
                         ),
@@ -309,7 +309,7 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton> with Sin
             children: [
               Container(
                 decoration: BoxDecoration(
-                  boxShadow: [BoxShadow(color: AppTheme.accentGold.withOpacity(0.5 * (_scaleAnimation.value - 1.0) * 20), blurRadius: 16)],
+                  boxShadow: [BoxShadow(color: AppTheme.accentGold.withValues(alpha: 0.5 * (_scaleAnimation.value - 1.0) * 20), blurRadius: 16)],
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ElevatedButton.icon(
@@ -392,13 +392,13 @@ class _ArquibancadaFabState extends State<_ArquibancadaFab>
               ),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
-                color: const Color(0xFF39FF14).withOpacity(_glowAnim.value),
+                color: const Color(0xFF39FF14).withValues(alpha: _glowAnim.value),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF39FF14)
-                      .withOpacity(_glowAnim.value * 0.5),
+                      .withValues(alpha: _glowAnim.value * 0.5),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),

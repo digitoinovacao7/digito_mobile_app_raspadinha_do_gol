@@ -231,7 +231,7 @@ class _ArquibancadaScreenState extends ConsumerState<ArquibancadaScreen>
             decoration: BoxDecoration(
               color: const Color(0xFF1A3A1A),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF39FF14).withOpacity(0.4)),
+              border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

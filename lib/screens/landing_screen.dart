@@ -22,7 +22,7 @@ class LandingScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppTheme.primaryGreen.withOpacity(0.9),
+              AppTheme.primaryGreen.withValues(alpha: 0.9),
               AppTheme.primaryGreen,
             ],
             begin: Alignment.topCenter,
@@ -141,7 +141,7 @@ class LandingScreen extends ConsumerWidget {
                                   margin: const EdgeInsets.symmetric(horizontal: 8),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(color: isLive ? AppTheme.accentGold : Colors.white24, width: isLive ? 2 : 1),
                                   ),

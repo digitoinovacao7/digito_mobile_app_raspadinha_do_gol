@@ -223,7 +223,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: RadialGradient(colors: [Colors.yellow.shade200, AppTheme.accentGold]),
-                                    boxShadow: [BoxShadow(color: AppTheme.accentGold.withOpacity(0.6), blurRadius: 10, offset: const Offset(0, 4))],
+                                    boxShadow: [BoxShadow(color: AppTheme.accentGold.withValues(alpha: 0.6), blurRadius: 10, offset: const Offset(0, 4))],
                                   ),
                                   child: const Icon(Icons.sports_soccer, size: 40, color: Colors.black87),
                                 )

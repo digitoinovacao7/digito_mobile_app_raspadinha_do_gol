@@ -23,7 +23,7 @@ class LoginScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppTheme.primaryGreen.withOpacity(0.9),
+              AppTheme.primaryGreen.withValues(alpha: 0.9),
               AppTheme.primaryGreen,
             ],
             begin: Alignment.topCenter,

@@ -79,7 +79,7 @@ class MyScratchcardsScreen extends ConsumerWidget {
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
                 leading: CircleAvatar(
-                  backgroundColor: won ? AppTheme.primaryGreen.withOpacity(0.1) : Colors.grey[200],
+                  backgroundColor: won ? AppTheme.primaryGreen.withValues(alpha: 0.1) : Colors.grey[200],
                   child: Icon(
                     won ? Icons.emoji_events : Icons.close,
                     color: won ? AppTheme.accentGold : Colors.grey[500],

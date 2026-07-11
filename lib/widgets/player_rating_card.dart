@@ -73,11 +73,11 @@ class _PlayerRatingCardState extends State<PlayerRatingCard>
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: _isDragging ? color.withOpacity(0.6) : Colors.white10,
+          color: _isDragging ? color.withValues(alpha: 0.6) : Colors.white10,
           width: 1.5,
         ),
         boxShadow: _isDragging
-            ? [BoxShadow(color: color.withOpacity(0.2), blurRadius: 12)]
+            ? [BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 12)]
             : [],
       ),
       child: Row(
@@ -87,7 +87,7 @@ class _PlayerRatingCardState extends State<PlayerRatingCard>
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: color.withOpacity(0.15),
+                backgroundColor: color.withValues(alpha: 0.15),
                 child: Text(
                   '${widget.player.shirtNumber}',
                   style: TextStyle(
@@ -160,7 +160,7 @@ class _PlayerRatingCardState extends State<PlayerRatingCard>
                     activeTrackColor: color,
                     inactiveTrackColor: Colors.white12,
                     thumbColor: color,
-                    overlayColor: color.withOpacity(0.2),
+                    overlayColor: color.withValues(alpha: 0.2),
                     thumbShape:
                         const RoundSliderThumbShape(enabledThumbRadius: 10),
                     trackHeight: 5,

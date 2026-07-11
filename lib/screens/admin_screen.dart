@@ -712,7 +712,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
-                    color: _newPrizeType == 'pix' ? AppTheme.primaryGreen.withOpacity(0.05) : Colors.white,
+                    color: _newPrizeType == 'pix' ? AppTheme.primaryGreen.withValues(alpha: 0.05) : Colors.white,
                     border: Border.all(color: _newPrizeType == 'pix' ? AppTheme.primaryGreen : Colors.grey.shade300, width: 2),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -734,7 +734,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
-                    color: _newPrizeType == 'produto' ? AppTheme.primaryGreen.withOpacity(0.05) : Colors.white,
+                    color: _newPrizeType == 'produto' ? AppTheme.primaryGreen.withValues(alpha: 0.05) : Colors.white,
                     border: Border.all(color: _newPrizeType == 'produto' ? AppTheme.primaryGreen : Colors.grey.shade300, width: 2),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1195,7 +1195,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 subtitle: Text('Solicitado por: ${data['userName'] ?? 'Desconhecido'}\nStatus: ${status.toUpperCase()}'),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
                   child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
                 children: [

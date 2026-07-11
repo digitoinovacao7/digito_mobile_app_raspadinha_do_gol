@@ -102,10 +102,10 @@ class _SentimentThermometerState extends State<SentimentThermometer>
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _moodColor.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: _moodColor.withValues(alpha: 0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: _moodColor.withOpacity(0.15),
+            color: _moodColor.withValues(alpha: 0.15),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -178,7 +178,7 @@ class _SentimentThermometerState extends State<SentimentThermometer>
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: _moodColor.withOpacity(0.6),
+                      color: _moodColor.withValues(alpha: 0.6),
                       blurRadius: 8,
                     ),
                   ],
@@ -343,9 +343,9 @@ class _InteractionButtonState extends State<_InteractionButton>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: widget.color.withOpacity(0.12),
+              color: widget.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: widget.color.withOpacity(0.4)),
+              border: Border.all(color: widget.color.withValues(alpha: 0.4)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -383,9 +383,9 @@ class _CountBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

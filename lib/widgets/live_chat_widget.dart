@@ -289,7 +289,7 @@ class _MessageBubble extends StatelessWidget {
           if (!isMe) ...[
             CircleAvatar(
               radius: 12,
-              backgroundColor: const Color(0xFF006400).withOpacity(0.6),
+              backgroundColor: const Color(0xFF006400).withValues(alpha: 0.6),
               child: Text(
                 message.userName.isNotEmpty
                     ? message.userName[0].toUpperCase()
@@ -323,7 +323,7 @@ class _MessageBubble extends StatelessWidget {
                       horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isMe
-                        ? const Color(0xFF006400).withOpacity(0.7)
+                        ? const Color(0xFF006400).withValues(alpha: 0.7)
                         : Colors.white12,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),

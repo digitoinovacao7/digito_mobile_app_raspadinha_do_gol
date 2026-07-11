@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 final aiQuizServiceProvider = Provider<AiQuizService>((ref) {
   return AiQuizService();
@@ -9,29 +8,16 @@ final aiQuizServiceProvider = Provider<AiQuizService>((ref) {
 class AiQuizService {
   Future<Map<String, dynamic>?> generateQuiz(String homeTeam, String awayTeam) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception("Usuário não autenticado.");
-      }
-      final idToken = await user.getIdToken();
-
-      final dio = Dio();
-      final response = await dio.post(
-        'https://us-central1-raspadinhadogol.cloudfunctions.net/generateQuiz',
-        data: {
-          'data': {
-            'context': 'Confronto entre $homeTeam e $awayTeam'
-          }
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $idToken',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
+      final callable = FirebaseFunctions.instance.httpsCallable('generateQuiz');
+      final response = await callable.call({
+        'context': 'Confronto entre $homeTeam e $awayTeam'
+      });
       
-      final data = response.data['result'];
+      var data = response.data;
+      if (data is Map && data.containsKey('result')) {
+        data = data['result'];
+      }
+      
       if (data != null && data['success'] == true) {
         return {
           'quizId': data['quizId'],
@@ -40,14 +26,8 @@ class AiQuizService {
         };
       }
       return null;
-    } on DioException catch (e) {
-      if (e.response != null && e.response!.data != null) {
-        final errorData = e.response!.data['error'];
-        if (errorData != null && errorData['message'] != null) {
-          throw Exception(errorData['message']);
-        }
-      }
-      throw Exception('Erro de conexão ao gerar quiz: ${e.message}');
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception('Erro na função de gerar quiz: ${e.message}');
     } catch (e) {
       throw Exception('Erro ao gerar quiz com a IA: $e');
     }

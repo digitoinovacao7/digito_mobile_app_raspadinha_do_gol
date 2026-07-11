@@ -185,7 +185,7 @@ class TokenHistoryScreen extends ConsumerWidget {
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       leading: CircleAvatar(
-                        backgroundColor: iconColor.withOpacity(0.1),
+                        backgroundColor: iconColor.withValues(alpha: 0.1),
                         child: Icon(iconData, color: iconColor),
                       ),
                       title: Text(description, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),

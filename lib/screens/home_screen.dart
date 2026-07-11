@@ -240,7 +240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
-                              BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
+                              BoxShadow(color: AppTheme.primaryGreen.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8)),
                             ],
                           ),
                           child: ClipRRect(
@@ -260,7 +260,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
-                            BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
+                            BoxShadow(color: AppTheme.primaryGreen.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8)),
                           ],
                         ),
                         child: Row(
@@ -315,7 +315,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             const SizedBox(width: 16),
-                            Icon(_featuredPrize?['type'] == 'pix' ? Icons.pix : Icons.sports_soccer, size: 70, color: Colors.white.withOpacity(0.9)),
+                            Icon(_featuredPrize?['type'] == 'pix' ? Icons.pix : Icons.sports_soccer, size: 70, color: Colors.white.withValues(alpha: 0.9)),
                           ],
                         ),
                       ),
@@ -337,7 +337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: AppTheme.accentGold,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
-                          BoxShadow(color: AppTheme.accentGold.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                          BoxShadow(color: AppTheme.accentGold.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Row(
@@ -467,7 +467,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.shade200, width: 1.5),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -478,7 +478,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isLive ? Colors.red.withOpacity(0.1) : Colors.grey.shade100,
+                    color: isLive ? Colors.red.withValues(alpha: 0.1) : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(

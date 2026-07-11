@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../models/match_state.dart';
@@ -32,35 +33,35 @@ class FootballService {
           .doc('general')
           .get();
       if (!docSnap.exists) {
-        print('[FootballService] ⚠️ Documento settings/general NAO EXISTE no Firestore!');
+        log('[FootballService] ⚠️ Documento settings/general NAO EXISTE no Firestore!');
         return;
       }
       final data = docSnap.data()!;
       _activeApi = data['active_football_api']?.toString() ?? 'api_football';
-      print('[FootballService] 🔧 API ativa: $_activeApi');
+      log('[FootballService] 🔧 API ativa: $_activeApi');
 
       final keys = data['api_keys'] as Map<String, dynamic>? ?? {};
-      print('[FootballService] 🔑 Keys disponíveis: ${keys.keys.toList()}');
+      log('[FootballService] 🔑 Keys disponíveis: ${keys.keys.toList()}');
 
       if (_activeApi == 'football_data') {
         _apiKey = keys['football_data']?.toString();
         if (_apiKey != null && _apiKey!.isNotEmpty) {
           _dio.options.headers = {'X-Auth-Token': _apiKey!};
-          print('[FootballService] ✅ football_data key carregada (${_apiKey!.length} chars)');
+          log('[FootballService] ✅ football_data key carregada (${_apiKey!.length} chars)');
         } else {
-          print('[FootballService] ❌ Key football_data ausente ou vazia!');
+          log('[FootballService] ❌ Key football_data ausente ou vazia!');
         }
       } else {
         _apiKey = keys['api_football']?.toString();
         if (_apiKey != null && _apiKey!.isNotEmpty) {
           _dio.options.headers = {'x-apisports-key': _apiKey!};
-          print('[FootballService] ✅ api_football key carregada (${_apiKey!.length} chars)');
+          log('[FootballService] ✅ api_football key carregada (${_apiKey!.length} chars)');
         } else {
-          print('[FootballService] ❌ Key api_football ausente ou vazia!');
+          log('[FootballService] ❌ Key api_football ausente ou vazia!');
         }
       }
     } catch (e) {
-      print('[FootballService] 💥 Erro ao carregar config da API: $e');
+      log('[FootballService] 💥 Erro ao carregar config da API: $e');
     }
   }
 
@@ -68,10 +69,10 @@ class FootballService {
   Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
     await _initApiKey();
     if (_apiKey == null || _apiKey!.isEmpty) {
-      print('[FootballService] ⚠️ getActiveLeaguesForToday: sem API key. Retornando lista vazia.');
+      log('[FootballService] ⚠️ getActiveLeaguesForToday: sem API key. Retornando lista vazia.');
       return [];
     }
-    print('[FootballService] 🔍 Buscando ligas ativas (api=$_activeApi)...');
+    log('[FootballService] 🔍 Buscando ligas ativas (api=$_activeApi)...');
 
     if (_activeApi == 'football_data') {
       return _getActiveLeaguesFootballData();
@@ -113,7 +114,7 @@ class FootballService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar ligas ativas (API-Football): $e');
+      log('Erro ao buscar ligas ativas (API-Football): $e');
       return [];
     }
   }
@@ -155,7 +156,7 @@ class FootballService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar ligas ativas (Football-Data): $e');
+      log('Erro ao buscar ligas ativas (Football-Data): $e');
       return [];
     }
   }
@@ -202,7 +203,7 @@ class FootballService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar jogos da liga (API-Football): $e');
+      log('Erro ao buscar jogos da liga (API-Football): $e');
       return [];
     }
   }
@@ -271,7 +272,7 @@ class FootballService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar jogos da liga (Football-Data): $e');
+      log('Erro ao buscar jogos da liga (Football-Data): $e');
       return [];
     }
   }
@@ -336,7 +337,7 @@ class FootballService {
         }
         return [];
       } catch (e) {
-        print('Erro ao buscar destaques (Football-Data): $e');
+        log('Erro ao buscar destaques (Football-Data): $e');
         return [];
       }
     } else {
@@ -365,7 +366,7 @@ class FootballService {
         }
         return [];
       } catch (e) {
-        print('Erro ao buscar destaques (API-Football): $e');
+        log('Erro ao buscar destaques (API-Football): $e');
         return [];
       }
     }
@@ -388,7 +389,7 @@ class FootballService {
 
   Future<void> _fetchFixtureStatus(int fixtureId) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
-      print('[FootballService] ⚠️ _fetchFixtureStatus: sem API key. Emitindo estado de erro.');
+      log('[FootballService] ⚠️ _fetchFixtureStatus: sem API key. Emitindo estado de erro.');
       _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
       return;
     }
@@ -444,7 +445,7 @@ class FootballService {
         _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
       }
     } catch (e) {
-      print('Erro ao buscar dados da api-football: $e');
+      log('Erro ao buscar dados da api-football: $e');
       _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
     }
   }
@@ -508,7 +509,7 @@ class FootballService {
         _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
       }
     } catch (e) {
-      print('Erro ao buscar dados do football-data.org: $e');
+      log('Erro ao buscar dados do football-data.org: $e');
       _matchStreamController.add(MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''));
     }
   }

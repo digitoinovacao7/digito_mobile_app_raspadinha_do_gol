@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -40,7 +41,7 @@ class AuthService {
         return appUser;
       }
     } catch (e) {
-      print("Erro no Google Sign In: $e");
+      log("Erro no Google Sign In: $e");
     }
     return null;
   }

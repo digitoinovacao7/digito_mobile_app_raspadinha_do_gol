@@ -39,7 +39,7 @@ class ProfileBottomSheet extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.1),
                 child: const Icon(Icons.person, size: 36, color: AppTheme.primaryGreen),
               ),
               const SizedBox(width: 16),
