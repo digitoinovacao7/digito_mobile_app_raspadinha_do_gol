@@ -11,6 +11,7 @@ import '../core/theme.dart';
 import 'scratch_game_screen.dart';
 import 'arquibancada_screen.dart';
 import '../models/match_state.dart';
+import '../widgets/smart_image.dart';
 
 class ActiveMatchScreen extends ConsumerStatefulWidget {
   final int fixtureId;

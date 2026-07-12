@@ -323,7 +323,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const FavoriteTeamScreen()),
+            MaterialPageRoute(builder: (_) => FavoriteTeamScreen()),
           );
         },
         borderRadius: BorderRadius.circular(16),
