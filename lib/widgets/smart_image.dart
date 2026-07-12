@@ -27,7 +27,6 @@ class SmartImage extends StatelessWidget {
         url,
         width: width,
         height: height,
-        headers: const {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'},
         placeholderBuilder: (context) => SizedBox(
           width: width,
           height: height,
@@ -39,7 +38,6 @@ class SmartImage extends StatelessWidget {
         url,
         width: width,
         height: height,
-        headers: const {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'},
         errorBuilder: errorBuilder ?? 
             (context, error, stackTrace) => Icon(Icons.shield, color: Colors.grey, size: width ?? 48),
       );

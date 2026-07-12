@@ -43,6 +43,39 @@ class MyScratchcardsScreen extends ConsumerWidget {
                   'Você ainda não raspou nenhuma cartela.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
                 ),
+                const SizedBox(height: 32),
+                // Banner (Publicidade ou Chamada)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.stars, color: AppTheme.accentGold, size: 40),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Participe de mais jogos!',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Acompanhe os jogos ao vivo e raspe cartelas durante os eventos da partida para ganhar prêmios.',
+                              style: TextStyle(fontSize: 13, color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -81,7 +114,7 @@ class MyScratchcardsScreen extends ConsumerWidget {
                 leading: CircleAvatar(
                   backgroundColor: won ? AppTheme.primaryGreen.withValues(alpha: 0.1) : Colors.grey[200],
                   child: Icon(
-                    won ? Icons.emoji_events : Icons.close,
+                    won ? Icons.emoji_events : Icons.mood_bad,
                     color: won ? AppTheme.accentGold : Colors.grey[500],
                   ),
                 ),
