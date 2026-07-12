@@ -152,14 +152,15 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen>
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accentGold,
-                foregroundColor: Colors.black,
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                elevation: 0,
               ),
-              child: const Text('Acessar Prêmio', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('Resgatar Prêmio', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           TextButton(
             onPressed: () {

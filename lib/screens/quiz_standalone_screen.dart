@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/ai_quiz_service.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/custom_app_bar.dart';
 
 class QuizStandaloneScreen extends ConsumerStatefulWidget {
   const QuizStandaloneScreen({super.key});

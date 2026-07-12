@@ -1,7 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
-import { GoogleGenAI } from "@google/genai";
 import { generateGeminiContent } from "./gemini";
 
 admin.initializeApp();
@@ -295,8 +294,6 @@ export const generateQuiz = onCall(async (request) => {
         throw new HttpsError("resource-exhausted", `Você atingiu o limite de ${dailyQuizLimit} quizzes diários. Volte amanhã!`);
     }
 
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
-
     const prompt = `Você é o narrador do aplicativo Raspadinha do Gol. 
 Gere uma pergunta de múltipla escolha sobre futebol.
 O contexto atual para inspiração é: "${context}".
@@ -305,12 +302,7 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
 "question" (string), "options" (array de 4 strings), e "correctIndex" (número inteiro de 0 a 3 indicando a opção certa).`;
 
     try {
-        const response = await generateGeminiContent(ai, {
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-            }
-        });
+        const response = await generateGeminiContent(geminiKey, prompt);
 
         let jsonText = response.text || "{}";
         const jsonMatch = jsonText.match(/\{[\s\S]*\}/);

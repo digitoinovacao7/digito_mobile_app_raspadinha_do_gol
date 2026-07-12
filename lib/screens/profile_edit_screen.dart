@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
+import 'favorite_team_screen.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
@@ -138,6 +139,28 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                         prefixIcon: Icon(Icons.badge),
                       ),
                       validator: (value) => value == null || value.isEmpty ? 'Informe seu CPF' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FavoriteTeamScreen()),
+                        );
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      leading: const Icon(Icons.favorite, color: Colors.red),
+                      title: const Text('Time do Coração', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Consumer(
+                        builder: (context, ref, child) {
+                          final user = ref.watch(currentUserProvider);
+                          return Text(user?.favoriteTeamName ?? 'Nenhum time selecionado');
+                        },
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton(

@@ -12,7 +12,7 @@ import '../services/db_service.dart';
 
 import 'matches_screen.dart';
 import 'active_match_screen.dart';
-import '../widgets/network_logo.dart';
+import '../widgets/smart_image.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -269,11 +269,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Icon(icon, color: AppTheme.primaryGreen, size: 19),
           ),
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textDark,
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textDark,
+                letterSpacing: -0.5,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -310,45 +316,107 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildRewardedTokensCard() {
+  Widget _buildFavoriteTeamPrompt(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: InkWell(
-        onTap: _showRewardedAd,
-        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FavoriteTeamScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppTheme.accentGold.withValues(alpha: 0.45),
+            gradient: const LinearGradient(
+              colors: [AppTheme.primaryGreen, Color(0xFF0F1F15)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
+                color: AppTheme.primaryGreen.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGold.withValues(alpha: 0.22),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.favorite, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Escolha seu Time',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Personalize sua experiência e torça!',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white70),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRewardedTokensCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: InkWell(
+        onTap: _showRewardedAd,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.play_circle_fill,
-                  color: AppTheme.textDark,
-                  size: 28,
+                  color: AppTheme.primaryGreen,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,26 +427,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppTheme.textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
-                      'Assista a um vídeo rápido para aumentar seu saldo.',
-                      maxLines: 2,
+                      'Assista a um vídeo rápido',
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: AppTheme.textDark),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '+100',
+                  style: TextStyle(
+                    color: AppTheme.accentGold,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -424,6 +504,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               fixtureId: match['fixture']['id'],
               homeTeam: homeTeam,
               awayTeam: awayTeam,
+              homeLogo: homeLogo?.isNotEmpty == true ? homeLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',
+              awayLogo: awayLogo?.isNotEmpty == true ? awayLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png',
             ),
           ),
         );
@@ -492,24 +574,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: _buildTeamColumn(homeTeam, homeLogo)),
+                Expanded(child: _buildTeamColumn(homeTeam, homeLogo?.isNotEmpty == true ? homeLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png')),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        scoreText,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    isLive ? '${match['goals']['home'] ?? 0} - ${match['goals']['away'] ?? 0}' : status,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: isLive ? 24 : 16,
+                      color: isLive ? Colors.red : AppTheme.textDark,
+                    ),
                   ),
                 ),
-                Expanded(child: _buildTeamColumn(awayTeam, awayLogo)),
+                Expanded(child: _buildTeamColumn(awayTeam, awayLogo?.isNotEmpty == true ? awayLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png')),
               ],
             ),
             const Spacer(),
@@ -522,11 +599,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTeamColumn(String name, String? logoUrl) {
     return Column(
       children: [
-        NetworkLogo(
-          url: logoUrl,
+        SmartImage(
+          logoUrl ?? '',
           width: 48,
           height: 48,
-          placeholderIcon: const Icon(Icons.shield, color: Colors.grey, size: 48),
+          errorBuilder: (_, __, ___) => const Icon(Icons.shield, color: Colors.grey, size: 48),
         ),
         const SizedBox(height: 8),
         Text(
@@ -534,11 +611,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: AppTheme.textDark,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textDark),
         ),
       ],
     );
@@ -606,9 +679,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             padding: const EdgeInsets.all(8),
-            child: NetworkLogo(
-              url: logoUrl,
-              placeholderIcon: const Icon(Icons.sports_soccer, color: Colors.grey),
+            child: SmartImage(
+              (logoUrl != null && logoUrl.isNotEmpty) ? logoUrl : 'https://media.api-sports.io/football/leagues/$id.png',
+              errorBuilder: (_, __, ___) => const Icon(Icons.sports_soccer, color: Colors.grey),
             ),
           ),
           const SizedBox(height: 8),

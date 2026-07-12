@@ -11,6 +11,8 @@ class AppUser {
   final int? watchingFixtureId;
   final String? watchingHomeTeam;
   final String? watchingAwayTeam;
+  final int? favoriteTeamId;
+  final String? favoriteTeamName;
 
   AppUser({
     required this.id,
@@ -25,6 +27,8 @@ class AppUser {
     this.watchingFixtureId,
     this.watchingHomeTeam,
     this.watchingAwayTeam,
+    this.favoriteTeamId,
+    this.favoriteTeamName,
   });
 
   bool get isAdmin => role.trim().toLowerCase() == 'admin';
@@ -47,6 +51,8 @@ class AppUser {
           : int.tryParse(map['watching_fixture_id']?.toString() ?? ''),
       watchingHomeTeam: map['watching_home_team'],
       watchingAwayTeam: map['watching_away_team'],
+      favoriteTeamId: map['favorite_team_id'],
+      favoriteTeamName: map['favorite_team_name'],
     );
   }
 
@@ -63,6 +69,8 @@ class AppUser {
       if (watchingFixtureId != null) 'watching_fixture_id': watchingFixtureId,
       if (watchingHomeTeam != null) 'watching_home_team': watchingHomeTeam,
       if (watchingAwayTeam != null) 'watching_away_team': watchingAwayTeam,
+      if (favoriteTeamId != null) 'favorite_team_id': favoriteTeamId,
+      if (favoriteTeamName != null) 'favorite_team_name': favoriteTeamName,
     };
   }
 
@@ -79,6 +87,8 @@ class AppUser {
     int? watchingFixtureId,
     String? watchingHomeTeam,
     String? watchingAwayTeam,
+    int? favoriteTeamId,
+    String? favoriteTeamName,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -94,6 +104,8 @@ class AppUser {
       watchingFixtureId: watchingFixtureId ?? this.watchingFixtureId,
       watchingHomeTeam: watchingHomeTeam ?? this.watchingHomeTeam,
       watchingAwayTeam: watchingAwayTeam ?? this.watchingAwayTeam,
+      favoriteTeamId: favoriteTeamId ?? this.favoriteTeamId,
+      favoriteTeamName: favoriteTeamName ?? this.favoriteTeamName,
     );
   }
 }

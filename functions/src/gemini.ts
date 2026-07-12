@@ -1,33 +1,48 @@
-import {
-    GenerateContentParameters,
-    GenerateContentResponse,
-    GoogleGenAI,
-} from "@google/genai";
+import axios from 'axios';
 
-/**
- * Modelos estáveis usados por todas as integrações Gemini do projeto.
- *
- * O 2.5 tem menor incidência de erro por alta demanda atualmente. O 3.5 fica
- * como fallback e assume automaticamente quando o 2.5 for descontinuado.
- */
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro"];
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
+
+export interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
 
 export async function generateGeminiContent(
-    ai: GoogleGenAI,
-    parameters: Omit<GenerateContentParameters, "model">
-): Promise<GenerateContentResponse> {
+    apiKey: string,
+    prompt: string
+): Promise<{ text: string }> {
     let lastError: unknown;
 
     for (const model of GEMINI_MODELS) {
         try {
-            return await ai.models.generateContent({...parameters, model});
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await axios.post<GeminiResponse>(url, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                }
+            }, {
+                timeout: 45000,
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+                return { text };
+            }
+            throw new Error(`Modelo ${model} retornou resposta vazia.`);
         } catch (error: any) {
             lastError = error;
-            const message = String(error?.message || error);
+            const message = String(error?.message || error?.response?.data || error);
             const canTryFallback =
-                message.includes("\"code\":404") ||
-                message.includes("\"code\":429") ||
-                message.includes("\"code\":503") ||
+                message.includes("404") ||
+                message.includes("429") ||
+                message.includes("503") ||
                 message.includes("NOT_FOUND") ||
                 message.includes("RESOURCE_EXHAUSTED") ||
                 message.includes("UNAVAILABLE");
@@ -36,7 +51,7 @@ export async function generateGeminiContent(
                 throw error;
             }
 
-            console.warn(`Gemini ${model} indisponível; tentando o próximo modelo.`);
+            console.warn(`Gemini ${model} indisponível; tentando o próximo modelo. (${message})`);
         }
     }
 

@@ -1,7 +1,6 @@
 import { onCall } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import axios from "axios";
-import { GoogleGenAI, Type } from "@google/genai";
 import { generateGeminiContent } from "./gemini";
 
 // Helper to get Basic Auth header
@@ -148,28 +147,16 @@ export const analyzeMatchAndBetPinnacle = onCall({ region: "southamerica-east1" 
             throw new Error("Chave de API do Gemini não configurada.");
         }
 
-        const ai = new GoogleGenAI({ apiKey: String(geminiApiKey) });
+        const prompt = `Você é um Analista de Apostas Esportivas focado na Pinnacle. Analise este jogo e retorne um JSON com a decisão. Se as chances forem baixas, pule (SKIP). Contexto: ${matchContext}.
+O JSON DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES CAMPOS:
+- "decision": "BET" ou "SKIP"
+- "confidence": um número de 0 a 100
+- "reasoning": uma string explicando o motivo
+- "suggestedMarket": (opcional) "MONEYLINE", "SPREAD", ou "TOTAL"
+- "suggestedSelection": (opcional) a seleção
+NAO USE BLOCOS DE CODIGO MARKDOWN NO RETORNO.`;
         
-        // 1. Analyze with Gemini
-        const prompt = `Você é um Analista de Apostas Esportivas focado na Pinnacle. Analise este jogo e retorne um JSON com a decisão. Se as chances forem baixas, pule (SKIP). Contexto: ${matchContext}`;
-        
-        const result = await generateGeminiContent(ai, {
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        decision: { type: Type.STRING, enum: ["BET", "SKIP"] },
-                        confidence: { type: Type.NUMBER, description: "0 to 100" },
-                        reasoning: { type: Type.STRING },
-                        suggestedMarket: { type: Type.STRING, description: "Ex: MONEYLINE, SPREAD, TOTAL" },
-                        suggestedSelection: { type: Type.STRING }
-                    },
-                    required: ["decision", "confidence", "reasoning"]
-                }
-            }
-        });
+        const result = await generateGeminiContent(String(geminiApiKey), prompt);
 
         const analysis = JSON.parse(result.text || "{}");
 

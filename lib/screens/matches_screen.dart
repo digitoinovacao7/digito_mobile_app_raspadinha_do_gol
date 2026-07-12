@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
 import '../core/theme.dart';
+import '../widgets/custom_app_bar.dart';
 import 'active_match_screen.dart';
 
 class MatchesScreen extends ConsumerStatefulWidget {
@@ -40,10 +41,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.leagueName),
-        backgroundColor: AppTheme.primaryGreen,
-      ),
+      appBar: CustomAppBar(title: widget.leagueName),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _matches.isEmpty

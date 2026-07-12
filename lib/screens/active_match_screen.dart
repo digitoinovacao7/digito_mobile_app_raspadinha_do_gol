@@ -4,6 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/arquibancada_provider.dart';
+import '../widgets/custom_app_bar.dart';
 import '../services/db_service.dart';
 import '../core/theme.dart';
 import 'scratch_game_screen.dart';
@@ -14,12 +16,16 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
   final int fixtureId;
   final String homeTeam;
   final String awayTeam;
-
+  final String? homeLogo;
+  final String? awayLogo;
+  
   const ActiveMatchScreen({
     super.key,
     required this.fixtureId,
     required this.homeTeam,
     required this.awayTeam,
+    this.homeLogo,
+    this.awayLogo,
   });
 
   @override
@@ -240,10 +246,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     final bool temRaspadinhaDisponivel = raspadinhasDisponiveis > 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sala da Partida'),
-        backgroundColor: AppTheme.primaryGreen,
-      ),
+      appBar: const CustomAppBar(title: 'Sala da Partida'),
       floatingActionButton: _ArquibancadaFab(
         onTap: () {
           final match = matchState.value;
@@ -561,9 +564,12 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                       : 'Estou assistindo este jogo',
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentGold,
-                  foregroundColor: Colors.black,
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -660,7 +666,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black12,
@@ -674,15 +680,26 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Text(
-                      widget.homeTeam,
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      children: [
+                        if (widget.homeLogo != null)
+                          SmartImage(
+                            widget.homeLogo!,
+                            width: 60,
+                            height: 60,
+                          ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.homeTeam,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -692,30 +709,37 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Text(
-                      '0 - 0',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
+                    child: const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Text(
-                      widget.awayTeam,
-                      textAlign: TextAlign.left,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      children: [
+                        if (widget.awayLogo != null)
+                          SmartImage(
+                            widget.awayLogo!,
+                            width: 60,
+                            height: 60,
+                          ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.awayTeam,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -818,18 +842,18 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton>
                   width: 300,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppTheme.accentGold.withValues(alpha: 0.8),
-                      width: 1.5,
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primaryGreen, Colors.green.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.accentGold.withValues(
-                          alpha: 0.16 * _scaleAnimation.value,
+                        color: AppTheme.primaryGreen.withValues(
+                          alpha: 0.3 * _scaleAnimation.value,
                         ),
-                        blurRadius: 18,
+                        blurRadius: 16,
                         offset: const Offset(0, 8),
                       ),
                     ],
@@ -843,14 +867,14 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton>
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryGreen.withValues(
-                                alpha: 0.1,
+                              color: Colors.white.withValues(
+                                alpha: 0.2,
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
                               Icons.confirmation_number_outlined,
-                              color: AppTheme.primaryGreen,
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -860,7 +884,7 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: AppTheme.textDark,
+                                color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -870,32 +894,29 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton>
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        height: 88,
+                        height: 72,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade400),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                         ),
-                        child: CustomPaint(
-                          painter: const _ScratchCoatingPainter(),
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.touch_app, color: Colors.black54),
-                                SizedBox(height: 4),
-                                Text(
-                                  'TOQUE PARA RASPAR',
-                                  style: TextStyle(
-                                    color: Colors.black87,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                  ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.touch_app, color: Colors.white),
+                              SizedBox(height: 4),
+                              Text(
+                                'TOQUE PARA RASPAR',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

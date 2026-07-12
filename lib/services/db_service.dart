@@ -35,6 +35,10 @@ class DbService {
     });
   }
 
+  Future<void> updateUser(String uid, Map<String, dynamic> data) async {
+    await _db.collection('users').doc(uid).update(data);
+  }
+
   Future<void> addTokens(String uid, int amount) async {
     await _db.collection('users').doc(uid).update({
       'tokens': FieldValue.increment(amount),
