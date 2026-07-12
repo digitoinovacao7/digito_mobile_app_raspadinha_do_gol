@@ -12,7 +12,6 @@ import '../services/db_service.dart';
 
 import 'matches_screen.dart';
 import 'active_match_screen.dart';
-import '../widgets/network_logo.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -196,7 +195,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: AppTheme.backgroundWhite,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -206,7 +205,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await _loadDashboardData();
           },
           color: AppTheme.primaryGreen,
-          backgroundColor: AppTheme.surfaceDark,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -217,17 +215,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                      child: CircularProgressIndicator(),
                     ),
                   )
                 else if (_featuredMatches.isNotEmpty) ...[
-                  _buildSectionTitle('JOGOS EM DESTAQUE', Icons.sports_soccer),
+                  _buildSectionTitle('Jogos em Destaque', Icons.sports_soccer),
                   const SizedBox(height: 16),
                   _buildFeaturedMatchesCarousel(),
                   const SizedBox(height: 32),
                 ],
                 if (!_isLoading) ...[
-                  _buildSectionTitle('CAMPEONATOS', Icons.emoji_events),
+                  _buildSectionTitle('Campeonatos', Icons.emoji_events),
                   const SizedBox(height: 16),
                   _activeLeagues.isEmpty
                       ? _buildEmptyState()
@@ -261,17 +259,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: AppTheme.primaryGreen.withOpacity(0.3),
+                color: AppTheme.primaryGreen.withValues(alpha: 0.18),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryGreen.withOpacity(0.2),
-                  blurRadius: 8,
-                ),
-              ],
             ),
             child: Icon(icon, color: AppTheme.primaryGreen, size: 19),
           ),
@@ -280,8 +272,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
-              color: AppTheme.textLight,
-              letterSpacing: 1.2,
+              color: AppTheme.textDark,
             ),
           ),
         ],
@@ -300,19 +291,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryGreen.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 14,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             child: AdWidget(ad: _nativeAd!),
           ),
         ),
@@ -330,23 +319,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.surfaceDark,
-                AppTheme.surfaceDark.withOpacity(0.8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppTheme.accentGold.withOpacity(0.6),
+              color: AppTheme.accentGold.withValues(alpha: 0.45),
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.accentGold.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 14,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -356,19 +338,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGold.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.accentGold.withOpacity(0.4),
-                      blurRadius: 8,
-                    )
-                  ],
+                  color: AppTheme.accentGold.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: AppTheme.accentGold,
-                  size: 32,
+                  Icons.play_circle_fill,
+                  color: AppTheme.textDark,
+                  size: 28,
                 ),
               ),
               const SizedBox(width: 12),
@@ -377,11 +353,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Ganhe Tokens Grátis',
+                      'Ganhe tokens grátis',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppTheme.accentGold,
+                        color: AppTheme.textDark,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
@@ -392,7 +368,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppTheme.textMuted,
+                        color: Colors.grey.shade600,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -401,7 +377,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: AppTheme.accentGold),
+              const Icon(Icons.chevron_right, color: AppTheme.textDark),
             ],
           ),
         ),
@@ -451,31 +427,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: 320,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        width: 300,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isLive ? AppTheme.errorRed.withOpacity(0.5) : Colors.white.withOpacity(0.05),
-            width: isLive ? 1.5 : 1,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade100, width: 2),
           boxShadow: [
-            if (isLive)
-              BoxShadow(
-                color: AppTheme.errorRed.withOpacity(0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              )
-            else
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Column(
@@ -490,25 +456,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isLive
-                        ? AppTheme.errorRed.withOpacity(0.15)
-                        : Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isLive ? AppTheme.errorRed.withOpacity(0.3) : Colors.transparent,
-                    ),
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       if (isLive) ...[
                         Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorRed,
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: AppTheme.errorRed, blurRadius: 6),
-                            ],
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -516,16 +476,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Text(
                         isLive ? 'AO VIVO' : status,
                         style: TextStyle(
-                          color: isLive ? AppTheme.errorRed : AppTheme.textMuted,
+                          color: isLive ? Colors.red : Colors.grey.shade700,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
-                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, size: 20, color: AppTheme.textMuted),
+                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
               ],
             ),
             const Spacer(),
@@ -541,10 +500,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Text(
                         scoreText,
                         style: const TextStyle(
-                          fontSize: 28,
+                          fontSize: 26,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
-                          color: AppTheme.textLight,
                         ),
                       ),
                     ],
@@ -563,22 +521,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTeamColumn(String name, String? logoUrl) {
     return Column(
       children: [
-        NetworkLogo(
-          url: logoUrl,
-          width: 54,
-          height: 54,
-          placeholderIcon: Icon(Icons.shield, color: AppTheme.textMuted.withOpacity(0.5), size: 48),
-        ),
-        const SizedBox(height: 12),
+        if (logoUrl != null)
+          Image.network(
+            logoUrl,
+            width: 48,
+            height: 48,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.shield, color: Colors.grey, size: 48),
+          )
+        else
+          const Icon(Icons.shield, color: Colors.grey, size: 48),
+        const SizedBox(height: 8),
         Text(
           name,
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: AppTheme.textLight,
+            color: AppTheme.textDark,
           ),
         ),
       ],
@@ -627,30 +589,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: AppTheme.surfaceDark,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.05), width: 1.5),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(12),
-            child: NetworkLogo(
-              url: logoUrl,
-              placeholderIcon: Icon(Icons.sports_soccer, color: AppTheme.textMuted.withOpacity(0.5)),
-            ),
+            padding: const EdgeInsets.all(8),
+            child: logoUrl != null
+                ? Image.network(
+                    logoUrl,
+                    errorBuilder: (c, e, s) =>
+                        const Icon(Icons.sports_soccer, color: Colors.grey),
+                  )
+                : const Icon(Icons.sports_soccer, color: Colors.grey),
           ),
           const SizedBox(height: 8),
           Text(
@@ -659,10 +624,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: AppTheme.textLight,
-              fontSize: 12,
+              color: AppTheme.textDark,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
-              height: 1.2,
+              height: 1.1,
             ),
           ),
         ],
@@ -677,30 +642,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.grey.shade200,
             style: BorderStyle.solid,
           ),
         ),
         child: Column(
           children: [
-            Icon(Icons.sports_soccer, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+            Icon(Icons.sports_soccer, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Nenhum jogo disponível hoje',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textLight,
+                color: Colors.grey.shade700,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'A API de futebol não encontrou partidas para hoje. Volte mais tarde!',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ],
         ),
