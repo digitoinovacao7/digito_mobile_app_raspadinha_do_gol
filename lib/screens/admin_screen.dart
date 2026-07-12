@@ -230,15 +230,23 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade300),
                         ),
-                        child: Row(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 16,
+                          runSpacing: 16,
                           children: [
-                            Icon(Icons.circle, color: _pinnacleBalance == null ? Colors.orange : Colors.green, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              _pinnacleBalance == null ? 'Status: Aguardando teste' : 'Status: Conectado',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.circle, color: _pinnacleBalance == null ? Colors.orange : Colors.green, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _pinnacleBalance == null ? 'Status: Aguardando teste' : 'Status: Conectado',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
                             ),
-                            const Spacer(),
                             ElevatedButton.icon(
                               onPressed: _testPinnacleConnection,
                               icon: const Icon(Icons.refresh, size: 16),
