@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../screens/login_screen.dart';
 import '../screens/landing_screen.dart';
 import '../screens/main_layout.dart';
-import '../screens/admin_screen.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -23,8 +21,10 @@ class AuthWrapper extends ConsumerWidget {
           return const LandingScreen();
         }
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (err, stack) => Scaffold(body: Center(child: Text('Erro de autenticação: $err'))),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) =>
+          Scaffold(body: Center(child: Text('Erro de autenticação: $err'))),
     );
   }
 }
@@ -43,8 +43,13 @@ class _AppUserLoader extends ConsumerWidget {
           // Atualiza o currentUserProvider para os outros componentes usarem
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final current = ref.read(currentUserProvider);
-            if (current?.id != appUser.id || current?.tokens != appUser.tokens || current?.role != appUser.role) {
-               ref.read(currentUserProvider.notifier).state = appUser;
+            if (current?.id != appUser.id ||
+                current?.tokens != appUser.tokens ||
+                current?.role != appUser.role ||
+                current?.watchingFixtureId != appUser.watchingFixtureId ||
+                current?.watchingHomeTeam != appUser.watchingHomeTeam ||
+                current?.watchingAwayTeam != appUser.watchingAwayTeam) {
+              ref.read(currentUserProvider.notifier).state = appUser;
             }
           });
 
@@ -63,15 +68,18 @@ class _AppUserLoader extends ConsumerWidget {
                   ElevatedButton(
                     onPressed: () => ref.read(authServiceProvider).signOut(),
                     child: const Text('Sair'),
-                  )
+                  ),
                 ],
               ),
             ),
           );
         }
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (err, stack) => Scaffold(body: Center(child: Text('Erro ao carregar dados do perfil: $err'))),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(
+        body: Center(child: Text('Erro ao carregar dados do perfil: $err')),
+      ),
     );
   }
 }

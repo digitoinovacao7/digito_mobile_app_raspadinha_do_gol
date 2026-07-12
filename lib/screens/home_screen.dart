@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/theme.dart';
@@ -13,9 +12,6 @@ import '../services/db_service.dart';
 
 import 'matches_screen.dart';
 import 'active_match_screen.dart';
-import 'my_scratchcards_screen.dart';
-import 'quiz_standalone_screen.dart';
-import 'wallet_store_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,7 +24,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<LeagueInfo> _activeLeagues = [];
   List<dynamic> _featuredMatches = [];
   bool _isLoading = true;
-  Map<String, dynamic>? _featuredPrize;
 
   NativeAd? _nativeAd;
   bool _isAdLoaded = false;
@@ -188,21 +183,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final leagues = await leaguesFuture;
     final featuredMatches = await featuredMatchesFuture;
 
-    try {
-      final prizesSnap = await FirebaseFirestore.instance
-          .collection('prizes')
-          .where('active', isEqualTo: true)
-          .get();
-
-      if (prizesSnap.docs.isNotEmpty) {
-        _featuredPrize = prizesSnap.docs.first.data();
-      } else {
-        _featuredPrize = null;
-      }
-    } catch (e) {
-      debugPrint('[HomeScreen] Erro ao carregar prêmios: $e');
-    }
-
     if (mounted) {
       setState(() {
         _activeLeagues = leagues;
@@ -230,23 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 12),
-                _buildHeroBanner(),
-                const SizedBox(height: 16),
-                _buildQuickActions(),
-                if (_featuredPrize != null) ...[
-                  const SizedBox(height: 16),
-                  _buildPrizeSpotlight(),
-                ],
-                if (_isRewardedAdLoaded) ...[
-                  const SizedBox(height: 16),
-                  _buildRewardedAdButton(),
-                ],
-                if (_isAdLoaded && _nativeAd != null) ...[
-                  const SizedBox(height: 16),
-                  _buildNativeAdCard(),
-                ],
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 if (_isLoading)
                   const Center(
                     child: Padding(
@@ -255,18 +219,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   )
                 else if (_featuredMatches.isNotEmpty) ...[
-                  _buildSectionTitle('Jogos em Destaque'),
+                  _buildSectionTitle('Jogos em Destaque', Icons.sports_soccer),
                   const SizedBox(height: 16),
                   _buildFeaturedMatchesCarousel(),
                   const SizedBox(height: 32),
                 ],
                 if (!_isLoading) ...[
-                  _buildSectionTitle('Campeonatos'),
+                  _buildSectionTitle('Campeonatos', Icons.emoji_events),
                   const SizedBox(height: 16),
                   _activeLeagues.isEmpty
                       ? _buildEmptyState()
                       : _buildLeaguesGrid(),
+                  const SizedBox(height: 24),
+                ],
+                if (_isRewardedAdLoaded) ...[
+                  _buildRewardedTokensCard(),
+                  const SizedBox(height: 16),
+                ],
+                if (_isAdLoaded && _nativeAd != null) ...[
+                  _buildNativeAdCard(),
                   const SizedBox(height: 40),
+                ] else ...[
+                  const SizedBox(height: 24),
                 ],
               ],
             ),
@@ -276,148 +250,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.confirmation_number_outlined,
-              label: 'Cartelas',
-              caption: 'Suas chances',
-              color: const Color(0xFF7C3AED),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const MyScratchcardsScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.psychology_outlined,
-              label: 'Quiz IA',
-              caption: 'Ganhe tokens',
-              color: const Color(0xFF2563EB),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const QuizStandaloneScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _buildQuickActionButton(
-              icon: Icons.storefront_outlined,
-              label: 'Prêmios',
-              caption: 'Troque saldo',
-              color: const Color(0xFFF97316),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const WalletStoreScreen()),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required String caption,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 116,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.16)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
         children: [
           Container(
-            width: 4,
-            height: 22,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: AppTheme.accentGold,
-              borderRadius: BorderRadius.circular(2),
+              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.primaryGreen.withValues(alpha: 0.18),
+              ),
             ),
+            child: Icon(icon, color: AppTheme.primaryGreen, size: 19),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -426,250 +276,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeroBanner() {
-    final user = ref.watch(currentUserProvider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF063D1F), AppTheme.primaryGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.24),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.18),
-                    ),
-                  ),
-                  child: Image.asset(
-                    'assets/logo_transparent.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.sports_soccer, color: Colors.white),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentGold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        color: Colors.black,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${user?.tokens ?? 0}',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            const Text(
-              'Raspadinha do Gol',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                height: 1.02,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Acompanhe jogos, responda quizzes e junte tokens para concorrer aos prêmios.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.84),
-                fontSize: 14,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                _buildHeroMetric(
-                  Icons.live_tv_outlined,
-                  '${_featuredMatches.length}',
-                  'jogos',
-                ),
-                const SizedBox(width: 10),
-                _buildHeroMetric(
-                  Icons.emoji_events_outlined,
-                  '${_activeLeagues.length}',
-                  'ligas',
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroMetric(IconData icon, String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppTheme.accentGold, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.76),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrizeSpotlight() {
-    final prize = _featuredPrize!;
-    final name = prize['name']?.toString() ?? 'Prêmio Surpresa';
-    final cost = (prize['token_cost'] as num?)?.toInt();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const WalletStoreScreen()),
-          );
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppTheme.accentGold.withValues(alpha: 0.35),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentGold.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.card_giftcard,
-                  color: AppTheme.textDark,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textDark,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      cost == null
-                          ? 'Prêmio ativo na loja'
-                          : '$cost tokens para resgatar',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppTheme.textDark),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -703,7 +309,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildRewardedAdButton() {
+  Widget _buildRewardedTokensCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: InkWell(
@@ -711,31 +317,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.accentGold,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppTheme.accentGold.withValues(alpha: 0.45),
+            ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.accentGold.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.play_circle_fill, color: Colors.black, size: 28),
-              const SizedBox(width: 12),
-              const Text(
-                'Ganhe tokens grátis',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGold.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.play_circle_fill,
+                  color: AppTheme.textDark,
+                  size: 28,
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ganhe tokens grátis',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Assista a um vídeo rápido para aumentar seu saldo.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right, color: AppTheme.textDark),
             ],
           ),
         ),

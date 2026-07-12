@@ -41,7 +41,12 @@ class DbService {
     });
   }
 
-  Future<void> addTokenTransaction(String uid, int amount, String type, String description) async {
+  Future<void> addTokenTransaction(
+    String uid,
+    int amount,
+    String type,
+    String description,
+  ) async {
     await _db.collection('token_transactions').add({
       'uid': uid,
       'amount': amount,
@@ -51,7 +56,19 @@ class DbService {
     });
   }
 
-
+  Future<void> markWatchingMatch({
+    required String uid,
+    required int fixtureId,
+    required String homeTeam,
+    required String awayTeam,
+  }) async {
+    await _db.collection('users').doc(uid).set({
+      'watching_fixture_id': fixtureId,
+      'watching_home_team': homeTeam,
+      'watching_away_team': awayTeam,
+      'watching_match_started_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   Future<void> toggleWhatsappNotifications(String uid, bool value) async {
     await _db.collection('users').doc(uid).update({
@@ -60,35 +77,38 @@ class DbService {
   }
 
   Future<void> incrementQuizCount(String uid, String fixtureId) async {
-    await _db.collection('users').doc(uid).update({
+    await _db.collection('users').doc(uid).set({
       'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
-    });
+    }, SetOptions(merge: true));
   }
 
-  Future<void> redeemPrize(String uid, int cost, Map<String, dynamic> redemptionData, String prizeName) async {
+  Future<void> redeemPrize(
+    String uid,
+    int cost,
+    Map<String, dynamic> redemptionData,
+    String prizeName,
+  ) async {
     await _db.runTransaction((transaction) async {
       final userRef = _db.collection('users').doc(uid);
       final snapshot = await transaction.get(userRef);
-      
+
       if (!snapshot.exists) {
         throw Exception("Usuário não encontrado.");
       }
-      
+
       final currentTokens = snapshot.data()?['tokens'] as int? ?? 0;
       if (currentTokens < cost) {
         throw Exception("Saldo insuficiente.");
       }
-      
-      transaction.update(userRef, {
-        'tokens': currentTokens - cost,
-      });
-      
+
+      transaction.update(userRef, {'tokens': currentTokens - cost});
+
       final redemptionRef = _db.collection('redemptions').doc();
       transaction.set(redemptionRef, {
         ...redemptionData,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
+
       final txRef = _db.collection('token_transactions').doc();
       transaction.set(txRef, {
         'uid': uid,
@@ -107,12 +127,12 @@ class DbService {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        });
   }
 
   Future<Map<String, dynamic>> getApiKeys() async {
@@ -143,14 +163,10 @@ class DbService {
   Future<void> validatePixOtpAndWithdraw(String otp) async {
     final functions = FirebaseFunctions.instance;
     final callable = functions.httpsCallable('validatePixOtpAndWithdraw');
-    final result = await callable.call({
-      'otp': otp,
-    });
+    final result = await callable.call({'otp': otp});
     final data = result.data as Map<String, dynamic>;
     if (data['success'] != true) {
       throw Exception(data['message'] ?? 'Erro ao validar OTP');
     }
   }
-
 }
-

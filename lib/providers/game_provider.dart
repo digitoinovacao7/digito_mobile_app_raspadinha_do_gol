@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/match_state.dart';
 import '../services/football_service.dart';
 
@@ -15,9 +14,13 @@ final matchStateProvider = StateProvider<MatchState>((ref) {
 });
 
 // Provider para escutar atualizações ao vivo da API, agora passando o ID do jogo escolhido
-final matchStreamProvider = StreamProvider.family<MatchState, int>((ref, fixtureId) async* {
+final matchStreamProvider = StreamProvider.family<MatchState, int>((
+  ref,
+  fixtureId,
+) async* {
   final service = ref.watch(footballServiceProvider);
-  
+  ref.onDispose(service.stopPolling);
+
   // Inicia o polling com o ID escolhido pelo usuário
   await service.startPollingLiveMatch(fixtureId);
 
@@ -30,4 +33,3 @@ final matchStreamProvider = StreamProvider.family<MatchState, int>((ref, fixture
 
 // Controla quantas raspadinhas grátis o usuário ainda tem para esta partida.
 final freePlaysProvider = StateProvider<int>((ref) => 1);
-

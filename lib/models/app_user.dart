@@ -8,6 +8,9 @@ class AppUser {
   final String? cpf;
   final Map<String, int> answeredQuizzesCount;
   final bool wantsWhatsappNotifications;
+  final int? watchingFixtureId;
+  final String? watchingHomeTeam;
+  final String? watchingAwayTeam;
 
   AppUser({
     required this.id,
@@ -19,6 +22,9 @@ class AppUser {
     this.cpf,
     this.answeredQuizzesCount = const {},
     this.wantsWhatsappNotifications = false,
+    this.watchingFixtureId,
+    this.watchingHomeTeam,
+    this.watchingAwayTeam,
   });
 
   bool get isAdmin => role.trim().toLowerCase() == 'admin';
@@ -32,10 +38,15 @@ class AppUser {
       tokens: map['tokens'] ?? 0,
       phone: map['phone'],
       cpf: map['cpf'],
-      answeredQuizzesCount: map['answered_quizzes_count'] != null 
-          ? Map<String, int>.from(map['answered_quizzes_count']) 
+      answeredQuizzesCount: map['answered_quizzes_count'] != null
+          ? Map<String, int>.from(map['answered_quizzes_count'])
           : {},
       wantsWhatsappNotifications: map['wants_whatsapp_notifications'] ?? false,
+      watchingFixtureId: map['watching_fixture_id'] is int
+          ? map['watching_fixture_id'] as int
+          : int.tryParse(map['watching_fixture_id']?.toString() ?? ''),
+      watchingHomeTeam: map['watching_home_team'],
+      watchingAwayTeam: map['watching_away_team'],
     );
   }
 
@@ -49,6 +60,9 @@ class AppUser {
       if (cpf != null) 'cpf': cpf,
       'answered_quizzes_count': answeredQuizzesCount,
       'wants_whatsapp_notifications': wantsWhatsappNotifications,
+      if (watchingFixtureId != null) 'watching_fixture_id': watchingFixtureId,
+      if (watchingHomeTeam != null) 'watching_home_team': watchingHomeTeam,
+      if (watchingAwayTeam != null) 'watching_away_team': watchingAwayTeam,
     };
   }
 
@@ -62,6 +76,9 @@ class AppUser {
     String? cpf,
     Map<String, int>? answeredQuizzesCount,
     bool? wantsWhatsappNotifications,
+    int? watchingFixtureId,
+    String? watchingHomeTeam,
+    String? watchingAwayTeam,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -72,7 +89,11 @@ class AppUser {
       phone: phone ?? this.phone,
       cpf: cpf ?? this.cpf,
       answeredQuizzesCount: answeredQuizzesCount ?? this.answeredQuizzesCount,
-      wantsWhatsappNotifications: wantsWhatsappNotifications ?? this.wantsWhatsappNotifications,
+      wantsWhatsappNotifications:
+          wantsWhatsappNotifications ?? this.wantsWhatsappNotifications,
+      watchingFixtureId: watchingFixtureId ?? this.watchingFixtureId,
+      watchingHomeTeam: watchingHomeTeam ?? this.watchingHomeTeam,
+      watchingAwayTeam: watchingAwayTeam ?? this.watchingAwayTeam,
     );
   }
 }

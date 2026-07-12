@@ -85,10 +85,10 @@ export const answerQuiz = onCall(async (request) => {
             const userRef = db.collection("users").doc(uid);
 
             if (isCorrect) {
-                t.update(userRef, {
+                t.set(userRef, {
                     tokens: admin.firestore.FieldValue.increment(quizReward),
                     [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
-                });
+                }, { merge: true });
 
                 const transactionRef = db.collection("token_transactions").doc();
                 t.set(transactionRef, {
@@ -99,9 +99,9 @@ export const answerQuiz = onCall(async (request) => {
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             } else {
-                t.update(userRef, {
+                t.set(userRef, {
                     [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
-                });
+                }, { merge: true });
                 
                 const transactionRef = db.collection("token_transactions").doc();
                 t.set(transactionRef, {
@@ -331,10 +331,10 @@ Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\
         });
 
         // Atualiza contagem do usuário
-        await userRef.update({
+        await userRef.set({
             last_quiz_date: todayStr,
             daily_quizzes_generated: lastQuizDate === todayStr ? dailyQuizzesGenerated + 1 : 1
-        });
+        }, { merge: true });
 
         // Retorna pro cliente o que foi gerado
         return { 
