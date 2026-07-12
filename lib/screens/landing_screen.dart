@@ -36,83 +36,28 @@ class LandingScreen extends ConsumerWidget {
               
               Column(
                 children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.sports_soccer, color: Colors.white, size: 28),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Raspadinha',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 24,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.accentGold,
-                            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          child: const Text('Entrar'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 32),
+                          // Logo Gigante
+                          Image.asset(
+                            'assets/logo_transparent.png',
+                            height: 180,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 24),
                           
                           // Hero Text
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentGold,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              '⚽ O JOGO VIROU',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
                           Text(
                             'Pronto para\nentrar em campo?',
+                            textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.displayLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
-                              fontSize: 42,
+                              fontSize: 38,
                               height: 1.1,
                               letterSpacing: -1,
                             ),
@@ -123,7 +68,9 @@ class LandingScreen extends ConsumerWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 16, color: Colors.white70),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 48),
+                          
+                          // Features
                           _buildFeatureCard(
                             icon: Icons.sports_soccer,
                             title: 'Futebol Ao Vivo',
