@@ -40,6 +40,7 @@ export async function generateGeminiContent(
             lastError = error;
             const message = String(error?.message || error?.response?.data || error);
             const canTryFallback =
+                message.includes("403") ||
                 message.includes("404") ||
                 message.includes("429") ||
                 message.includes("503") ||

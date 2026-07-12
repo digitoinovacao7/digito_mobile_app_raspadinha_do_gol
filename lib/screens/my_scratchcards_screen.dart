@@ -87,7 +87,7 @@ class MyScratchcardsScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final card = scratchcards[index];
             final winCount = card['winCount'] as int? ?? 0;
-            final won = winCount >= 2;
+            final won = winCount >= 3;
             final dateObj = card['date'];
             
             String formattedDate = '';
@@ -119,7 +119,7 @@ class MyScratchcardsScreen extends ConsumerWidget {
                   ),
                 ),
                 title: Text(
-                  won ? 'Vitória! (${winCount} bolas)' : 'Não Premiada',
+                  won ? 'Vitória! ($winCount bolas)' : 'Não Premiada ($winCount bolas)',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Padding(
@@ -131,14 +131,10 @@ class MyScratchcardsScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text('Prêmio', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Text('Ganhou:', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           Text(
-                            prizeText,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryGreen,
-                              fontSize: 16,
-                            ),
+                            prizeText.isNotEmpty ? prizeText : 'Ver carteira',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
                           ),
                         ],
                       )
