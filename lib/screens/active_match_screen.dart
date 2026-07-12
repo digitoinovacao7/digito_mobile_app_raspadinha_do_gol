@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
@@ -54,6 +55,17 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
         homeTeam: homeTeam,
         awayTeam: awayTeam,
       );
+
+      // Subscribe to the new match topic for background goal notifications
+      try {
+        if (currentUser?.watchingFixtureId != null && currentUser!.watchingFixtureId != widget.fixtureId) {
+          await FirebaseMessaging.instance.unsubscribeFromTopic('match_${currentUser.watchingFixtureId}');
+        }
+        await FirebaseMessaging.instance.requestPermission();
+        await FirebaseMessaging.instance.subscribeToTopic('match_${widget.fixtureId}');
+      } catch (e) {
+        // ignore FCM errors if not supported (e.g. web or no play services)
+      }
 
       if (currentUser != null) {
         ref.read(currentUserProvider.notifier).state = currentUser.copyWith(

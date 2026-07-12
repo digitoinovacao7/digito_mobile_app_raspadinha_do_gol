@@ -598,5 +598,127 @@ export const proxyFootballData = onCall(async (request) => {
     }
 });
 
+export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
+    // 1. Get distinct watching_fixture_ids
+    const usersSnap = await db.collection("users").where("watching_fixture_id", ">", 0).get();
+    const activeFixtures = new Set<number>();
+    usersSnap.forEach(doc => {
+        const fixId = doc.data().watching_fixture_id;
+        if (fixId) activeFixtures.add(fixId);
+    });
+
+    if (activeFixtures.size === 0) {
+        return;
+    }
+
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    const data = settingsDoc.data() || {};
+    const activeApi = data.active_football_api || 'api_football';
+    const keys = data.api_keys || {};
+
+    for (const fixtureId of activeFixtures) {
+        try {
+            let homeScore = 0;
+            let awayScore = 0;
+            let status = '';
+            let homeTeamName = '';
+            let awayTeamName = '';
+
+            if (activeApi === 'api_football') {
+                const apiKey = keys.api_football;
+                if (!apiKey) continue;
+                const url = `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`;
+                const fetchResponse = await fetch(url, {
+                    headers: { "x-apisports-key": apiKey }
+                });
+                if (!fetchResponse.ok) continue;
+                const matchData = await fetchResponse.json();
+                if (matchData.response && matchData.response.length > 0) {
+                    const fix = matchData.response[0];
+                    homeScore = fix.goals?.home ?? 0;
+                    awayScore = fix.goals?.away ?? 0;
+                    status = fix.fixture?.status?.short ?? '';
+                    homeTeamName = fix.teams?.home?.name ?? '';
+                    awayTeamName = fix.teams?.away?.name ?? '';
+                }
+            } else {
+                const apiKey = keys.football_data || data.football_data_key;
+                if (!apiKey) continue;
+                const url = `https://api.football-data.org/v4/matches/${fixtureId}`;
+                const fetchResponse = await fetch(url, {
+                    headers: { "X-Auth-Token": apiKey }
+                });
+                if (!fetchResponse.ok) continue;
+                const matchData = await fetchResponse.json();
+                homeScore = matchData.score?.fullTime?.home ?? 0;
+                awayScore = matchData.score?.fullTime?.away ?? 0;
+                status = matchData.status;
+                homeTeamName = matchData.homeTeam?.shortName ?? '';
+                awayTeamName = matchData.awayTeam?.shortName ?? '';
+            }
+
+            const stateRef = db.collection("matches_state").doc(fixtureId.toString());
+            const stateDoc = await stateRef.get();
+            const prevState = stateDoc.data();
+
+            let shouldNotifyGoal = false;
+            let shouldNotifyWhistle = false;
+
+            if (prevState) {
+                const prevHome = prevState.homeScore ?? 0;
+                const prevAway = prevState.awayScore ?? 0;
+                if (homeScore > prevHome || awayScore > prevAway) {
+                    shouldNotifyGoal = true;
+                }
+                
+                // HT logic
+                if (activeApi === 'api_football') {
+                    if (prevState.status !== 'HT' && status === 'HT') shouldNotifyWhistle = true;
+                } else {
+                    if (prevState.status !== 'PAUSED' && status === 'PAUSED') shouldNotifyWhistle = true;
+                }
+            }
+
+            if (shouldNotifyGoal || shouldNotifyWhistle) {
+                const soundFile = shouldNotifyGoal ? "goal.wav" : "whistle.wav";
+                const channelId = shouldNotifyGoal ? "match_goal" : "match_whistle";
+                const title = shouldNotifyGoal ? "GOL!" : "Fim do Primeiro Tempo";
+                const body = `${homeTeamName} ${homeScore} x ${awayScore} ${awayTeamName}`;
+
+                await admin.messaging().send({
+                    topic: `match_${fixtureId}`,
+                    notification: {
+                        title: title,
+                        body: body,
+                    },
+                    android: {
+                        notification: {
+                            sound: soundFile,
+                            channelId: channelId
+                        }
+                    },
+                    apns: {
+                        payload: {
+                            aps: {
+                                sound: soundFile
+                            }
+                        }
+                    }
+                });
+            }
+
+            await stateRef.set({
+                homeScore,
+                awayScore,
+                status,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+        } catch (e) {
+            console.error(`Erro ao atualizar partida ${fixtureId}:`, e);
+        }
+    }
+});
+
 
 export * from "./pinnacle";
