@@ -10,7 +10,10 @@ import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
 
+import 'wallet_store_screen.dart';
 import 'matches_screen.dart';
+import 'my_scratchcards_screen.dart';
+import 'favorite_team_screen.dart';
 import 'active_match_screen.dart';
 import '../widgets/smart_image.dart';
 
