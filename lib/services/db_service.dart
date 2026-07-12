@@ -78,7 +78,9 @@ class DbService {
 
   Future<void> incrementQuizCount(String uid, String fixtureId) async {
     await _db.collection('users').doc(uid).set({
-      'answered_quizzes_count.$fixtureId': FieldValue.increment(1),
+      'answered_quizzes_count': {
+        fixtureId: FieldValue.increment(1),
+      }
     }, SetOptions(merge: true));
   }
 

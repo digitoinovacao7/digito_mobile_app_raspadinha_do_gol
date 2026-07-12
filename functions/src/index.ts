@@ -87,7 +87,9 @@ export const answerQuiz = onCall(async (request) => {
             if (isCorrect) {
                 t.set(userRef, {
                     tokens: admin.firestore.FieldValue.increment(quizReward),
-                    [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
+                    answered_quizzes_count: {
+                        [fixtureId]: admin.firestore.FieldValue.increment(1)
+                    }
                 }, { merge: true });
 
                 const transactionRef = db.collection("token_transactions").doc();
@@ -100,7 +102,9 @@ export const answerQuiz = onCall(async (request) => {
                 });
             } else {
                 t.set(userRef, {
-                    [`answered_quizzes_count.${fixtureId}`]: admin.firestore.FieldValue.increment(1)
+                    answered_quizzes_count: {
+                        [fixtureId]: admin.firestore.FieldValue.increment(1)
+                    }
                 }, { merge: true });
                 
                 const transactionRef = db.collection("token_transactions").doc();
