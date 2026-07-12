@@ -12,6 +12,7 @@ import '../services/db_service.dart';
 
 import 'matches_screen.dart';
 import 'active_match_screen.dart';
+import '../widgets/network_logo.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -521,16 +522,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTeamColumn(String name, String? logoUrl) {
     return Column(
       children: [
-        if (logoUrl != null)
-          Image.network(
-            logoUrl,
-            width: 48,
-            height: 48,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.shield, color: Colors.grey, size: 48),
-          )
-        else
-          const Icon(Icons.shield, color: Colors.grey, size: 48),
+        NetworkLogo(
+          url: logoUrl,
+          width: 48,
+          height: 48,
+          placeholderIcon: const Icon(Icons.shield, color: Colors.grey, size: 48),
+        ),
         const SizedBox(height: 8),
         Text(
           name,
@@ -609,13 +606,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             padding: const EdgeInsets.all(8),
-            child: logoUrl != null
-                ? Image.network(
-                    logoUrl,
-                    errorBuilder: (c, e, s) =>
-                        const Icon(Icons.sports_soccer, color: Colors.grey),
-                  )
-                : const Icon(Icons.sports_soccer, color: Colors.grey),
+            child: NetworkLogo(
+              url: logoUrl,
+              placeholderIcon: const Icon(Icons.sports_soccer, color: Colors.grey),
+            ),
           ),
           const SizedBox(height: 8),
           Text(

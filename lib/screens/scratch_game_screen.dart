@@ -17,9 +17,11 @@ class ScratchGameScreen extends ConsumerStatefulWidget {
   ConsumerState<ScratchGameScreen> createState() => _ScratchGameScreenState();
 }
 
-class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
+class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen>
+    with SingleTickerProviderStateMixin {
   final GlobalKey<ScratcherState> scratchKey = GlobalKey<ScratcherState>();
   late ConfettiController _confettiController;
+  late AnimationController _pulseController;
 
   bool _isLoading = true;
   bool _isRevealed = false;
@@ -34,10 +36,13 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 4),
     );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
 
-    // Chama o backend imediatamente para gerar o grid seguro e debitar os tokens
     _fetchCost();
     _playScratchcard();
   }
@@ -64,6 +69,7 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   @override
   void dispose() {
     _confettiController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -83,14 +89,9 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
           _prizeLink = data['prizeLink'] ?? data['prize_link'];
           _isLoading = false;
         });
-
-        // Atualizar saldo de tokens do usuário forçando refresh (caso o Stream já não faça)
-        // O Stream do authProvider geralmente cuida do Firebase,
-        // mas vamos invalidar a authStateProvider para garantir atualização instantânea.
         ref.invalidate(appUserFutureProvider);
       }
     } on FirebaseFunctionsException catch (e) {
-      // Se não tiver saldo ou ocorrer outro erro
       setState(() => _isLoading = false);
       _showErrorDialog(e.message ?? 'Erro ao jogar.');
     } catch (e) {
@@ -102,14 +103,15 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   void _onScratchFinished() {
     if (_isRevealed) return;
     setState(() => _isRevealed = true);
+    _pulseController.stop();
 
     if (_winCount >= 3) {
       _confettiController.play();
-      _showResultDialog(true);
+      Future.delayed(const Duration(milliseconds: 500), () => _showResultDialog(true));
     } else if (_winCount == 2) {
-      _showResultDialog(true); // Premiação de tokens (na trave)
+      Future.delayed(const Duration(milliseconds: 500), () => _showResultDialog(true));
     } else {
-      _showResultDialog(false); // Perdeu
+      Future.delayed(const Duration(milliseconds: 800), () => _showResultDialog(false));
     }
   }
 
@@ -118,18 +120,29 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          won ? (_winCount == 3 ? 'GOLAÇO!!!' : 'Na Trave!') : 'Fim de Jogo',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Icon(
+              won ? Icons.emoji_events : Icons.sentiment_dissatisfied,
+              size: 64,
+              color: won ? AppTheme.accentGold : Colors.grey,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              won ? (_winCount == 3 ? 'GOLAÇO!!!' : 'Na Trave!') : 'Que pena!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
         ),
-        content: Text(_resultMessage),
+        content: Text(
+          _resultMessage,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx); // Fechar dialog
-              Navigator.pop(context); // Voltar
-            },
-            child: const Text('Voltar'),
-          ),
           if (_prizeLink != null && _prizeLink!.isNotEmpty)
             ElevatedButton(
               onPressed: () async {
@@ -138,8 +151,23 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
                   await launchUrl(url);
                 }
               },
-              child: const Text('Acessar Cupom'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentGold,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Acessar Prêmio', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            child: const Text('Voltar', style: TextStyle(color: Colors.grey)),
+          ),
         ],
       ),
     );
@@ -169,14 +197,44 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Raspadinha do Gol')),
-        body: const Center(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          title: const Text('Raspadinha do Gol'),
+          elevation: 0,
+          backgroundColor: AppTheme.primaryGreen,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Preparando sua raspadinha...'),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    )
+                  ],
+                ),
+                child: const CircularProgressIndicator(
+                  color: AppTheme.primaryGreen,
+                  strokeWidth: 4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Preparando sua sorte...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryGreen,
+                ),
+              ),
             ],
           ),
         ),
@@ -184,80 +242,56 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Raspadinha do Gol')),
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        title: const Text('Raspadinha do Gol'),
+        elevation: 0,
+        backgroundColor: AppTheme.primaryGreen,
+        foregroundColor: Colors.white,
+      ),
       body: Stack(
-        alignment: Alignment.center,
+        alignment: Alignment.topCenter,
         children: [
+          // Background Gradient
           Container(
-            color: AppTheme.backgroundWhite,
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableWidth = constraints.maxWidth - 32;
-                  final availableHeight = constraints.maxHeight - 188;
-                  final scratchSize = min(
-                    availableWidth,
-                    availableHeight,
-                  ).clamp(260.0, 430.0);
-
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _ScratchHeader(
-                          subtitle: widget.useTokens
-                              ? 'Custo: $_ticketCost tokens'
-                              : 'Chance liberada pelo jogo marcado',
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Raspe a área cinza e encontre 3 bolas para ganhar.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 13,
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: Center(
-                            child: _buildScratchCard(scratchSize),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          _isRevealed
-                              ? 'Resultado revelado'
-                              : 'Passe o dedo sobre a cartela para revelar.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+            height: 200,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppTheme.primaryGreen.withValues(alpha: 0.15),
+                  Colors.grey.shade100,
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              child: Column(
+                children: [
+                  _buildTicketHeader(),
+                  const SizedBox(height: 24),
+                  _buildScratchArea(),
+                  const SizedBox(height: 32),
+                  _buildInstructions(),
+                ],
               ),
             ),
           ),
           ConfettiWidget(
             confettiController: _confettiController,
-            blastDirection: -pi / 2, // Pra cima
-            emissionFrequency: 0.1,
-            numberOfParticles: 50,
-            maxBlastForce: 100,
-            minBlastForce: 80,
-            gravity: 0.2,
+            blastDirection: -pi / 2,
+            emissionFrequency: 0.05,
+            numberOfParticles: 30,
+            maxBlastForce: 80,
+            minBlastForce: 40,
+            gravity: 0.3,
             colors: const [
               Colors.green,
               Colors.yellow,
-              Colors.blue,
+              Colors.amber,
               Colors.white,
             ],
           ),
@@ -266,157 +300,235 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen> {
     );
   }
 
-  Widget _buildScratchCard(double scratchSize) {
+  Widget _buildTicketHeader() {
     return Container(
-      padding: const EdgeInsets.all(10),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Scratcher(
-          key: scratchKey,
-          brushSize: 42,
-          threshold: 92,
-          color: Colors.grey.shade400,
-          onThreshold: _onScratchFinished,
-          child: Container(
-            width: scratchSize,
-            height: scratchSize,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: AppTheme.primaryGreen, width: 4),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  final hasBall = _gridBalls[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: hasBall
-                          ? AppTheme.accentGold.withValues(alpha: 0.08)
-                          : Colors.grey.shade50,
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Center(
-                      child: hasBall
-                          ? Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.yellow.shade200,
-                                    AppTheme.accentGold,
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.accentGold.withValues(
-                                      alpha: 0.35,
-                                    ),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.sports_soccer,
-                                size: 40,
-                                color: Colors.black87,
-                              ),
-                            )
-                          : Icon(
-                              Icons.close,
-                              size: 46,
-                              color: Colors.grey.shade400,
-                            ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScratchHeader extends StatelessWidget {
-  final String subtitle;
-
-  const _ScratchHeader({required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.16)),
-      ),
-      child: Row(
+      child: Column(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.accentGold.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(10),
+              color: AppTheme.accentGold.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.confirmation_number_outlined,
+              Icons.stars_rounded,
+              size: 48,
+              color: AppTheme.accentGold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'TICKET DA SORTE',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
               color: AppTheme.textDark,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sua raspadinha',
-                  style: TextStyle(
-                    color: AppTheme.textDark,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+          const SizedBox(height: 6),
+          Text(
+            widget.useTokens
+                ? 'Você gastou $_ticketCost tokens'
+                : 'Ticket especial do jogo marcado',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScratchArea() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final scratchSize = availableWidth.clamp(280.0, 380.0);
+
+        return Container(
+          width: scratchSize,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.grey.shade200, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Decorative ticket edge
+              Container(
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryGreen,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Scratcher(
+                    key: scratchKey,
+                    brushSize: 48,
+                    threshold: 70,
+                    color: const Color(0xFFC5A059), // Premium Gold Cover
+                    onThreshold: _onScratchFinished,
+                    child: Container(
+                      width: scratchSize - 44, // Account for padding and border
+                      height: scratchSize - 44,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(4),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
+                        itemCount: 9,
+                        itemBuilder: (context, index) {
+                          final hasBall = _gridBalls[index];
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: hasBall
+                                  ? AppTheme.accentGold.withValues(alpha: 0.1)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: hasBall
+                                    ? AppTheme.accentGold.withValues(alpha: 0.5)
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: Center(
+                              child: hasBall
+                                  ? _buildWinningSymbol()
+                                  : _buildLosingSymbol(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWinningSymbol() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.8, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.yellow.shade100,
+                  AppTheme.accentGold,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accentGold.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.sports_soccer,
+              size: 34,
+              color: Colors.black87,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLosingSymbol() {
+    return Icon(
+      Icons.close_rounded,
+      size: 38,
+      color: Colors.grey.shade300,
+    );
+  }
+
+  Widget _buildInstructions() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _isRevealed ? 1.0 : 1.0 + (_pulseController.value * 0.03),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            decoration: BoxDecoration(
+              color: _isRevealed ? Colors.white : AppTheme.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: _isRevealed ? Colors.grey.shade200 : AppTheme.primaryGreen.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isRevealed ? Icons.check_circle : Icons.touch_app,
+                  color: _isRevealed ? Colors.grey.shade500 : AppTheme.primaryGreen,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
                 Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  _isRevealed
+                      ? 'Resultado revelado!'
+                      : 'Raspe a cartela para descobrir',
                   style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    color: _isRevealed ? Colors.grey.shade600 : AppTheme.primaryGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -439,6 +439,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                           ? match.awayTeam
                           : widget.awayTeam,
                       isWatchingAnotherMatch: isWatchingAnotherMatch,
+                      isFinished: ['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO'].contains(status),
                       currentWatchingHomeTeam: appUser?.watchingHomeTeam,
                       currentWatchingAwayTeam: appUser?.watchingAwayTeam,
                     ),
@@ -457,6 +458,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     required String homeTeam,
     required String awayTeam,
     required bool isWatchingAnotherMatch,
+    required bool isFinished,
     String? currentWatchingHomeTeam,
     String? currentWatchingAwayTeam,
   }) {
@@ -487,20 +489,24 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+              color: isFinished 
+                  ? Colors.grey.withValues(alpha: 0.1) 
+                  : AppTheme.primaryGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.visibility_outlined,
-              color: AppTheme.primaryGreen,
+            child: Icon(
+              isFinished ? Icons.event_busy : Icons.visibility_outlined,
+              color: isFinished ? Colors.grey : AppTheme.primaryGreen,
               size: 28,
             ),
           ),
           const SizedBox(height: 14),
           Text(
-            isWatchingAnotherMatch
-                ? 'Você marcou outro jogo'
-                : 'Marque o jogo que está assistindo',
+            isFinished 
+                ? 'Partida Encerrada'
+                : (isWatchingAnotherMatch
+                    ? 'Você marcou outro jogo'
+                    : 'Marque o jogo que está assistindo'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textDark,
@@ -510,9 +516,11 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isWatchingAnotherMatch
-                ? 'Agora suas chances estão valendo para $currentMatchLabel. Você pode trocar para este jogo se ele é o que está assistindo.'
-                : 'Só o jogo marcado libera raspadinhas. Assim cada pessoa acompanha uma partida por vez.',
+            isFinished 
+                ? 'Este jogo já terminou. Não é mais possível marcá-lo para ganhar raspadinhas.'
+                : (isWatchingAnotherMatch
+                    ? 'Agora suas chances estão valendo para $currentMatchLabel. Você pode trocar para este jogo se ele é o que está assistindo.'
+                    : 'Só o jogo marcado libera raspadinhas. Assim cada pessoa acompanha uma partida por vez.'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.grey.shade600,
@@ -521,31 +529,32 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isMarkingWatching
-                  ? null
-                  : () => _markWatchingMatch(homeTeam, awayTeam),
-              icon: _isMarkingWatching
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check_circle_outline),
-              label: Text(
-                isWatchingAnotherMatch
-                    ? 'Trocar para este jogo'
-                    : 'Estou assistindo este jogo',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accentGold,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 15),
+          if (!isFinished)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isMarkingWatching
+                    ? null
+                    : () => _markWatchingMatch(homeTeam, awayTeam),
+                icon: _isMarkingWatching
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(
+                  isWatchingAnotherMatch
+                      ? 'Trocar para este jogo'
+                      : 'Estou assistindo este jogo',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentGold,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
