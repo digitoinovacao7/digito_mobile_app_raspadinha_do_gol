@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
 import '../core/theme.dart';
 import 'scratch_game_screen.dart';
 import 'arquibancada_screen.dart';
+import '../models/match_state.dart';
 
 class ActiveMatchScreen extends ConsumerStatefulWidget {
   final int fixtureId;
@@ -26,6 +28,13 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
 class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
   bool _isMarkingWatching = false;
   bool _isOpeningScratch = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 
   Future<void> _markWatchingMatch(String homeTeam, String awayTeam) async {
     final auth = ref.read(authServiceProvider);
@@ -164,6 +173,21 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen for score or status changes to play sounds
+    ref.listen<AsyncValue<MatchState>>(matchStreamProvider(widget.fixtureId), (previous, next) {
+      if (next.value != null && previous?.value != null) {
+        final prevMatch = previous!.value!;
+        final nextMatch = next.value!;
+        
+        if (nextMatch.homeScore > prevMatch.homeScore || nextMatch.awayScore > prevMatch.awayScore) {
+          _audioPlayer.play(AssetSource('sounds/goal.wav'));
+        }
+        if (prevMatch.status != 'HT' && nextMatch.status == 'HT') {
+          _audioPlayer.play(AssetSource('sounds/whistle.wav'));
+        }
+      }
+    });
+
     // Escuta o stream do provider passando o fixtureId
     final matchState = ref.watch(matchStreamProvider(widget.fixtureId));
     final authService = ref.watch(authServiceProvider);

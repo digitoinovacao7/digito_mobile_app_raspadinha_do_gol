@@ -10,7 +10,7 @@ import {
  * O 2.5 tem menor incidência de erro por alta demanda atualmente. O 3.5 fica
  * como fallback e assume automaticamente quando o 2.5 for descontinuado.
  */
-const GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro"];
 
 export async function generateGeminiContent(
     ai: GoogleGenAI,
