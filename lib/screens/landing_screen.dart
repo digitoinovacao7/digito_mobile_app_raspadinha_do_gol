@@ -118,33 +118,28 @@ class LandingScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Acompanhe jogos ao vivo, raspe cartelas premiadas e concorra a PIX na hora!',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 18,
-                              height: 1.4,
-                            ),
+                          const Text(
+                            'Acompanhe jogos ao vivo, raspe cartelas premiadas e concorra a brindes incríveis!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 16, color: Colors.white70),
                           ),
-                          const SizedBox(height: 48),
-
-                          // Funcionalidades (Substituindo a lista infinita)
+                          const SizedBox(height: 32),
                           _buildFeatureCard(
-                            icon: Icons.live_tv,
-                            title: 'Jogos ao Vivo',
-                            subtitle: 'Acompanhe os lances em tempo real das maiores ligas.',
+                            icon: Icons.sports_soccer,
+                            title: 'Futebol Ao Vivo',
+                            subtitle: 'Estatísticas e placares em tempo real',
                           ),
                           const SizedBox(height: 16),
                           _buildFeatureCard(
-                            icon: Icons.confirmation_number,
-                            title: 'Raspadinhas',
-                            subtitle: 'Eventos na partida geram chances de raspar e ganhar.',
+                            icon: Icons.style,
+                            title: 'Raspadinhas da Sorte',
+                            subtitle: 'Ganhe prêmios enquanto assiste',
                           ),
                           const SizedBox(height: 16),
                           _buildFeatureCard(
-                            icon: Icons.pix,
-                            title: 'Prêmios em PIX',
-                            subtitle: 'Resgate seus tokens direto na sua conta bancária.',
+                            icon: Icons.card_giftcard,
+                            title: 'Prêmios e Brindes',
+                            subtitle: 'Junte pontos e troque por prêmios',
                           ),
                           
                           const SizedBox(height: 48),
