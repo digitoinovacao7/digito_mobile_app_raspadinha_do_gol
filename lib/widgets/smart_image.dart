@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -22,12 +23,42 @@ class SmartImage extends StatelessWidget {
           Icon(Icons.shield, color: Colors.grey, size: width ?? 48);
     }
 
-    final imagePath =
-        Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    final parsedUrl = Uri.tryParse(url);
+    final imagePath = parsedUrl?.path.toLowerCase() ?? url.toLowerCase();
+    final isFootballLogo =
+        parsedUrl != null &&
+        const {
+          'media.api-sports.io',
+          'crests.football-data.org',
+        }.contains(parsedUrl.host);
+    final resolvedUrl = isFootballLogo
+        ? Uri.https(
+            'southamerica-east1-raspadinhadogol.cloudfunctions.net',
+            '/proxyFootballImage',
+            {'url': url},
+          ).toString()
+        : url;
+
+    // No Flutter Web, o elemento HTML carrega imagens de outros domínios sem
+    // exigir que o servidor permita a leitura dos bytes pelo CanvasKit/Skwasm.
+    // O próprio navegador também renderiza SVG dentro de <img>.
+    if (kIsWeb) {
+      return Image.network(
+        resolvedUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        errorBuilder:
+            errorBuilder ??
+            (context, error, stackTrace) =>
+                Icon(Icons.shield, color: Colors.grey, size: width ?? 48),
+      );
+    }
 
     if (imagePath.endsWith('.svg')) {
       return SvgPicture.network(
-        url,
+        resolvedUrl,
         width: width,
         height: height,
         fit: BoxFit.contain,
@@ -43,7 +74,7 @@ class SmartImage extends StatelessWidget {
       );
     } else {
       return Image.network(
-        url,
+        resolvedUrl,
         width: width,
         height: height,
         fit: BoxFit.contain,

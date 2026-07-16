@@ -656,9 +656,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 1.1,
+        mainAxisExtent: 88,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 12,
+        mainAxisSpacing: 10,
       ),
       itemCount: _activeLeagues.length,
       itemBuilder: (context, index) {
@@ -719,7 +719,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const Icon(Icons.sports_soccer, color: Colors.grey),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
             textAlign: TextAlign.center,
