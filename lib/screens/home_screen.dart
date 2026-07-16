@@ -356,7 +356,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.favorite, color: Colors.white, size: 24),
+                child: const Icon(
+                  Icons.favorite,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               const Expanded(
@@ -374,10 +378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     SizedBox(height: 4),
                     Text(
                       'Personalize sua experiência e torça!',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
@@ -448,7 +449,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.accentGold.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -507,8 +511,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               fixtureId: match['fixture']['id'],
               homeTeam: homeTeam,
               awayTeam: awayTeam,
-              homeLogo: homeLogo?.isNotEmpty == true ? homeLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',
-              awayLogo: awayLogo?.isNotEmpty == true ? awayLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png',
+              homeLogo: homeLogo?.isNotEmpty == true
+                  ? homeLogo!
+                  : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',
+              awayLogo: awayLogo?.isNotEmpty == true
+                  ? awayLogo!
+                  : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png',
             ),
           ),
         );
@@ -577,11 +585,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: _buildTeamColumn(homeTeam, homeLogo?.isNotEmpty == true ? homeLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png')),
+                Expanded(
+                  child: _buildTeamColumn(
+                    homeTeam,
+                    homeLogo?.isNotEmpty == true
+                        ? homeLogo!
+                        : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
-                    isLive ? '${match['goals']['home'] ?? 0} - ${match['goals']['away'] ?? 0}' : status,
+                    isLive
+                        ? '${match['goals']['home'] ?? 0} - ${match['goals']['away'] ?? 0}'
+                        : status,
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: isLive ? 24 : 16,
@@ -589,7 +606,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 ),
-                Expanded(child: _buildTeamColumn(awayTeam, awayLogo?.isNotEmpty == true ? awayLogo! : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png')),
+                Expanded(
+                  child: _buildTeamColumn(
+                    awayTeam,
+                    awayLogo?.isNotEmpty == true
+                        ? awayLogo!
+                        : 'https://media.api-sports.io/football/teams/${match['teams']['away']['id']}.png',
+                  ),
+                ),
               ],
             ),
             const Spacer(),
@@ -606,7 +630,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           logoUrl ?? '',
           width: 48,
           height: 48,
-          errorBuilder: (_, __, ___) => const Icon(Icons.shield, color: Colors.grey, size: 48),
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.shield, color: Colors.grey, size: 48),
         ),
         const SizedBox(height: 8),
         Text(
@@ -614,7 +639,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textDark),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: AppTheme.textDark,
+          ),
         ),
       ],
     );
@@ -627,9 +656,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.9,
+        childAspectRatio: 1.1,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 16,
+        mainAxisSpacing: 12,
       ),
       itemCount: _activeLeagues.length,
       itemBuilder: (context, index) {
@@ -683,8 +712,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             padding: const EdgeInsets.all(8),
             child: SmartImage(
-              (logoUrl != null && logoUrl.isNotEmpty) ? logoUrl : 'https://media.api-sports.io/football/leagues/$id.png',
-              errorBuilder: (_, __, ___) => const Icon(Icons.sports_soccer, color: Colors.grey),
+              (logoUrl != null && logoUrl.isNotEmpty)
+                  ? logoUrl
+                  : 'https://media.api-sports.io/football/leagues/$id.png',
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.sports_soccer, color: Colors.grey),
             ),
           ),
           const SizedBox(height: 8),

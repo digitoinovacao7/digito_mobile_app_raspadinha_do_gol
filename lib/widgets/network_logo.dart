@@ -21,18 +21,24 @@ class NetworkLogo extends StatelessWidget {
       return placeholderIcon;
     }
 
-    if (url!.toLowerCase().endsWith('.svg')) {
+    final imagePath =
+        Uri.tryParse(url!)?.path.toLowerCase() ?? url!.toLowerCase();
+
+    if (imagePath.endsWith('.svg')) {
       return SvgPicture.network(
         url!,
         width: width,
         height: height,
+        fit: BoxFit.contain,
         placeholderBuilder: (BuildContext context) => placeholderIcon,
+        errorBuilder: (context, error, stackTrace) => placeholderIcon,
       );
     } else {
       return Image.network(
         url!,
         width: width,
         height: height,
+        fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) => placeholderIcon,
       );
     }

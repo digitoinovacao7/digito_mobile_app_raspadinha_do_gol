@@ -96,6 +96,36 @@ class FootballService {
           season: season,
           logoUrl: 'https://crests.football-data.org/wc.png',
         ),
+        LeagueInfo(
+          id: 2001,
+          name: 'Champions League',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/CL.png',
+        ),
+        LeagueInfo(
+          id: 2021,
+          name: 'Premier League',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/PL.png',
+        ),
+        LeagueInfo(
+          id: 2014,
+          name: 'La Liga',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/PD.png',
+        ),
+        LeagueInfo(
+          id: 2019,
+          name: 'Serie A Italiana',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/SA.png',
+        ),
+        LeagueInfo(
+          id: 2002,
+          name: 'Bundesliga',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/BL1.png',
+        ),
       ];
     } else {
       return [
@@ -112,26 +142,61 @@ class FootballService {
           logoUrl: 'https://media.api-sports.io/football/leagues/13.png',
         ),
         LeagueInfo(
+          id: 73,
+          name: 'Copa do Brasil',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/73.png',
+        ),
+        LeagueInfo(
+          id: 11,
+          name: 'Copa Sul-Americana',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/11.png',
+        ),
+        LeagueInfo(
           id: 1,
           name: 'Copa do Mundo',
           season: season,
           logoUrl: 'https://media.api-sports.io/football/leagues/1.png',
+        ),
+        LeagueInfo(
+          id: 2,
+          name: 'Champions League',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/2.png',
+        ),
+        LeagueInfo(
+          id: 39,
+          name: 'Premier League',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/39.png',
+        ),
+        LeagueInfo(
+          id: 140,
+          name: 'La Liga',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/140.png',
+        ),
+        LeagueInfo(
+          id: 135,
+          name: 'Serie A Italiana',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/135.png',
+        ),
+        LeagueInfo(
+          id: 78,
+          name: 'Bundesliga',
+          season: season,
+          logoUrl: 'https://media.api-sports.io/football/leagues/78.png',
         ),
       ];
     }
   }
 
   Future<List<LeagueInfo>> getCombinedLeagues() async {
-    final popular = await getPopularLeagues();
-    final active = await getActiveLeaguesForToday();
-
-    final popularIds = popular.map((e) => e.id).toSet();
-    final filteredActive = active
-        .where((e) => !popularIds.contains(e.id))
-        .take(7)
-        .toList();
-
-    return [...popular, ...filteredActive];
+    // Mantém a vitrine previsível e relevante. A resposta diária da API inclui
+    // muitas ligas regionais e amistosos, cuja ordem varia a cada atualização.
+    return getPopularLeagues();
   }
 
   // Busca as ligas que tem jogos hoje

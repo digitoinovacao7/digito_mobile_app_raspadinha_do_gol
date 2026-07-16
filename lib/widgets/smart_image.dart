@@ -18,28 +18,39 @@ class SmartImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (url.isEmpty) {
-      return errorBuilder?.call(context, null, null) ?? 
-             Icon(Icons.shield, color: Colors.grey, size: width ?? 48);
+      return errorBuilder?.call(context, null, null) ??
+          Icon(Icons.shield, color: Colors.grey, size: width ?? 48);
     }
 
-    if (url.toLowerCase().endsWith('.svg')) {
+    final imagePath =
+        Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+
+    if (imagePath.endsWith('.svg')) {
       return SvgPicture.network(
         url,
         width: width,
         height: height,
+        fit: BoxFit.contain,
         placeholderBuilder: (context) => SizedBox(
           width: width,
           height: height,
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
+        errorBuilder:
+            errorBuilder ??
+            (context, error, stackTrace) =>
+                Icon(Icons.shield, color: Colors.grey, size: width ?? 48),
       );
     } else {
       return Image.network(
         url,
         width: width,
         height: height,
-        errorBuilder: errorBuilder ?? 
-            (context, error, stackTrace) => Icon(Icons.shield, color: Colors.grey, size: width ?? 48),
+        fit: BoxFit.contain,
+        errorBuilder:
+            errorBuilder ??
+            (context, error, stackTrace) =>
+                Icon(Icons.shield, color: Colors.grey, size: width ?? 48),
       );
     }
   }
