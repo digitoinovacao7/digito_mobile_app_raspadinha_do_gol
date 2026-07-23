@@ -26,6 +26,30 @@ class FootballService {
     return int.tryParse(value.toString()) ?? fallback;
   }
 
+  /// Nomes mais claros para o público brasileiro, sem depender do nome
+  /// genérico retornado por cada provedor (por exemplo, "Serie A").
+  static String _friendlyLeagueName(int id, String fallback) {
+    const namesById = <int, String>{
+      71: 'Brasileirão Série A',
+      2013: 'Brasileirão Série A',
+      13: 'Copa Libertadores',
+      2152: 'Copa Libertadores',
+      11: 'Copa Sul-Americana',
+      73: 'Copa do Brasil',
+      2: 'Champions League',
+      2001: 'Champions League',
+      39: 'Premier League',
+      2021: 'Premier League',
+      140: 'La Liga',
+      2014: 'La Liga',
+      135: 'Serie A Italiana',
+      2019: 'Serie A Italiana',
+      78: 'Bundesliga',
+      2002: 'Bundesliga',
+    };
+    return namesById[id] ?? fallback;
+  }
+
   Future<void> _initApiKey() async {
     try {
       final docSnap = await FirebaseFirestore.instance
@@ -199,6 +223,24 @@ class FootballService {
     return getPopularLeagues();
   }
 
+  /// Lista única usada na Home e no cadastro de prêmios.
+  ///
+  /// Exibe somente os campeonatos principais que possuem partidas hoje,
+  /// preservando a ordem de relevância de [getPopularLeagues]. Se a agenda
+  /// não puder ser consultada, mantém os principais como fallback.
+  Future<List<LeagueInfo>> getMainActiveLeaguesForToday() async {
+    final popularLeagues = await getPopularLeagues();
+    final activeLeagues = await getActiveLeaguesForToday();
+
+    if (activeLeagues.isEmpty) return popularLeagues;
+
+    final activeById = {for (final league in activeLeagues) league.id: league};
+    return popularLeagues
+        .where((league) => activeById.containsKey(league.id))
+        .map((league) => activeById[league.id]!)
+        .toList();
+  }
+
   // Busca as ligas que tem jogos hoje
   Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
     await _initApiKey();
@@ -241,7 +283,10 @@ class FootballService {
               leagues.add(
                 LeagueInfo(
                   id: leagueId,
-                  name: leagueData['name']?.toString() ?? '',
+                  name: _friendlyLeagueName(
+                    leagueId,
+                    leagueData['name']?.toString() ?? '',
+                  ),
                   logoUrl: leagueData['logo']?.toString(),
                   season: _toInt(
                     leagueData['season'],
@@ -289,7 +334,10 @@ class FootballService {
               leagues.add(
                 LeagueInfo(
                   id: compId,
-                  name: compData['name']?.toString() ?? '',
+                  name: _friendlyLeagueName(
+                    compId,
+                    compData['name']?.toString() ?? '',
+                  ),
                   logoUrl: compData['emblem']?.toString(),
                   season:
                       int.tryParse(
@@ -534,6 +582,14 @@ class FootballService {
                   },
                 },
                 'goals': {'home': homeScore, 'away': awayScore},
+                'league': {
+                  'id': _toInt(m['competition']?['id']),
+                  'name': _friendlyLeagueName(
+                    _toInt(m['competition']?['id']),
+                    m['competition']?['name']?.toString() ?? '',
+                  ),
+                  'logo': m['competition']?['emblem'],
+                },
               };
             }).toList();
           }
@@ -575,7 +631,18 @@ class FootballService {
               }
               return 0;
             });
-            return mainMatches.take(5).toList();
+            final featured = mainMatches.take(5).toList();
+            for (final match in featured) {
+              final league = match['league'];
+              if (league is Map) {
+                final leagueId = _toInt(league['id']);
+                league['name'] = _friendlyLeagueName(
+                  leagueId,
+                  league['name']?.toString() ?? '',
+                );
+              }
+            }
+            return featured;
           }
         }
         return [];

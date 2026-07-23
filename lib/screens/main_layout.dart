@@ -26,23 +26,26 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     final user = ref.watch(currentUserProvider);
     final isAdmin = user?.isAdmin == true;
 
-    final List<Widget> screens = isAdmin 
-      ? const [
-          HomeScreen(),
-          AdminScreen(),
-        ]
-      : const [
-          HomeScreen(),
-          QuizStandaloneScreen(),
-          WalletStoreScreen(),
-          MyScratchcardsScreen(),
-        ];
+    void onTabTapped(int index) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+
+    final List<Widget> screens = isAdmin
+        ? const [HomeScreen(), AdminScreen()]
+        : [
+            const HomeScreen(),
+            const QuizStandaloneScreen(),
+            WalletStoreScreen(onExploreGames: () => onTabTapped(0)),
+            MyScratchcardsScreen(onExploreGames: () => onTabTapped(0)),
+          ];
 
     final List<BottomNavigationBarItem> navItems = isAdmin 
       ? const [
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_soccer),
-            label: 'Jogos Ao Vivo',
+            label: 'Jogos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings),
@@ -52,11 +55,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       : const [
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_soccer),
-            label: 'Jogos Ao Vivo',
+            label: 'Jogos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.psychology),
-            label: 'Quiz Extra',
+            label: 'Quiz',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.card_giftcard),
@@ -64,15 +67,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.style),
-            label: 'Minhas Rasp.',
+            label: 'Cartelas',
           ),
         ];
-
-    void onTabTapped(int index) {
-      setState(() {
-        _currentIndex = index;
-      });
-    }
 
     String getAppBarTitle() {
       if (isAdmin) {

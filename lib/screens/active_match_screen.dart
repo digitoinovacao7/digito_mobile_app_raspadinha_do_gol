@@ -289,7 +289,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'API de futebol não configurada',
+                      'Partida temporariamente indisponível',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -299,7 +299,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Configure a chave em settings/general no Firestore (campo api_keys.api_football ou api_keys.football_data).',
+                      'Não conseguimos atualizar esta partida agora. Tente novamente em alguns minutos.',
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 13,
@@ -307,14 +307,11 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      'O botão 🏟️ ARQUIBANCADA abaixo ainda funciona!',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          ref.invalidate(matchStreamProvider(widget.fixtureId)),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Tentar novamente'),
                     ),
                   ],
                 ),

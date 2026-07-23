@@ -7,7 +7,9 @@ import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
 
 class MyScratchcardsScreen extends ConsumerWidget {
-  const MyScratchcardsScreen({Key? key}) : super(key: key);
+  final VoidCallback? onExploreGames;
+
+  const MyScratchcardsScreen({super.key, this.onExploreGames});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +46,12 @@ class MyScratchcardsScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: onExploreGames,
+                  icon: const Icon(Icons.sports_soccer),
+                  label: const Text('Ver jogos disponíveis'),
+                ),
+                const SizedBox(height: 20),
                 // Banner (Publicidade ou Chamada)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),

@@ -181,19 +181,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _loadDashboardData() async {
     final service = ref.read(footballServiceProvider);
 
-    final leaguesFuture = service.getActiveLeaguesForToday();
+    final leaguesFuture = service.getMainActiveLeaguesForToday();
     final featuredMatchesFuture = service.getFeaturedMatchesForToday();
 
     final activeLeagues = await leaguesFuture;
     final featuredMatches = await featuredMatchesFuture;
 
-    // Se a API não retornar ligas ativas (ex: dia sem jogos ou API offline),
-    // usa a lista popular fixa como fallback
-    final leagues = activeLeagues.isNotEmpty ? activeLeagues : await service.getCombinedLeagues();
-
     if (mounted) {
       setState(() {
-        _activeLeagues = leagues;
+        _activeLeagues = activeLeagues;
         _featuredMatches = featuredMatches;
         _isLoading = false;
       });
@@ -497,18 +493,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final awayTeam = match['teams']['away']['name'];
     final homeLogo = match['teams']['home']['logo'];
     final awayLogo = match['teams']['away']['logo'];
-    final homeScore = match['goals']['home'];
-    final awayScore = match['goals']['away'];
     final status = match['fixture']['status']['short'];
+    final leagueName = match['league']?['name']?.toString() ?? '';
     final isLive = ['1H', '2H', 'HT', 'ET', 'P'].contains(status);
-
-    final scoreText = (homeScore == null || awayScore == null)
-        ? 'VS'
-        : '$homeScore - $awayScore';
 
     return InkWell(
       onTap: () {
-        final leagueName = match['league']?['name'] as String?;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -516,7 +506,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               fixtureId: match['fixture']['id'],
               homeTeam: homeTeam,
               awayTeam: awayTeam,
-              leagueName: leagueName,
+              leagueName: leagueName.isEmpty ? null : leagueName,
               homeLogo: homeLogo?.isNotEmpty == true
                   ? homeLogo!
                   : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',
@@ -547,8 +537,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.emoji_events_outlined,
+                        size: 14,
+                        color: AppTheme.accentGold,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          leagueName.isEmpty ? 'Campeonato' : leagueName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textDark,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -584,7 +598,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
               ],
             ),
             const Spacer(),
