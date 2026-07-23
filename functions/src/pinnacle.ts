@@ -1,15 +1,37 @@
-import { onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { generateGeminiContent } from "./gemini";
+import {
+    acceptedBetStatus,
+    mapSelectionToPinnacleTeam,
+    validateRiskControls
+} from "./pinnacle_logic";
 
 // Helper to get Basic Auth header
-async function getPinnacleAuth() {
+type PinnacleConfig = {
+    username?: string;
+    password?: string;
+    apiUrl?: string;
+    active?: boolean;
+    mode?: "simulation" | "real";
+    apiAccessApproved?: boolean;
+    stake?: number;
+    maxStake?: number;
+    minBalance?: number;
+    minConfidence?: number;
+};
+
+async function getPinnacleConfig(): Promise<PinnacleConfig> {
     const db = admin.firestore();
-    const settings = await db.collection("settings").doc("general").get();
-    const pinnacleData = settings.data()?.pinnacle || {};
+    const privateSettings = await db.collection("private_settings").doc("pinnacle").get();
+    return (privateSettings.data() || {}) as PinnacleConfig;
+}
+
+async function getPinnacleAuth(config?: PinnacleConfig) {
+    const pinnacleData = config || await getPinnacleConfig();
 
     const username = (pinnacleData.username || "").trim();
     const password = (pinnacleData.password || "").trim();
@@ -21,17 +43,25 @@ async function getPinnacleAuth() {
 }
 
 async function getPinnacleBaseUrl() {
-    const db = admin.firestore();
-    const settings = await db.collection("settings").doc("general").get();
-    const pinnacleData = settings.data()?.pinnacle || {};
-    
-    // Default to the official API, but allow overriding for local development server
+    const pinnacleData = await getPinnacleConfig();
     return pinnacleData.apiUrl || "https://api.pinnacle.com";
+}
+
+async function requireAdmin(request: any) {
+    if (!request.auth?.uid) {
+        throw new HttpsError("unauthenticated", "Faça login para continuar.");
+    }
+    const user = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    if (String(user.data()?.role || "").trim().toLowerCase() !== "admin") {
+        throw new HttpsError("permission-denied", "Acesso restrito ao administrador.");
+    }
 }
 
 export const pinnacleGetBalance = onCall({ region: "southamerica-east1" }, async (request: any) => {
     try {
-        const auth = await getPinnacleAuth();
+        await requireAdmin(request);
+        const config = await getPinnacleConfig();
+        const auth = await getPinnacleAuth(config);
         const baseUrl = await getPinnacleBaseUrl();
         const headers = {
             "Authorization": `Basic ${auth}`,
@@ -126,6 +156,7 @@ export const pinnacleGetBalance = onCall({ region: "southamerica-east1" }, async
 });
 
 export const analyzeMatchAndBetPinnacle = onCall({ region: "southamerica-east1" }, async (request: any) => {
+    await requireAdmin(request);
     const matchContext = request.matchContext || request.data?.matchContext;
     const db = admin.firestore();
     
@@ -138,7 +169,7 @@ export const analyzeMatchAndBetPinnacle = onCall({ region: "southamerica-east1" 
     try {
         const settings = await db.collection("settings").doc("general").get();
         const settingsData = settings.data() || {};
-        const botData = settingsData.pinnacle || {};
+        const botData = await getPinnacleConfig();
         const geminiApiKey =
             settingsData.api_keys?.gemini ||
             settingsData.gemini_api_key ||
@@ -224,44 +255,72 @@ export const runAutomatedPinnacleBot = onSchedule({
     timeoutSeconds: 300 // Allow up to 5 minutes for API calls and Gemini
 }, async (event) => {
     const db = admin.firestore();
-    
-    await db.collection("pinnacle_logs").add({
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        message: "🤖 Iniciando varredura automática do Robô Pinnacle (Cron Job)...",
-        type: "info"
-    });
-
     try {
+        const pinnacleData = await getPinnacleConfig();
+        if (pinnacleData.active !== true) {
+            return;
+        }
+
+        const mode = pinnacleData.mode === "real" ? "real" : "simulation";
+        const stake = Number(pinnacleData.stake);
+        const maxStake = Number(pinnacleData.maxStake);
+        const minBalance = Number(pinnacleData.minBalance);
+        const minConfidence = Number(pinnacleData.minConfidence);
+
+        validateRiskControls({ stake, maxStake, minBalance, minConfidence });
+        if (mode === "real" && pinnacleData.apiAccessApproved !== true) {
+            throw new Error("Modo real bloqueado: acesso oficial à API não confirmado.");
+        }
+
+        await db.collection("pinnacle_logs").add({
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            message: `🤖 Iniciando varredura automática em modo ${mode.toUpperCase()}.`,
+            type: "info"
+        });
+
         const settings = await db.collection("settings").doc("general").get();
         const settingsData = settings.data() || {};
-        const pinnacleData = settingsData.pinnacle || {};
         const geminiApiKey = settingsData.api_keys?.gemini || settingsData.gemini_api_key || settingsData.gemini_key || settingsData.gemini;
 
         if (!geminiApiKey) {
             throw new Error("Chave Gemini não configurada.");
         }
 
-        const auth = await getPinnacleAuth();
+        const auth = await getPinnacleAuth(pinnacleData);
         const baseUrl = await getPinnacleBaseUrl();
         const headers = {
             "Authorization": `Basic ${auth}`,
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "RaspadinhaDoGol/1.0"
         };
 
+        const balanceResponse = await axios.get(`${baseUrl}/v1/client/balance`, { headers });
+        const availableBalance = Number(balanceResponse.data?.availableBalance);
+        if (!Number.isFinite(availableBalance) || availableBalance - stake < minBalance) {
+            throw new Error("Saldo insuficiente para apostar sem violar a reserva mínima.");
+        }
+
         // 1. Fetch upcoming Soccer fixtures (sportId: 29)
-        const fixturesResponse = await axios.get(`${baseUrl}/v3/fixtures`, {
+        const fixturesResponse = await axios.get(`${baseUrl}/v1/fixtures`, {
             headers,
-            params: { sportId: 29, isLive: 0 } // Using pre-match for stability
+            params: { sportId: 29, isLive: false }
         });
 
         // 2. Fetch current Odds
         const oddsResponse = await axios.get(`${baseUrl}/v1/odds`, {
             headers,
-            params: { sportId: 29, isLive: 0 }
+            params: { sportId: 29, isLive: false, oddsFormat: "DECIMAL" }
         });
 
-        const fixtures = fixturesResponse.data?.league || [];
+        const leaguesResponse = await axios.get(`${baseUrl}/v2/leagues`, {
+            headers,
+            params: { sportId: 29 }
+        });
+
+        const fixtures = fixturesResponse.data?.league || fixturesResponse.data?.leagues || [];
         const odds = oddsResponse.data?.leagues || [];
+        const leagueDefinitions = leaguesResponse.data?.leagues || [];
 
         // Simple mapping to get max 3 valid match contexts to avoid overload
         let validMatchesFound = 0;
@@ -273,6 +332,7 @@ export const runAutomatedPinnacleBot = onSchedule({
                 if (validMatchesFound >= 2) break;
                 
                 const eventId = ev.id;
+                const leagueId = league.id;
                 const homeTeam = ev.home;
                 const awayTeam = ev.away;
                 const startTime = ev.starts;
@@ -290,6 +350,7 @@ export const runAutomatedPinnacleBot = onSchedule({
                             const drawOdd = period0.moneyline.draw;
 
                             matchesToAnalyze.push({
+                                leagueId,
                                 eventId,
                                 lineId,
                                 homeTeam,
@@ -316,10 +377,10 @@ export const runAutomatedPinnacleBot = onSchedule({
         }
 
         // 3. Pass to Gemini
-        let betPlaced = false;
+        let betProcessed = false;
 
         for (const match of matchesToAnalyze) {
-            if (betPlaced) break; // Place max 1 bet per hour to be safe
+            if (betProcessed) break;
 
             const context = `Jogo: ${match.homeTeam} vs ${match.awayTeam}. Horário: ${match.startTime}. Odds Moneyline - Casa: ${match.homeOdd}, Empate: ${match.drawOdd}, Visitante: ${match.awayOdd}.`;
             
@@ -342,40 +403,134 @@ Contexto do Jogo: ${context}`;
             });
 
             const confidence = Number(analysis.confidence);
-            const minConfidence = Number(pinnacleData.minConfidence) || 80;
-            const stake = Number(pinnacleData.stake) || 5.00; // Default $5 bet
+            const selectedSide = String(analysis.team || "").toUpperCase();
+            if (!["TEAM1", "TEAM2", "DRAW"].includes(selectedSide)) {
+                await db.collection("pinnacle_logs").add({
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    message: `⚠️ Seleção inválida da IA para ${match.homeTeam} vs ${match.awayTeam}.`,
+                    type: "warning"
+                });
+                continue;
+            }
 
-            if (analysis.decision === "BET" && confidence >= minConfidence) {
-                // 4. Place REAL Bet!
+            if (analysis.decision === "BET" && Number.isFinite(confidence) && confidence >= minConfidence) {
+                const leagueDefinition = leagueDefinitions.find((item: any) => item.id === match.leagueId);
+                const homeTeamType = String(leagueDefinition?.homeTeamType || "").toUpperCase();
+                if (homeTeamType !== "TEAM1" && homeTeamType !== "TEAM2") {
+                    throw new Error(`Mapeamento homeTeamType ausente para a liga ${match.leagueId}.`);
+                }
+
+                const team = mapSelectionToPinnacleTeam(selectedSide, homeTeamType);
+
+                const lineResponse = await axios.get(`${baseUrl}/v1/line`, {
+                    headers,
+                    params: {
+                        sportId: 29,
+                        leagueId: match.leagueId,
+                        eventId: match.eventId,
+                        periodNumber: 0,
+                        betType: "MONEYLINE",
+                        team,
+                        oddsFormat: "DECIMAL"
+                    }
+                });
+                const line = lineResponse.data || {};
+                if (line.status !== "SUCCESS" || !line.lineId) {
+                    throw new Error("Linha deixou de estar disponível antes da aposta.");
+                }
+                const minRiskStake = Number(line.minRiskStake);
+                const maxRiskStake = Number(line.maxRiskStake);
+                if ((Number.isFinite(minRiskStake) && stake < minRiskStake) ||
+                    (Number.isFinite(maxRiskStake) && stake > maxRiskStake)) {
+                    throw new Error("Stake fora dos limites atuais retornados pela Pinnacle.");
+                }
+
+                if (mode === "simulation") {
+                    await db.collection("pinnacle_logs").add({
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        message: `🧪 Simulação aprovada: ${stake} em ${match.homeTeam} vs ${match.awayTeam}, seleção ${team}, linha ${line.lineId}. Nenhuma ordem enviada.`,
+                        type: "success"
+                    });
+                    betProcessed = true;
+                    continue;
+                }
+
+                const hourKey = new Date().toISOString().slice(0, 13).replace(/[^0-9]/g, "");
+                const attemptRef = db.collection("pinnacle_bet_attempts").doc(hourKey);
                 const uniqueRequestId = crypto.randomUUID();
+                await db.runTransaction(async transaction => {
+                    const existing = await transaction.get(attemptRef);
+                    if (existing.exists) {
+                        throw new Error("Já existe uma tentativa de aposta nesta hora.");
+                    }
+                    transaction.create(attemptRef, {
+                        uniqueRequestId,
+                        eventId: match.eventId,
+                        leagueId: match.leagueId,
+                        stake,
+                        status: "CREATED",
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
                 const placeBetPayload = {
                     uniqueRequestId,
-                    acceptBetterLine: true,
+                    acceptBetterLine: false,
                     stake: stake,
                     winRiskStake: "WIN",
-                    lineId: match.lineId,
+                    lineId: line.lineId,
                     sportId: 29,
                     eventId: match.eventId,
                     periodNumber: 0,
                     betType: "MONEYLINE",
-                    team: analysis.team || "TEAM1"
+                    team
                 };
 
                 try {
-                    await axios.post(`${baseUrl}/v4/bets/place`, placeBetPayload, { headers });
-                    
-                    await db.collection("pinnacle_logs").add({
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                        message: `✅ Aposta de ${stake} colocada com SUCESSO! Jogo: ${match.homeTeam} vs ${match.awayTeam}. Time: ${analysis.team}`,
-                        type: "success"
+                    const betResponse = await axios.post(`${baseUrl}/v4/bets/straight`, placeBetPayload, { headers });
+                    const status = String(betResponse.data?.status || "UNKNOWN");
+                    await attemptRef.update({
+                        status,
+                        betId: betResponse.data?.betId || null,
+                        errorCode: betResponse.data?.errorCode || null,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
                     });
-                    betPlaced = true;
-                } catch (betError: any) {
+                    if (!acceptedBetStatus(status)) {
+                        throw new Error(`Aposta não aceita: ${status} ${betResponse.data?.errorCode || ""}`.trim());
+                    }
                     await db.collection("pinnacle_logs").add({
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                        message: `❌ Falha ao colocar aposta: ${betError.response?.data?.message || betError.message}`,
+                        message: `${status === "ACCEPTED" ? "✅" : "⏳"} Ordem ${status}: ${stake} em ${match.homeTeam} vs ${match.awayTeam}, seleção ${team}.`,
+                        type: status === "ACCEPTED" ? "success" : "warning"
+                    });
+                    betProcessed = true;
+                } catch (betError: any) {
+                    let reconciledStatus = "UNKNOWN";
+                    try {
+                        const check = await axios.get(`${baseUrl}/v4/bets`, {
+                            headers,
+                            params: { uniqueRequestIds: uniqueRequestId }
+                        });
+                        const found = check.data?.straightBets?.[0];
+                        reconciledStatus = String(found?.betStatus || found?.status || "NOT_FOUND");
+                        await attemptRef.update({
+                            status: reconciledStatus,
+                            betId: found?.betId || null,
+                            reconciledAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    } catch (reconcileError: any) {
+                        await attemptRef.update({
+                            status: "RECONCILIATION_FAILED",
+                            reconciliationError: String(reconcileError.message),
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                    await db.collection("pinnacle_logs").add({
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        message: `❌ Ordem não confirmada (${reconciledStatus}): ${betError.response?.data?.message || betError.message}`,
                         type: "error"
                     });
+                    betProcessed = true;
                 }
             }
         }
@@ -388,4 +543,3 @@ Contexto do Jogo: ${context}`;
         });
     }
 });
-

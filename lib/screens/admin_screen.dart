@@ -31,6 +31,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _globalWinChanceController = TextEditingController();
   final _pinnacleUsernameController = TextEditingController();
   final _pinnaclePasswordController = TextEditingController();
+  final _pinnacleStakeController = TextEditingController(text: '5.00');
+  final _pinnacleMaxStakeController = TextEditingController(text: '5.00');
+  final _pinnacleMinBalanceController = TextEditingController(text: '20.00');
+  final _pinnacleMinConfidenceController = TextEditingController(text: '80');
+  bool _pinnacleActive = false;
+  bool _pinnacleApiAccessApproved = false;
+  String _pinnacleMode = 'simulation';
   final _geminiTestContextController = TextEditingController();
 
   final _newPrizeNameCtrl = TextEditingController();
@@ -125,11 +132,27 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               data['prize_rules']['global_win_chance']?.toString() ?? '10';
         }
 
-        if (data.containsKey('pinnacle')) {
-          _pinnacleUsernameController.text = data['pinnacle']['username'] ?? '';
-          _pinnaclePasswordController.text = data['pinnacle']['password'] ?? '';
-        }
       }
+
+      final pinnacleSnap = await FirebaseFirestore.instance
+          .collection('private_settings')
+          .doc('pinnacle')
+          .get();
+      final pinnacle = pinnacleSnap.data() ?? {};
+      _pinnacleUsernameController.text = pinnacle['username']?.toString() ?? '';
+      _pinnaclePasswordController.text = pinnacle['password']?.toString() ?? '';
+      _pinnacleStakeController.text = pinnacle['stake']?.toString() ?? '5.00';
+      _pinnacleMaxStakeController.text =
+          pinnacle['maxStake']?.toString() ?? '5.00';
+      _pinnacleMinBalanceController.text =
+          pinnacle['minBalance']?.toString() ?? '20.00';
+      _pinnacleMinConfidenceController.text =
+          pinnacle['minConfidence']?.toString() ?? '80';
+      _pinnacleActive = pinnacle['active'] == true;
+      _pinnacleApiAccessApproved = pinnacle['apiAccessApproved'] == true;
+      _pinnacleMode = pinnacle['mode']?.toString() == 'real'
+          ? 'real'
+          : 'simulation';
 
       // Usa exatamente os mesmos campeonatos principais ativos exibidos na Home.
       final service = ref.read(footballServiceProvider);
@@ -161,6 +184,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _globalWinChanceController.dispose();
     _pinnacleUsernameController.dispose();
     _pinnaclePasswordController.dispose();
+    _pinnacleStakeController.dispose();
+    _pinnacleMaxStakeController.dispose();
+    _pinnacleMinBalanceController.dispose();
+    _pinnacleMinConfidenceController.dispose();
     _geminiTestContextController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
@@ -202,11 +229,31 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               'global_win_chance':
                   int.tryParse(_globalWinChanceController.text) ?? 10,
             },
-            'pinnacle': {
-              'username': _pinnacleUsernameController.text.trim(),
-              'password': _pinnaclePasswordController.text.trim(),
-            },
           }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('private_settings')
+          .doc('pinnacle')
+          .set({
+            'username': _pinnacleUsernameController.text.trim(),
+            'password': _pinnaclePasswordController.text.trim(),
+            'active': _pinnacleActive,
+            'mode': _pinnacleMode,
+            'apiAccessApproved': _pinnacleApiAccessApproved,
+            'stake': double.tryParse(_pinnacleStakeController.text) ?? 5,
+            'maxStake':
+                double.tryParse(_pinnacleMaxStakeController.text) ?? 5,
+            'minBalance':
+                double.tryParse(_pinnacleMinBalanceController.text) ?? 20,
+            'minConfidence':
+                double.tryParse(_pinnacleMinConfidenceController.text) ?? 80,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('general')
+          .update({'pinnacle': FieldValue.delete()});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -394,31 +441,82 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       ),
                       const SizedBox(height: 24),
                       _buildTextField(
-                        controller: TextEditingController(text: '5.00'),
-                        label: 'Gestão de Banca (%)',
+                        controller: _pinnacleStakeController,
+                        label: 'Valor por aposta',
                         hint: 'Ex: 5.00',
                         keyboardType: TextInputType.number,
                         helpText:
-                            'Porcentagem do saldo total da Pinnacle que será apostada em cada sinal.',
+                            'Valor fixo da stake. Nunca pode superar o limite máximo configurado.',
                       ),
                       const SizedBox(height: 16),
-                      SwitchListTile(
-                        title: const Text('Ativar Trading Automático'),
-                        subtitle: const Text(
-                          'Se ativo, o robô irá colocar apostas reais na Pinnacle usando o saldo da conta Master.',
-                        ),
-                        value: false,
-                        activeColor: AppTheme.primaryGreen,
-                        onChanged: (val) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Em breve: Ativação requer validação de saldo Pinnacle.',
-                              ),
-                            ),
-                          );
-                        },
+                      _buildTextField(
+                        controller: _pinnacleMaxStakeController,
+                        label: 'Limite máximo por aposta',
+                        hint: 'Ex: 5.00',
+                        keyboardType: TextInputType.number,
                       ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _pinnacleMinBalanceController,
+                        label: 'Saldo mínimo que deve permanecer',
+                        hint: 'Ex: 20.00',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _pinnacleMinConfidenceController,
+                        label: 'Confiança mínima da análise (%)',
+                        hint: 'Ex: 80',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: _pinnacleMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Modo de operação',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'simulation',
+                            child: Text('Simulação — não envia apostas'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'real',
+                            child: Text('Real — movimenta saldo'),
+                          ),
+                        ],
+                        onChanged: (value) => setState(
+                          () => _pinnacleMode = value ?? 'simulation',
+                        ),
+                      ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Acesso oficial à API confirmado'),
+                        subtitle: const Text(
+                          'Marque somente após a Pinnacle aprovar formalmente esta conta para uso da API.',
+                        ),
+                        value: _pinnacleApiAccessApproved,
+                        onChanged: (value) => setState(
+                          () => _pinnacleApiAccessApproved = value == true,
+                        ),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Robô automático habilitado'),
+                        subtitle: Text(
+                          _pinnacleMode == 'real'
+                              ? 'ATENÇÃO: no modo real poderá movimentar o saldo quando todos os bloqueios forem satisfeitos.'
+                              : 'Modo simulação: analisa e registra, mas nunca envia ordem.',
+                        ),
+                        value: _pinnacleActive,
+                        activeThumbColor: AppTheme.primaryGreen,
+                        onChanged: (value) => setState(
+                          () => _pinnacleActive = value,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSaveButton(),
                       const SizedBox(height: 32),
                       _buildSectionHeader(
                         Icons.psychology,
@@ -1837,12 +1935,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       if (kIsWeb) {
         // Evita o codec de versões antigas do cloud_functions_web, que tenta
         // acessar Int64List e falha no dart2js antes de entregar a resposta.
+        final token = await ref
+            .read(authServiceProvider)
+            .currentUser
+            ?.getIdToken();
+        if (token == null || token.isEmpty) {
+          throw Exception('Sessão expirada. Entre novamente como administrador.');
+        }
         final response = await Dio().post<Map<String, dynamic>>(
           'https://southamerica-east1-raspadinhadogol.cloudfunctions.net/analyzeMatchAndBetPinnacle',
           data: {
             'data': {'matchContext': contextText},
           },
-          options: Options(contentType: Headers.jsonContentType),
+          options: Options(
+            contentType: Headers.jsonContentType,
+            headers: {'Authorization': 'Bearer $token'},
+          ),
         );
         final resultData = response.data?['result'];
         if (resultData is! Map) {
