@@ -78,6 +78,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _loadSettings() async {
+    Map<String, dynamic> generalData = {};
     try {
       final docSnap = await FirebaseFirestore.instance
           .collection('settings')
@@ -86,6 +87,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       if (docSnap.exists) {
         final data = docSnap.data() ?? {};
+        generalData = data;
 
         final apiKeys = (data['api_keys'] as Map<String, dynamic>?) ?? {};
 
@@ -139,7 +141,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           .collection('private_settings')
           .doc('pinnacle')
           .get();
-      final pinnacle = pinnacleSnap.data() ?? {};
+      final legacyPinnacle = Map<String, dynamic>.from(
+        generalData['pinnacle'] as Map? ?? const {},
+      );
+      final pinnacle = <String, dynamic>{
+        ...legacyPinnacle,
+        ...?pinnacleSnap.data(),
+      };
       _pinnacleUsernameController.text = pinnacle['username']?.toString() ?? '';
       _pinnaclePasswordController.text = pinnacle['password']?.toString() ?? '';
       _pinnacleStakeController.text = pinnacle['stake']?.toString() ?? '5.00';
@@ -1856,10 +1864,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _testPinnacleConnection() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Testando conexão com Pinnacle...')),
-    );
     try {
+      final privateConfig = await FirebaseFirestore.instance
+          .collection('private_settings')
+          .doc('pinnacle')
+          .get();
+      final savedUsername = privateConfig.data()?['username']?.toString() ?? '';
+      if (savedUsername.trim().isEmpty) {
+        throw Exception(
+          'Salve novamente as credenciais na aba Integrações para concluir a migração segura.',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Testando conexão com Pinnacle...')),
+        );
+      }
       final callable = FirebaseFunctions.instanceFor(
         region: 'southamerica-east1',
       ).httpsCallable('pinnacleGetBalance');
@@ -2056,6 +2076,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             final type = data['type']?.toString() ?? 'info';
             final message =
                 data['message']?.toString() ?? 'Operação sem descrição.';
+            final createdAt = data['createdAt'];
+            final dateLabel = createdAt is Timestamp
+                ? DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toDate())
+                : '';
+            final isLegacyLog = message.contains('(Cron Job)') ||
+                message.contains('status code 404');
             final isSuccess = type == 'success';
             final isError = type == 'error';
 
@@ -2073,6 +2099,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 title: Text(
                   message,
                   style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  [
+                    if (dateLabel.isNotEmpty) dateLabel,
+                    if (isLegacyLog) 'Registro da versão anterior',
+                  ].join(' • '),
                 ),
               ),
             );
