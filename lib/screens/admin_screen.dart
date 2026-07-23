@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
+import '../providers/auth_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
 import 'package:url_launcher/url_launcher.dart';
