@@ -113,7 +113,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
                           }
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => ActiveMatchScreen(fixtureId: fixtureId, homeTeam: homeTeam, awayTeam: awayTeam)),
+                            MaterialPageRoute(builder: (_) => ActiveMatchScreen(fixtureId: fixtureId, homeTeam: homeTeam, awayTeam: awayTeam, leagueName: widget.leagueName)),
                           );
                         },
                         borderRadius: BorderRadius.circular(16),

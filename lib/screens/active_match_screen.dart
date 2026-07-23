@@ -19,6 +19,7 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
   final String awayTeam;
   final String? homeLogo;
   final String? awayLogo;
+  final String? leagueName;
   
   const ActiveMatchScreen({
     super.key,
@@ -27,6 +28,7 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
     required this.awayTeam,
     this.homeLogo,
     this.awayLogo,
+    this.leagueName,
   });
 
   @override
@@ -247,7 +249,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
     final bool temRaspadinhaDisponivel = raspadinhasDisponiveis > 0;
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Sala da Partida'),
+      appBar: CustomAppBar(title: widget.leagueName != null && widget.leagueName!.isNotEmpty ? widget.leagueName! : 'Sala da Partida'),
       floatingActionButton: _ArquibancadaFab(
         onTap: () {
           final match = matchState.value;

@@ -181,11 +181,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _loadDashboardData() async {
     final service = ref.read(footballServiceProvider);
 
-    final leaguesFuture = service.getCombinedLeagues();
+    final leaguesFuture = service.getActiveLeaguesForToday();
     final featuredMatchesFuture = service.getFeaturedMatchesForToday();
 
-    final leagues = await leaguesFuture;
+    final activeLeagues = await leaguesFuture;
     final featuredMatches = await featuredMatchesFuture;
+
+    // Se a API não retornar ligas ativas (ex: dia sem jogos ou API offline),
+    // usa a lista popular fixa como fallback
+    final leagues = activeLeagues.isNotEmpty ? activeLeagues : await service.getCombinedLeagues();
 
     if (mounted) {
       setState(() {
@@ -504,6 +508,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return InkWell(
       onTap: () {
+        final leagueName = match['league']?['name'] as String?;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -511,6 +516,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               fixtureId: match['fixture']['id'],
               homeTeam: homeTeam,
               awayTeam: awayTeam,
+              leagueName: leagueName,
               homeLogo: homeLogo?.isNotEmpty == true
                   ? homeLogo!
                   : 'https://media.api-sports.io/football/teams/${match['teams']['home']['id']}.png',

@@ -1,4 +1,6 @@
 import { onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { generateGeminiContent } from "./gemini";
@@ -215,3 +217,175 @@ NAO USE BLOCOS DE CODIGO MARKDOWN NO RETORNO.`;
         return { success: false, error: String(e.message) };
     }
 });
+
+export const runAutomatedPinnacleBot = onSchedule({
+    schedule: "0 * * * *", // Runs every hour
+    region: "southamerica-east1",
+    timeoutSeconds: 300 // Allow up to 5 minutes for API calls and Gemini
+}, async (event) => {
+    const db = admin.firestore();
+    
+    await db.collection("pinnacle_logs").add({
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        message: "🤖 Iniciando varredura automática do Robô Pinnacle (Cron Job)...",
+        type: "info"
+    });
+
+    try {
+        const settings = await db.collection("settings").doc("general").get();
+        const settingsData = settings.data() || {};
+        const pinnacleData = settingsData.pinnacle || {};
+        const geminiApiKey = settingsData.api_keys?.gemini || settingsData.gemini_api_key || settingsData.gemini_key || settingsData.gemini;
+
+        if (!geminiApiKey) {
+            throw new Error("Chave Gemini não configurada.");
+        }
+
+        const auth = await getPinnacleAuth();
+        const baseUrl = await getPinnacleBaseUrl();
+        const headers = {
+            "Authorization": `Basic ${auth}`,
+            "Accept": "application/json"
+        };
+
+        // 1. Fetch upcoming Soccer fixtures (sportId: 29)
+        const fixturesResponse = await axios.get(`${baseUrl}/v3/fixtures`, {
+            headers,
+            params: { sportId: 29, isLive: 0 } // Using pre-match for stability
+        });
+
+        // 2. Fetch current Odds
+        const oddsResponse = await axios.get(`${baseUrl}/v1/odds`, {
+            headers,
+            params: { sportId: 29, isLive: 0 }
+        });
+
+        const fixtures = fixturesResponse.data?.league || [];
+        const odds = oddsResponse.data?.leagues || [];
+
+        // Simple mapping to get max 3 valid match contexts to avoid overload
+        let validMatchesFound = 0;
+        const matchesToAnalyze = [];
+
+        for (const league of fixtures) {
+            if (validMatchesFound >= 2) break; // Analyze max 2 matches per run
+            for (const ev of league.events) {
+                if (validMatchesFound >= 2) break;
+                
+                const eventId = ev.id;
+                const homeTeam = ev.home;
+                const awayTeam = ev.away;
+                const startTime = ev.starts;
+
+                // Find corresponding odds
+                const leagueOdds = odds.find((lo: any) => lo.id === league.id);
+                if (leagueOdds) {
+                    const eventOdds = leagueOdds.events?.find((eo: any) => eo.id === eventId);
+                    if (eventOdds && eventOdds.periods && eventOdds.periods.length > 0) {
+                        const period0 = eventOdds.periods.find((p: any) => p.number === 0); // Full match
+                        if (period0 && period0.moneyline) {
+                            const lineId = period0.lineId;
+                            const homeOdd = period0.moneyline.home;
+                            const awayOdd = period0.moneyline.away;
+                            const drawOdd = period0.moneyline.draw;
+
+                            matchesToAnalyze.push({
+                                eventId,
+                                lineId,
+                                homeTeam,
+                                awayTeam,
+                                startTime,
+                                homeOdd,
+                                awayOdd,
+                                drawOdd
+                            });
+                            validMatchesFound++;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (matchesToAnalyze.length === 0) {
+            await db.collection("pinnacle_logs").add({
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                message: "Nenhum jogo com Moneyline encontrado para análise.",
+                type: "warning"
+            });
+            return;
+        }
+
+        // 3. Pass to Gemini
+        let betPlaced = false;
+
+        for (const match of matchesToAnalyze) {
+            if (betPlaced) break; // Place max 1 bet per hour to be safe
+
+            const context = `Jogo: ${match.homeTeam} vs ${match.awayTeam}. Horário: ${match.startTime}. Odds Moneyline - Casa: ${match.homeOdd}, Empate: ${match.drawOdd}, Visitante: ${match.awayOdd}.`;
+            
+            const prompt = `Você é um Analista de Apostas Esportivas focado na Pinnacle. Analise este jogo e retorne um JSON com a decisão.
+O JSON DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES CAMPOS:
+- "decision": "BET" ou "SKIP"
+- "confidence": um número de 0 a 100
+- "reasoning": uma string explicando o motivo
+- "suggestedMarket": DEVE SER "MONEYLINE"
+- "team": DEVE SER "TEAM1" (Casa), "TEAM2" (Visitante) ou "DRAW" (Empate).
+Contexto do Jogo: ${context}`;
+
+            const result = await generateGeminiContent(String(geminiApiKey), prompt);
+            const analysis = JSON.parse(result.text || "{}");
+
+            await db.collection("pinnacle_logs").add({
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                message: `🧠 [Auto] Análise ${match.homeTeam} vs ${match.awayTeam}: ${analysis.decision} (${analysis.confidence}%) - ${analysis.reasoning}`,
+                type: analysis.decision === "BET" ? "success" : "warning"
+            });
+
+            const confidence = Number(analysis.confidence);
+            const minConfidence = Number(pinnacleData.minConfidence) || 80;
+            const stake = Number(pinnacleData.stake) || 5.00; // Default $5 bet
+
+            if (analysis.decision === "BET" && confidence >= minConfidence) {
+                // 4. Place REAL Bet!
+                const uniqueRequestId = crypto.randomUUID();
+                const placeBetPayload = {
+                    uniqueRequestId,
+                    acceptBetterLine: true,
+                    stake: stake,
+                    winRiskStake: "WIN",
+                    lineId: match.lineId,
+                    sportId: 29,
+                    eventId: match.eventId,
+                    periodNumber: 0,
+                    betType: "MONEYLINE",
+                    team: analysis.team || "TEAM1"
+                };
+
+                try {
+                    await axios.post(`${baseUrl}/v4/bets/place`, placeBetPayload, { headers });
+                    
+                    await db.collection("pinnacle_logs").add({
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        message: `✅ Aposta de ${stake} colocada com SUCESSO! Jogo: ${match.homeTeam} vs ${match.awayTeam}. Time: ${analysis.team}`,
+                        type: "success"
+                    });
+                    betPlaced = true;
+                } catch (betError: any) {
+                    await db.collection("pinnacle_logs").add({
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        message: `❌ Falha ao colocar aposta: ${betError.response?.data?.message || betError.message}`,
+                        type: "error"
+                    });
+                }
+            }
+        }
+
+    } catch (e: any) {
+        await db.collection("pinnacle_logs").add({
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            message: `❌ Erro Crítico no Robô Automático: ${e.message}`,
+            type: "error"
+        });
+    }
+});
+

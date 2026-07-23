@@ -95,9 +95,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         }
       }
       
-      // Load leagues for the dropdowns
+      // Carrega a lista completa de campeonatos populares para o formulário de brindes
       final service = ref.read(footballServiceProvider);
-      final leagues = await service.getActiveLeaguesForToday();
+      final leagues = await service.getPopularLeagues();
       if (mounted) {
         _activeLeagues = leagues;
       }
