@@ -39,6 +39,11 @@ async function getPinnacleAuth(config?: PinnacleConfig) {
     if (!username || !password) {
         throw new Error("Credenciais da Pinnacle não configuradas.");
     }
+    if (password.length > 10) {
+        throw new Error(
+            "A senha configurada possui mais de 10 caracteres. A API da Pinnacle aceita no máximo 10; use credenciais oficialmente habilitadas para API."
+        );
+    }
     return Buffer.from(`${username}:${password}`).toString('base64');
 }
 

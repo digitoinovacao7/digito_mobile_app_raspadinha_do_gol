@@ -212,6 +212,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _saveSettings() async {
+    final pinnaclePassword = _pinnaclePasswordController.text.trim();
+    if (pinnaclePassword.isNotEmpty && pinnaclePassword.length > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'A API da Pinnacle aceita senha de no máximo 10 caracteres. Use as credenciais aprovadas para acesso à API.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
 
     try {
@@ -245,7 +257,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           .doc('pinnacle')
           .set({
             'username': _pinnacleUsernameController.text.trim(),
-            'password': _pinnaclePasswordController.text.trim(),
+            'password': pinnaclePassword,
             'active': _pinnacleActive,
             'mode': _pinnacleMode,
             'apiAccessApproved': _pinnacleApiAccessApproved,
@@ -1865,6 +1877,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _testPinnacleConnection() async {
     try {
+      if (_pinnaclePasswordController.text.trim().length > 10) {
+        throw Exception(
+          'A senha informada tem mais de 10 caracteres. A API aceita no máximo 10 e exige acesso oficial habilitado.',
+        );
+      }
       final privateConfig = await FirebaseFirestore.instance
           .collection('private_settings')
           .doc('pinnacle')
