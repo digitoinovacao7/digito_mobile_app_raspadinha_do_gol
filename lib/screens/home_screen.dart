@@ -178,18 +178,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  List<LeagueInfo> _allLeagues = [];
+  Set<int> _activeLeagueIdsToday = {};
+
   Future<void> _loadDashboardData() async {
     final service = ref.read(footballServiceProvider);
 
-    final leaguesFuture = service.getMainActiveLeaguesForToday();
+    final popularLeaguesFuture = service.getPopularLeagues();
+    final activeLeaguesFuture = service.getActiveLeaguesForToday();
     final featuredMatchesFuture = service.getFeaturedMatchesForToday();
 
-    final activeLeagues = await leaguesFuture;
+    final popularLeagues = await popularLeaguesFuture;
+    final activeLeagues = await activeLeaguesFuture;
     final featuredMatches = await featuredMatchesFuture;
+
+    final activeIds = activeLeagues.map((l) => l.id).toSet();
 
     if (mounted) {
       setState(() {
-        _activeLeagues = activeLeagues;
+        _allLeagues = popularLeagues;
+        _activeLeagueIdsToday = activeIds;
         _featuredMatches = featuredMatches;
         _isLoading = false;
       });
@@ -199,56 +207,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundWhite,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            setState(() {
-              _isLoading = true;
-            });
-            await _loadDashboardData();
-          },
-          color: AppTheme.primaryGreen,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _buildHeroPromoBanner(context),
-                const SizedBox(height: 24),
-                if (_isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else if (_featuredMatches.isNotEmpty) ...[
-                  _buildSectionTitle('Jogos em Destaque', Icons.sports_soccer),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFF1F5F9),
+              Color(0xFFE2E8F0),
+              Color(0xFFF8FAFC),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _isLoading = true;
+              });
+              await _loadDashboardData();
+            },
+            color: AppTheme.primaryGreen,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const SizedBox(height: 16),
-                  _buildFeaturedMatchesCarousel(),
-                  const SizedBox(height: 32),
-                ],
-                if (!_isLoading) ...[
-                  _buildSectionTitle('Campeonatos', Icons.emoji_events),
-                  const SizedBox(height: 16),
-                  _activeLeagues.isEmpty
-                      ? _buildEmptyState()
-                      : _buildLeaguesGrid(),
+                  _buildHeroPromoBanner(context),
                   const SizedBox(height: 24),
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_featuredMatches.isNotEmpty) ...[
+                    _buildSectionTitle('Jogos em Destaque', Icons.sports_soccer),
+                    const SizedBox(height: 16),
+                    _buildFeaturedMatchesCarousel(),
+                    const SizedBox(height: 32),
+                  ],
+                  if (!_isLoading) ...[
+                    _buildSectionTitle('Campeonatos', Icons.emoji_events),
+                    const SizedBox(height: 16),
+                    _allLeagues.isEmpty
+                        ? _buildEmptyState()
+                        : _buildLeaguesGrid(),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_isRewardedAdLoaded) ...[
+                    _buildRewardedTokensCard(),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_isAdLoaded && _nativeAd != null) ...[
+                    _buildNativeAdCard(),
+                    const SizedBox(height: 40),
+                  ] else ...[
+                    const SizedBox(height: 24),
+                  ],
                 ],
-                if (_isRewardedAdLoaded) ...[
-                  _buildRewardedTokensCard(),
-                  const SizedBox(height: 16),
-                ],
-                if (_isAdLoaded && _nativeAd != null) ...[
-                  _buildNativeAdCard(),
-                  const SizedBox(height: 40),
-                ] else ...[
-                  const SizedBox(height: 24),
-                ],
-              ],
+              ),
             ),
           ),
         ),
@@ -867,19 +887,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisExtent: 88,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 10,
+        mainAxisExtent: 108,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 12,
       ),
-      itemCount: _activeLeagues.length,
+      itemCount: _allLeagues.length,
       itemBuilder: (context, index) {
-        final league = _activeLeagues[index];
+        final league = _allLeagues[index];
+        final hasGamesToday = _activeLeagueIdsToday.contains(league.id);
         return _buildLeagueCard(
           context,
           title: league.name,
           id: league.id,
           season: league.season,
           logoUrl: league.logoUrl,
+          hasGamesToday: hasGamesToday,
         );
       },
     );
@@ -891,6 +913,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required int id,
     int? season,
     String? logoUrl,
+    required bool hasGamesToday,
   }) {
     return InkWell(
       onTap: () {
@@ -902,48 +925,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasGamesToday ? AppTheme.primaryGreen : Colors.grey.shade200,
+            width: hasGamesToday ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: hasGamesToday
+                  ? AppTheme.primaryGreen.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  padding: const EdgeInsets.all(4),
+                  child: SmartImage(
+                    (logoUrl != null && logoUrl.isNotEmpty)
+                        ? logoUrl
+                        : 'https://media.api-sports.io/football/leagues/$id.png',
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.sports_soccer, color: Colors.grey),
+                  ),
                 ),
+                if (hasGamesToday)
+                  Positioned(
+                    top: -4,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'HOJE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-            padding: const EdgeInsets.all(8),
-            child: SmartImage(
-              (logoUrl != null && logoUrl.isNotEmpty)
-                  ? logoUrl
-                  : 'https://media.api-sports.io/football/leagues/$id.png',
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.sports_soccer, color: Colors.grey),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.textDark,
+                fontSize: 11,
+                fontWeight: hasGamesToday ? FontWeight.w900 : FontWeight.w600,
+                height: 1.1,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textDark,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              height: 1.1,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

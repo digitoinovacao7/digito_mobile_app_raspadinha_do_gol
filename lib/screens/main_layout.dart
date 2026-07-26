@@ -90,66 +90,75 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       appBar: showAppBar ? AppBar(
         backgroundColor: AppTheme.primaryGreen,
         centerTitle: false,
-        titleSpacing: 0,
-        leadingWidth: 56,
+        titleSpacing: 4,
+        leadingWidth: 44,
         leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset('assets/logo_transparent.png', fit: BoxFit.contain, errorBuilder: (c,e,s) => const Icon(Icons.sports_soccer, color: Colors.white)),
+          padding: const EdgeInsets.all(6.0),
+          child: Image.asset(
+            'assets/logo_transparent.png',
+            fit: BoxFit.contain,
+            errorBuilder: (c, e, s) => const Icon(Icons.sports_soccer, color: Colors.white, size: 24),
+          ),
         ),
-        title: Text(getAppBarTitle(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            getAppBarTitle(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
         actions: [
           if (user != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const TokenHistoryScreen()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentGold.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.accentGold, width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.monetization_on, color: AppTheme.accentGold, size: 18),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${user.tokens}',
-                        style: const TextStyle(
-                          color: AppTheme.accentGold,
-                          fontWeight: FontWeight.bold,
-                        ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TokenHistoryScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGold.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.accentGold, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on, color: AppTheme.accentGold, size: 16),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${user.tokens}',
+                      style: const TextStyle(
+                        color: AppTheme.accentGold,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           if (user != null)
-            Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 4.0),
-                  child: Text('Olá, ${user.name.split(' ').first}', style: const TextStyle(color: Colors.white, fontSize: 13)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.person, color: Colors.white),
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => const ProfileBottomSheet(),
-                    );
-                  },
-                ),
-              ],
+            IconButton(
+              icon: const Icon(Icons.account_circle, color: Colors.white, size: 26),
+              tooltip: 'Perfil (${user.name.split(' ').first})',
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const ProfileBottomSheet(),
+                );
+              },
             ),
         ],
       ) : null,
