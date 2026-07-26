@@ -74,58 +74,89 @@ class LoginScreen extends ConsumerWidget {
 
                           // Login Card
                           Container(
-                            width: 320,
-                            height: 320,
-                            padding: const EdgeInsets.all(24.0),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
+                            width: double.infinity,
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                              vertical: 32.0,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF1E293B),
+                                  Color(0xFF0F172A),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppTheme.accentGold.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 20,
-                                  offset: Offset(0, 10),
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.sports_soccer,
-                                  color: AppTheme.primaryGreen,
-                                  size: 36,
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentGold.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.accentGold,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.sports_soccer,
+                                    color: AppTheme.accentGold,
+                                    size: 32,
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 12),
                                 Text(
                                   'Acesse sua conta',
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textDark,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
                                       ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Entre para raspar e ganhar prêmios!',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
                                 ),
                                 const SizedBox(height: 24),
                                 const AnimatedGoogleLoginButton(),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 20),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     const Icon(
                                       Icons.lock_outline,
-                                      color: Colors.grey,
-                                      size: 20,
+                                      color: AppTheme.accentGold,
+                                      size: 18,
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Flexible(
-                                      child: Text(
-                                        'Ambiente 100% Seguro',
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Ambiente 100% Seguro',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
                                       ),
                                     ),
                                   ],

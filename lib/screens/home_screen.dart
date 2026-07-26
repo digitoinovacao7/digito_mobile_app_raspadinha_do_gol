@@ -37,18 +37,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   RewardedAd? _rewardedAd;
   bool _isRewardedAdLoaded = false;
 
+  @override
+  void initState() {
+    super.initState();
+    final service = ref.read(footballServiceProvider);
+    _allLeagues = service.getPopularLeagues();
+    _loadAdData();
+  }
+
   void _loadAdData() {
     _loadDashboardData();
     if (!kIsWeb) {
       _loadNativeAd();
       _loadRewardedAd();
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAdData();
   }
 
   void _loadNativeAd() {
@@ -375,13 +377,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.pix,
+                            Icons.card_giftcard,
                             size: 14,
-                            color: Colors.greenAccent,
+                            color: AppTheme.accentGold,
                           ),
                           SizedBox(width: 4),
                           Text(
-                            'Prêmios em PIX',
+                            'Brindes Exclusivos',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -405,7 +407,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Escolha a partida de hoje, responda às perguntas e raspe para ganhar saques no PIX e prêmios em produtos!',
+                  'Escolha a partida de hoje, responda às perguntas e raspe para ganhar prêmios incríveis, brindes da torcida e cartelas premiadas!',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 12.5,
