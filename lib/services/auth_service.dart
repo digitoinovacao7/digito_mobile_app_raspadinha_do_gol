@@ -7,8 +7,11 @@ import '../models/app_user.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const String _webClientId = '882930210875-l7n892cmo87fqnkh63feod09m12ok2fq.apps.googleusercontent.com';
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb ? '882930210875-l7n892cmo87fqnkh63feod09m12ok2fq.apps.googleusercontent.com' : null,
+    clientId: kIsWeb ? _webClientId : null,
+    serverClientId: _webClientId,
   );
   final DbService _dbService = DbService();
 
