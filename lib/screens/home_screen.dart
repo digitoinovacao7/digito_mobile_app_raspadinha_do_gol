@@ -40,8 +40,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    final service = ref.read(footballServiceProvider);
-    _allLeagues = service.getPopularLeagues();
     _loadAdData();
   }
 

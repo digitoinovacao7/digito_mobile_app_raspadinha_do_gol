@@ -115,12 +115,6 @@ class FootballService {
           logoUrl: 'https://crests.football-data.org/libertadores.png',
         ),
         LeagueInfo(
-          id: 2000,
-          name: 'Copa do Mundo',
-          season: season,
-          logoUrl: 'https://crests.football-data.org/wc.png',
-        ),
-        LeagueInfo(
           id: 2001,
           name: 'Champions League',
           season: season,
@@ -150,6 +144,12 @@ class FootballService {
           season: season,
           logoUrl: 'https://crests.football-data.org/BL1.png',
         ),
+        LeagueInfo(
+          id: 2015,
+          name: 'Ligue 1 (França)',
+          season: season,
+          logoUrl: 'https://crests.football-data.org/FL1.png',
+        ),
       ];
     } else {
       return [
@@ -178,10 +178,10 @@ class FootballService {
           logoUrl: 'https://media.api-sports.io/football/leagues/11.png',
         ),
         LeagueInfo(
-          id: 1,
-          name: 'Copa do Mundo',
+          id: 72,
+          name: 'Brasileirão Série B',
           season: season,
-          logoUrl: 'https://media.api-sports.io/football/leagues/1.png',
+          logoUrl: 'https://media.api-sports.io/football/leagues/72.png',
         ),
         LeagueInfo(
           id: 2,
