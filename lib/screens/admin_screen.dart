@@ -1861,23 +1861,49 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Switch(
-                        value: active,
-                        activeColor: AppTheme.primaryGreen,
-                        onChanged: (val) => FirebaseFirestore.instance
-                            .collection('prizes')
-                            .doc(doc.id)
-                            .update({'active': val}),
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Switch(
+                          value: active,
+                          activeThumbColor: AppTheme.primaryGreen,
+                          onChanged: (val) => FirebaseFirestore.instance
+                              .collection('prizes')
+                              .doc(doc.id)
+                              .update({'active': val}),
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
-                        tooltip: 'Editar Prêmio',
-                        onPressed: () => _showEditPrizeDialog(context, doc),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                        tooltip: 'Excluir Prêmio',
-                        onPressed: () => _confirmDeletePrize(context, doc),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.grey),
+                        tooltip: 'Opções',
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _showEditPrizeDialog(context, doc);
+                          } else if (value == 'delete') {
+                            _confirmDeletePrize(context, doc);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 18),
+                                SizedBox(width: 8),
+                                Text('Editar Prêmio'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                SizedBox(width: 8),
+                                Text('Excluir Prêmio'),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1900,7 +1926,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     showDialog(
       context: context,
-      builder: (dialogCtx) => StatefulWidgetBuilder(
+      builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
