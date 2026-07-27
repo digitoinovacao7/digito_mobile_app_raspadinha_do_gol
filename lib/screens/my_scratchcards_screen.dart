@@ -61,21 +61,28 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
 
         final scratchcards = snapshot.data ?? [];
 
-        // Calcular Estatísticas
+        // Calcular Estatísticas com tratamentos seguros contra tipos num/double
         final totalCount = scratchcards.length;
         final wonCards = scratchcards.where((c) {
-          final winCount = c['winCount'] as int? ?? 0;
+          final rawWin = c['winCount'];
+          final winCount = rawWin is num ? rawWin.toInt() : int.tryParse(rawWin?.toString() ?? '') ?? 0;
           return winCount >= 3;
         }).toList();
         final wonCount = wonCards.length;
         int totalTokensWon = 0;
         for (final c in wonCards) {
-          totalTokensWon += (c['wonTokens'] as int? ?? 0);
+          final rawTokens = c['wonTokens'];
+          if (rawTokens is num) {
+            totalTokensWon += rawTokens.toInt();
+          } else if (rawTokens != null) {
+            totalTokensWon += int.tryParse(rawTokens.toString()) ?? 0;
+          }
         }
 
         // Filtrar cartelas
         final filteredList = scratchcards.where((c) {
-          final winCount = c['winCount'] as int? ?? 0;
+          final rawWin = c['winCount'];
+          final winCount = rawWin is num ? rawWin.toInt() : int.tryParse(rawWin?.toString() ?? '') ?? 0;
           final isWon = winCount >= 3;
           if (_selectedFilter == 1) return isWon;
           if (_selectedFilter == 2) return !isWon;
@@ -319,17 +326,21 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
   }
 
   Widget _buildScratchcardCard(BuildContext context, Map<String, dynamic> card) {
-    final winCount = card['winCount'] as int? ?? 0;
+    final rawWin = card['winCount'];
+    final winCount = rawWin is num ? rawWin.toInt() : int.tryParse(rawWin?.toString() ?? '') ?? 0;
     final won = winCount >= 3;
     final dateObj = card['date'];
 
-    String formattedDate = '';
+    String formattedDate = 'Data recente';
     if (dateObj is Timestamp) {
       formattedDate = DateFormat('dd/MM/yyyy • HH:mm').format(dateObj.toDate());
+    } else if (dateObj is String && dateObj.isNotEmpty) {
+      formattedDate = dateObj;
     }
 
     final prizeType = card['prizeType'] as String? ?? 'none';
-    final wonTokens = card['wonTokens'] as int? ?? 0;
+    final rawTokens = card['wonTokens'];
+    final wonTokens = rawTokens is num ? rawTokens.toInt() : int.tryParse(rawTokens?.toString() ?? '') ?? 0;
 
     String prizeText = 'Sem prêmio';
     if (prizeType == 'tokens' && wonTokens > 0) {
