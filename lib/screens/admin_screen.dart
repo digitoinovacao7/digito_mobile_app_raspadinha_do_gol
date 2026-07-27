@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
-import '../providers/auth_provider.dart';
 import '../core/theme.dart';
 import '../models/league_info.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,17 +25,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _quizRewardController = TextEditingController();
   final _dailyQuizLimitController = TextEditingController();
   final _globalWinChanceController = TextEditingController();
-  final _pinnacleUsernameController = TextEditingController();
-  final _pinnaclePasswordController = TextEditingController();
-  final _pinnacleStakeController = TextEditingController(text: '5.00');
-  final _pinnacleMaxStakeController = TextEditingController(text: '5.00');
-  final _pinnacleMinBalanceController = TextEditingController(text: '20.00');
-  final _pinnacleMinConfidenceController = TextEditingController(text: '80');
-  bool _pinnacleActive = false;
-  bool _pinnacleApiAccessApproved = false;
-  String _pinnacleMode = 'simulation';
-  final _geminiTestContextController = TextEditingController();
-
   final _newPrizeNameCtrl = TextEditingController();
   final _newPrizeImageCtrl = TextEditingController();
   final _newPrizeTokenCostCtrl = TextEditingController();
@@ -62,14 +46,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isSavingPrize = false;
-  bool _isAnalyzing = false;
-  String? _pinnacleBalance;
-  String? _pinnacleCurrency;
-  String? _pinnacleOutstanding;
-  String? _pinnacleEarnings30Days;
-  String? _pinnacleNetProfit30Days;
-  String? _pinnacleSettledBets30Days;
-  String? _pinnacleHistoryError;
 
   @override
   void initState() {
@@ -137,31 +113,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       }
 
-      final pinnacleSnap = await FirebaseFirestore.instance
-          .collection('private_settings')
-          .doc('pinnacle')
-          .get();
-      final legacyPinnacle = Map<String, dynamic>.from(
-        generalData['pinnacle'] as Map? ?? const {},
-      );
-      final pinnacle = <String, dynamic>{
-        ...legacyPinnacle,
-        ...?pinnacleSnap.data(),
-      };
-      _pinnacleUsernameController.text = pinnacle['username']?.toString() ?? '';
-      _pinnaclePasswordController.text = pinnacle['password']?.toString() ?? '';
-      _pinnacleStakeController.text = pinnacle['stake']?.toString() ?? '5.00';
-      _pinnacleMaxStakeController.text =
-          pinnacle['maxStake']?.toString() ?? '5.00';
-      _pinnacleMinBalanceController.text =
-          pinnacle['minBalance']?.toString() ?? '20.00';
-      _pinnacleMinConfidenceController.text =
-          pinnacle['minConfidence']?.toString() ?? '80';
-      _pinnacleActive = pinnacle['active'] == true;
-      _pinnacleApiAccessApproved = pinnacle['apiAccessApproved'] == true;
-      _pinnacleMode = pinnacle['mode']?.toString() == 'real'
-          ? 'real'
-          : 'simulation';
+
 
       // Usa exatamente a mesma lista de campeonatos principais exibida na Home.
       final service = ref.read(footballServiceProvider);
@@ -191,13 +143,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _quizRewardController.dispose();
     _dailyQuizLimitController.dispose();
     _globalWinChanceController.dispose();
-    _pinnacleUsernameController.dispose();
-    _pinnaclePasswordController.dispose();
-    _pinnacleStakeController.dispose();
-    _pinnacleMaxStakeController.dispose();
-    _pinnacleMinBalanceController.dispose();
-    _pinnacleMinConfidenceController.dispose();
-    _geminiTestContextController.dispose();
     _newPrizeNameCtrl.dispose();
     _newPrizeImageCtrl.dispose();
     _newPrizeTokenCostCtrl.dispose();
@@ -212,18 +157,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _saveSettings() async {
-    final pinnaclePassword = _pinnaclePasswordController.text.trim();
-    if (pinnaclePassword.isNotEmpty && pinnaclePassword.length > 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'A API da Pinnacle aceita senha de no máximo 10 caracteres. Use as credenciais aprovadas para acesso à API.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
     setState(() => _isSaving = true);
 
     try {
@@ -252,29 +185,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             },
           }, SetOptions(merge: true));
 
-      await FirebaseFirestore.instance
-          .collection('private_settings')
-          .doc('pinnacle')
-          .set({
-            'username': _pinnacleUsernameController.text.trim(),
-            'password': pinnaclePassword,
-            'active': _pinnacleActive,
-            'mode': _pinnacleMode,
-            'apiAccessApproved': _pinnacleApiAccessApproved,
-            'stake': double.tryParse(_pinnacleStakeController.text) ?? 5,
-            'maxStake':
-                double.tryParse(_pinnacleMaxStakeController.text) ?? 5,
-            'minBalance':
-                double.tryParse(_pinnacleMinBalanceController.text) ?? 20,
-            'minConfidence':
-                double.tryParse(_pinnacleMinConfidenceController.text) ?? 80,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
 
-      await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('general')
-          .update({'pinnacle': FieldValue.delete()});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -298,7 +209,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         backgroundColor: AppTheme.primaryGreen,
         appBar: PreferredSize(
@@ -313,7 +224,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
-              Tab(icon: Icon(Icons.smart_toy), text: 'Robô Pinnacle'),
               Tab(icon: Icon(Icons.trending_up), text: 'Lucro'),
             ],
           ),
@@ -325,7 +235,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   _buildPrizesTab(),
                   _buildIntegrationsTab(),
                   _buildRedemptionsTab(),
-                  _buildPinnacleBotTab(),
                   _buildProfitGuideTab(),
                 ],
               ),
@@ -333,286 +242,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Widget _buildPinnacleBotTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader(
-                        Icons.smart_toy,
-                        'Status do Robô Pinnacle',
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.circle,
-                                  color: _pinnacleBalance == null
-                                      ? Colors.orange
-                                      : Colors.green,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _pinnacleBalance == null
-                                      ? 'Status: Aguardando teste'
-                                      : 'Status: Conectado',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: _testPinnacleConnection,
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Atualizar saldo e ganhos'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_pinnacleBalance != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              _buildPinnacleMetric(
-                                'Saldo disponível',
-                                '$_pinnacleCurrency $_pinnacleBalance',
-                                Colors.green,
-                              ),
-                              _buildPinnacleMetric(
-                                'Apostas pendentes',
-                                '$_pinnacleCurrency ${_pinnacleOutstanding ?? '0.00'}',
-                                Colors.orange,
-                              ),
-                              _buildPinnacleMetric(
-                                'Ganhos (30 dias)',
-                                '$_pinnacleCurrency ${_pinnacleEarnings30Days ?? '0.00'}',
-                                Colors.green,
-                              ),
-                              _buildPinnacleMetric(
-                                'Resultado líquido (30 dias)',
-                                '$_pinnacleCurrency ${_pinnacleNetProfit30Days ?? '0.00'}',
-                                (double.tryParse(
-                                              _pinnacleNetProfit30Days ?? '0',
-                                            ) ??
-                                            0) >=
-                                        0
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (_pinnacleBalance != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Text(
-                            _pinnacleHistoryError == null
-                                ? '${_pinnacleSettledBets30Days ?? '0'} apostas liquidadas consideradas.'
-                                : 'Saldo carregado, mas o histórico não pôde ser consultado: $_pinnacleHistoryError',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _pinnacleHistoryError == null
-                                  ? Colors.grey
-                                  : Colors.orange.shade800,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 32),
-                      _buildSectionHeader(
-                        Icons.settings,
-                        'Configurações de Aposta Automática',
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Defina as regras de quanto o robô deve apostar a cada sinal gerado.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildTextField(
-                        controller: _pinnacleStakeController,
-                        label: 'Valor por aposta',
-                        hint: 'Ex: 5.00',
-                        keyboardType: TextInputType.number,
-                        helpText:
-                            'Valor fixo da stake. Nunca pode superar o limite máximo configurado.',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _pinnacleMaxStakeController,
-                        label: 'Limite máximo por aposta',
-                        hint: 'Ex: 5.00',
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _pinnacleMinBalanceController,
-                        label: 'Saldo mínimo que deve permanecer',
-                        hint: 'Ex: 20.00',
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _pinnacleMinConfidenceController,
-                        label: 'Confiança mínima da análise (%)',
-                        hint: 'Ex: 80',
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: _pinnacleMode,
-                        decoration: const InputDecoration(
-                          labelText: 'Modo de operação',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'simulation',
-                            child: Text('Simulação — não envia apostas'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'real',
-                            child: Text('Real — movimenta saldo'),
-                          ),
-                        ],
-                        onChanged: (value) => setState(
-                          () => _pinnacleMode = value ?? 'simulation',
-                        ),
-                      ),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Acesso oficial à API confirmado'),
-                        subtitle: const Text(
-                          'Marque somente após a Pinnacle aprovar formalmente esta conta para uso da API.',
-                        ),
-                        value: _pinnacleApiAccessApproved,
-                        onChanged: (value) => setState(
-                          () => _pinnacleApiAccessApproved = value == true,
-                        ),
-                      ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Robô automático habilitado'),
-                        subtitle: Text(
-                          _pinnacleMode == 'real'
-                              ? 'ATENÇÃO: no modo real poderá movimentar o saldo quando todos os bloqueios forem satisfeitos.'
-                              : 'Modo simulação: analisa e registra, mas nunca envia ordem.',
-                        ),
-                        value: _pinnacleActive,
-                        activeThumbColor: AppTheme.primaryGreen,
-                        onChanged: (value) => setState(
-                          () => _pinnacleActive = value,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSaveButton(),
-                      const SizedBox(height: 32),
-                      _buildSectionHeader(
-                        Icons.psychology,
-                        'Analista de Apostas (Gemini IA)',
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Cole o contexto de um jogo abaixo e peça para a Inteligência Artificial analisar se vale a pena apostar.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _geminiTestContextController,
-                        label:
-                            'Contexto do Jogo (Ex: Atletico 0x1 Cruzeiro, 75 min, 80% posse...)',
-                        maxLines: 4,
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade800,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: _isAnalyzing ? null : _testGeminiAnalysis,
-                          icon: _isAnalyzing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.analytics),
-                          label: Text(
-                            _isAnalyzing
-                                ? 'Analisando...'
-                                : 'Pedir Análise ao Gemini',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader(
-                        Icons.list_alt,
-                        'Últimas Operações (Logs)',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildPinnacleLogsList(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildIntegrationsTab() {
     return SingleChildScrollView(
@@ -766,42 +395,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         helpText:
                             'Chave de instância da Z-API. Necessária para enviar comprovantes e notificações de premiação diretamente no WhatsApp do ganhador.',
                       ),
-                      const SizedBox(height: 32),
-                      _buildSectionHeader(
-                        Icons.smart_toy,
-                        'Robô de Apostas (Pinnacle)',
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Configuração da conta Master (Admin) para o Robô da Pinnacle operar.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: () => launchUrl(
-                          Uri.parse('https://pinnacle.bet.br/sportsbook'),
-                        ),
-                        child: const Text(
-                          'Acessar Pinnacle (https://pinnacle.bet.br/sportsbook)',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildTextField(
-                        controller: _pinnacleUsernameController,
-                        label: 'Client ID (Usuário) Pinnacle',
-                        hint: 'Ex: AC123456',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _pinnaclePasswordController,
-                        label: 'Senha da Pinnacle',
-                        hint: 'Sua senha da Pinnacle',
-                        obscureText: true,
-                      ),
+
                     ],
                   ),
                 ),
@@ -2071,287 +1665,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Future<void> _testPinnacleConnection() async {
-    try {
-      if (_pinnaclePasswordController.text.trim().length > 10) {
-        throw Exception(
-          'A senha informada tem mais de 10 caracteres. A API aceita no máximo 10 e exige acesso oficial habilitado.',
-        );
-      }
-      final privateConfig = await FirebaseFirestore.instance
-          .collection('private_settings')
-          .doc('pinnacle')
-          .get();
-      final savedUsername = privateConfig.data()?['username']?.toString() ?? '';
-      if (savedUsername.trim().isEmpty) {
-        throw Exception(
-          'Salve novamente as credenciais na aba Integrações para concluir a migração segura.',
-        );
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Testando conexão com Pinnacle...')),
-        );
-      }
-
-      Map<String, dynamic> data;
-      if (kIsWeb) {
-        final token = await ref
-            .read(authServiceProvider)
-            .currentUser
-            ?.getIdToken();
-        if (token == null || token.isEmpty) {
-          throw Exception('Sessão expirada. Entre novamente como administrador.');
-        }
-        final response = await Dio().post<Map<String, dynamic>>(
-          'https://southamerica-east1-raspadinhadogol.cloudfunctions.net/pinnacleGetBalance',
-          data: {'data': {}},
-          options: Options(
-            contentType: Headers.jsonContentType,
-            headers: {'Authorization': 'Bearer $token'},
-          ),
-        );
-        final resultData = response.data?['result'];
-        if (resultData is! Map) {
-          throw Exception('Resposta inválida do serviço de saldo Pinnacle.');
-        }
-        data = Map<String, dynamic>.from(resultData);
-      } else {
-        final callable = FirebaseFunctions.instanceFor(
-          region: 'southamerica-east1',
-        ).httpsCallable('pinnacleGetBalance');
-        final result = await callable.call();
-        data = Map<String, dynamic>.from(result.data as Map);
-      }
-      if (data['success'] != true) {
-        throw Exception(
-          data['error']?.toString() ??
-              'Falha desconhecida ao consultar a Pinnacle.',
-        );
-      }
-
-      final balance = data['balance']?.toString();
-      if (balance == null || balance.isEmpty || balance == 'null') {
-        throw Exception('A Pinnacle não retornou o saldo disponível.');
-      }
-
-      if (mounted) {
-        setState(() {
-          _pinnacleBalance = balance;
-          _pinnacleCurrency = data['currency']?.toString() ?? '';
-          _pinnacleOutstanding =
-              data['outstandingTransactions']?.toString() ?? '0.00';
-          _pinnacleEarnings30Days =
-              data['earnings30Days']?.toString() ?? '0.00';
-          _pinnacleNetProfit30Days =
-              data['netProfit30Days']?.toString() ?? '0.00';
-          _pinnacleSettledBets30Days =
-              data['settledBets30Days']?.toString() ?? '0';
-          _pinnacleHistoryError = data['historyError']?.toString();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Conexão OK! Saldo: $_pinnacleCurrency $_pinnacleBalance',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _pinnacleBalance = null;
-          _pinnacleCurrency = null;
-          _pinnacleOutstanding = null;
-          _pinnacleEarnings30Days = null;
-          _pinnacleNetProfit30Days = null;
-          _pinnacleSettledBets30Days = null;
-          _pinnacleHistoryError = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao conectar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _testGeminiAnalysis() async {
-    final contextText = _geminiTestContextController.text.trim();
-    if (contextText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insira o contexto do jogo primeiro.')),
-      );
-      return;
-    }
-
-    setState(() => _isAnalyzing = true);
-    try {
-      final Map<String, dynamic> data;
-      if (kIsWeb) {
-        // Evita o codec de versões antigas do cloud_functions_web, que tenta
-        // acessar Int64List e falha no dart2js antes de entregar a resposta.
-        final token = await ref
-            .read(authServiceProvider)
-            .currentUser
-            ?.getIdToken();
-        if (token == null || token.isEmpty) {
-          throw Exception('Sessão expirada. Entre novamente como administrador.');
-        }
-        final response = await Dio().post<Map<String, dynamic>>(
-          'https://southamerica-east1-raspadinhadogol.cloudfunctions.net/analyzeMatchAndBetPinnacle',
-          data: {
-            'data': {'matchContext': contextText},
-          },
-          options: Options(
-            contentType: Headers.jsonContentType,
-            headers: {'Authorization': 'Bearer $token'},
-          ),
-        );
-        final resultData = response.data?['result'];
-        if (resultData is! Map) {
-          throw Exception('Resposta inválida do serviço de análise.');
-        }
-        data = Map<String, dynamic>.from(resultData);
-      } else {
-        final callable = FirebaseFunctions.instanceFor(
-          region: 'southamerica-east1',
-        ).httpsCallable('analyzeMatchAndBetPinnacle');
-        final result = await callable.call({'matchContext': contextText});
-        data = Map<String, dynamic>.from(result.data as Map);
-      }
-
-      if (data['success'] != true) {
-        throw Exception(
-          data['error']?.toString() ?? 'Falha desconhecida na análise.',
-        );
-      }
-
-      final payloadStr = data['payload'] as String?;
-      final payload = payloadStr != null
-          ? jsonDecode(payloadStr)
-          : data['decision'];
-      final decision = Map<String, dynamic>.from(payload as Map);
-      final String msg = decision['apostar'] == true
-          ? 'Sugestão de aposta: ${decision['tipo']}\nSeleção: ${decision['selecao']}\nConfiança: ${decision['confianca']}%\nMotivo: ${decision['justificativa']}\n\nModo demonstração: nenhuma aposta foi enviada.'
-          : 'Aposta Recusada.\nMotivo: ${decision['justificativa']}';
-
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(
-                  decision['apostar'] == true
-                      ? Icons.check_circle
-                      : Icons.cancel,
-                  color: decision['apostar'] == true
-                      ? Colors.green
-                      : Colors.red,
-                ),
-                const SizedBox(width: 8),
-                const Text('Decisão da IA'),
-              ],
-            ),
-            content: Text(msg),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro na IA: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isAnalyzing = false);
-    }
-  }
-
-  Widget _buildPinnacleLogsList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('pinnacle_logs')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
-          return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError)
-          return const Text(
-            'Erro ao carregar logs.',
-            style: TextStyle(color: Colors.red),
-          );
-
-        final logs = snapshot.data?.docs ?? [];
-        if (logs.isEmpty)
-          return const Text(
-            'Nenhuma operação registrada ainda.',
-            style: TextStyle(color: Colors.grey),
-          );
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: logs.length,
-          itemBuilder: (context, index) {
-            final doc = logs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            final type = data['type']?.toString() ?? 'info';
-            final message =
-                data['message']?.toString() ?? 'Operação sem descrição.';
-            final createdAt = data['createdAt'];
-            final dateLabel = createdAt is Timestamp
-                ? DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toDate())
-                : '';
-            final isLegacyLog = message.contains('(Cron Job)') ||
-                message.contains('status code 404');
-            final isSuccess = type == 'success';
-            final isError = type == 'error';
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Icon(
-                  isSuccess
-                      ? Icons.check_circle
-                      : (isError ? Icons.error : Icons.info),
-                  color: isSuccess
-                      ? Colors.green
-                      : (isError ? Colors.red : Colors.blueGrey),
-                ),
-                title: Text(
-                  message,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  [
-                    if (dateLabel.isNotEmpty) dateLabel,
-                    if (isLegacyLog) 'Registro da versão anterior',
-                  ].join(' • '),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Widget _buildSectionHeader(IconData icon, String title) {
     return Row(
       children: [
@@ -2366,33 +1679,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPinnacleMetric(String label, String value, Color valueColor) {
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 

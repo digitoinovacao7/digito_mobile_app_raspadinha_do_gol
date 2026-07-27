@@ -713,9 +713,4 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
 });
 
 
-export {
-    pinnacleGetBalance,
-    analyzeMatchAndBetPinnacle,
-    runAutomatedPinnacleBot
-} from "./pinnacle";
 export * from "./football_image_proxy";
