@@ -1513,17 +1513,60 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   void _showEditPrizeDialog(BuildContext context, DocumentSnapshot doc) {
     final prize = doc.data() as Map<String, dynamic>;
     final nameCtrl = TextEditingController(text: prize['name'] ?? '');
-    final tokenCostCtrl = TextEditingController(text: (prize['token_cost'] ?? 0).toString());
+    final tokenCostCtrl = TextEditingController(
+      text: (prize['token_cost'] ?? 0).toString(),
+    );
     final imageCtrl = TextEditingController(text: prize['image_url'] ?? '');
     final linkCtrl = TextEditingController(text: prize['prize_link'] ?? '');
     bool isActive = prize['active'] == true;
+    String scope = prize['scope']?.toString() ?? 'global';
+    String type = prize['type']?.toString() ?? 'pix';
+
+    int? selectedLeagueId = (prize['leagueId'] as num?)?.toInt();
+    int? selectedFixtureId = (prize['fixtureId'] as num?)?.toInt();
+
+    List<dynamic> fetchedEditMatches = [];
+    bool isFetchingEditMatches = false;
+
+    Future<void> loadEditMatches(
+      int leagueId,
+      StateSetter setDialogState,
+    ) async {
+      setDialogState(() {
+        isFetchingEditMatches = true;
+        fetchedEditMatches = [];
+      });
+      try {
+        final service = ref.read(footballServiceProvider);
+        final matches = await service.getMatchesForLeague(leagueId);
+        setDialogState(() {
+          fetchedEditMatches = matches;
+        });
+      } catch (_) {
+      } finally {
+        setDialogState(() {
+          isFetchingEditMatches = false;
+        });
+      }
+    }
+
+    if (scope == 'match' && selectedLeagueId != null) {
+      ref
+          .read(footballServiceProvider)
+          .getMatchesForLeague(selectedLeagueId)
+          .then((matches) {
+            fetchedEditMatches = matches;
+          });
+    }
 
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Row(
               children: [
                 Icon(Icons.edit, color: AppTheme.accentGold),
@@ -1531,50 +1574,205 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 Text('Editar Prêmio'),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome do Prêmio',
-                      border: OutlineInputBorder(),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Onde este prêmio será exibido?',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: tokenCostCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Custo em Tokens (ou Pontos)',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Global / Loja'),
+                          selected: scope == 'global',
+                          selectedColor: AppTheme.accentGold,
+                          onSelected: (_) {
+                            setDialogState(() {
+                              scope = 'global';
+                              selectedLeagueId = null;
+                              selectedFixtureId = null;
+                            });
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('Por Campeonato'),
+                          selected: scope == 'league',
+                          selectedColor: AppTheme.accentGold,
+                          onSelected: (_) {
+                            setDialogState(() {
+                              scope = 'league';
+                              selectedFixtureId = null;
+                            });
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('Por Partida Específica'),
+                          selected: scope == 'match',
+                          selectedColor: AppTheme.accentGold,
+                          onSelected: (_) {
+                            setDialogState(() {
+                              scope = 'match';
+                            });
+                            if (selectedLeagueId != null &&
+                                fetchedEditMatches.isEmpty) {
+                              loadEditMatches(selectedLeagueId!, setDialogState);
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: imageCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'URL da Imagem / Foto do Prêmio',
-                      border: OutlineInputBorder(),
+                    if (scope == 'league' || scope == 'match') ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        decoration: InputDecoration(
+                          labelText: 'Selecione o Campeonato',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        initialValue: selectedLeagueId,
+                        items: _activeLeagues
+                            .map(
+                              (l) => DropdownMenuItem<int>(
+                                value: l.id,
+                                child: Text(l.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            selectedLeagueId = val;
+                            selectedFixtureId = null;
+                          });
+                          if (scope == 'match' && val != null) {
+                            loadEditMatches(val, setDialogState);
+                          }
+                        },
+                      ),
+                    ],
+                    if (scope == 'match') ...[
+                      const SizedBox(height: 16),
+                      isFetchingEditMatches
+                          ? const Center(child: CircularProgressIndicator())
+                          : selectedLeagueId == null
+                              ? const Text(
+                                  'Selecione primeiro o campeonato para ver as partidas.',
+                                  style: TextStyle(color: Colors.grey),
+                                )
+                              : fetchedEditMatches.isEmpty
+                                  ? const Text(
+                                      'Nenhuma partida encontrada hoje neste campeonato.',
+                                      style: TextStyle(color: Colors.orange),
+                                    )
+                                  : DropdownButtonFormField<int>(
+                                      decoration: InputDecoration(
+                                        labelText: 'Selecione a Partida de Hoje',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      initialValue: fetchedEditMatches.any(
+                                        (m) =>
+                                            m['fixture']?['id'] ==
+                                            selectedFixtureId,
+                                      )
+                                          ? selectedFixtureId
+                                          : null,
+                                      items: fetchedEditMatches
+                                          .map(
+                                            (m) => DropdownMenuItem<int>(
+                                              value: m['fixture']['id'],
+                                              child: Text(
+                                                '${_matchTime(m)} • ${m['teams']['home']['name']} x ${m['teams']['away']['name']}',
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(
+                                        () => selectedFixtureId = val,
+                                      ),
+                                    ),
+                    ],
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Tipo do Prêmio',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: linkCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Link Externo (Opcional)',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('PIX / Dinheiro'),
+                          selected: type == 'pix',
+                          selectedColor: AppTheme.primaryGreen,
+                          labelStyle: TextStyle(
+                            color: type == 'pix' ? Colors.white : Colors.black,
+                          ),
+                          onSelected: (_) => setDialogState(() => type = 'pix'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Produto / Cupom'),
+                          selected: type == 'produto',
+                          selectedColor: AppTheme.primaryGreen,
+                          labelStyle: TextStyle(
+                            color: type == 'produto' ? Colors.white : Colors.black,
+                          ),
+                          onSelected: (_) => setDialogState(() => type = 'produto'),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    title: const Text('Ativo para resgate'),
-                    value: isActive,
-                    activeColor: AppTheme.primaryGreen,
-                    onChanged: (val) => setDialogState(() => isActive = val),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome do Prêmio',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: tokenCostCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Custo em Tokens (ou Pontos)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: imageCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'URL da Imagem / Foto do Prêmio',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: linkCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Link Externo (Opcional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Ativo para resgate'),
+                      value: isActive,
+                      activeThumbColor: AppTheme.primaryGreen,
+                      onChanged: (val) => setDialogState(() => isActive = val),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -1589,9 +1787,60 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 ),
                 onPressed: () async {
                   final newName = nameCtrl.text.trim();
-                  final newTokens = int.tryParse(tokenCostCtrl.text.trim()) ?? 0;
+                  final newTokens =
+                      int.tryParse(tokenCostCtrl.text.trim()) ?? 0;
                   final newImage = imageCtrl.text.trim();
                   final newLink = linkCtrl.text.trim();
+
+                  if (newName.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Preencha o nome do prêmio.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (scope == 'league' && selectedLeagueId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Selecione o campeonato.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (scope == 'match' && selectedFixtureId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Selecione a partida.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  LeagueInfo? selectedLeague;
+                  for (final l in _activeLeagues) {
+                    if (l.id == selectedLeagueId) selectedLeague = l;
+                  }
+
+                  dynamic selectedMatch;
+                  for (final m in fetchedEditMatches) {
+                    if (m['fixture']?['id'] == selectedFixtureId) selectedMatch = m;
+                  }
+
+                  final matchLabel = selectedMatch == null
+                      ? (prize['matchLabel'] ?? prize['match_label'])
+                      : '${selectedMatch['teams']['home']['name']} x ${selectedMatch['teams']['away']['name']}';
+
+                  final leagueName = scope == 'global'
+                      ? null
+                      : (selectedLeague?.name ??
+                          prize['leagueName'] ??
+                          prize['league_name']);
 
                   await doc.reference.update({
                     'name': newName,
@@ -1599,6 +1848,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     'image_url': newImage,
                     'prize_link': newLink,
                     'active': isActive,
+                    'type': type,
+                    'scope': scope,
+                    'leagueId': scope == 'global' ? null : selectedLeagueId,
+                    'leagueName': leagueName,
+                    'league_name': leagueName,
+                    'fixtureId': scope == 'match' ? selectedFixtureId : null,
+                    'matchLabel': scope == 'match' ? matchLabel : null,
+                    'match_label': scope == 'match' ? matchLabel : null,
+                    'updatedAt': FieldValue.serverTimestamp(),
                   });
 
                   if (context.mounted) {
