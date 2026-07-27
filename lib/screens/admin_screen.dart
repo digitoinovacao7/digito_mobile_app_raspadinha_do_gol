@@ -2093,11 +2093,36 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           const SnackBar(content: Text('Testando conexão com Pinnacle...')),
         );
       }
-      final callable = FirebaseFunctions.instanceFor(
-        region: 'southamerica-east1',
-      ).httpsCallable('pinnacleGetBalance');
-      final result = await callable.call();
-      final data = Map<String, dynamic>.from(result.data as Map);
+
+      Map<String, dynamic> data;
+      if (kIsWeb) {
+        final token = await ref
+            .read(authServiceProvider)
+            .currentUser
+            ?.getIdToken();
+        if (token == null || token.isEmpty) {
+          throw Exception('Sessão expirada. Entre novamente como administrador.');
+        }
+        final response = await Dio().post<Map<String, dynamic>>(
+          'https://southamerica-east1-raspadinhadogol.cloudfunctions.net/pinnacleGetBalance',
+          data: {'data': {}},
+          options: Options(
+            contentType: Headers.jsonContentType,
+            headers: {'Authorization': 'Bearer $token'},
+          ),
+        );
+        final resultData = response.data?['result'];
+        if (resultData is! Map) {
+          throw Exception('Resposta inválida do serviço de saldo Pinnacle.');
+        }
+        data = Map<String, dynamic>.from(resultData);
+      } else {
+        final callable = FirebaseFunctions.instanceFor(
+          region: 'southamerica-east1',
+        ).httpsCallable('pinnacleGetBalance');
+        final result = await callable.call();
+        data = Map<String, dynamic>.from(result.data as Map);
+      }
       if (data['success'] != true) {
         throw Exception(
           data['error']?.toString() ??
