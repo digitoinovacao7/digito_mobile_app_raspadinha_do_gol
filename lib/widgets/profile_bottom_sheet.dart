@@ -129,16 +129,22 @@ class ProfileBottomSheet extends ConsumerWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
-                // Fecha o bottom sheet primeiro
-                Navigator.of(context).pop();
-                
                 final authService = ref.read(authServiceProvider);
                 
-                // Limpa o estado local
+                // Fecha o bottom sheet primeiro
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+
+                // Limpa o estado local do usuário
                 ref.read(currentUserProvider.notifier).state = null;
                 
-                // Faz o logout (o AuthWrapper na raiz do app vai detectar isso e mandar pro Login automaticamente)
-                await authService.signOut();
+                // Faz o logout com segurança
+                try {
+                  await authService.signOut();
+                } catch (e) {
+                  debugPrint('Erro ao deslogar: $e');
+                }
               },
             ),
           ),
