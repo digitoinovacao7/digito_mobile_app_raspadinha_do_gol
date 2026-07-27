@@ -163,9 +163,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ? 'real'
           : 'simulation';
 
-      // Usa exatamente os mesmos campeonatos principais ativos exibidos na Home.
+      // Usa exatamente a mesma lista de campeonatos principais exibida na Home.
       final service = ref.read(footballServiceProvider);
-      final leagues = await service.getMainActiveLeaguesForToday();
+      final leagues = await service.getPopularLeagues();
       if (mounted) {
         _activeLeagues = leagues;
       }
@@ -1858,13 +1858,28 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       ],
                     ),
                   ),
-                  trailing: Switch(
-                    value: active,
-                    activeColor: AppTheme.primaryGreen,
-                    onChanged: (val) => FirebaseFirestore.instance
-                        .collection('prizes')
-                        .doc(doc.id)
-                        .update({'active': val}),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: active,
+                        activeColor: AppTheme.primaryGreen,
+                        onChanged: (val) => FirebaseFirestore.instance
+                            .collection('prizes')
+                            .doc(doc.id)
+                            .update({'active': val}),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                        tooltip: 'Editar Prêmio',
+                        onPressed: () => _showEditPrizeDialog(context, doc),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                        tooltip: 'Excluir Prêmio',
+                        onPressed: () => _confirmDeletePrize(context, doc),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -1872,6 +1887,161 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showEditPrizeDialog(BuildContext context, DocumentSnapshot doc) {
+    final prize = doc.data() as Map<String, dynamic>;
+    final nameCtrl = TextEditingController(text: prize['name'] ?? '');
+    final tokenCostCtrl = TextEditingController(text: (prize['token_cost'] ?? 0).toString());
+    final imageCtrl = TextEditingController(text: prize['image_url'] ?? '');
+    final linkCtrl = TextEditingController(text: prize['prize_link'] ?? '');
+    bool isActive = prize['active'] == true;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulWidgetBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.edit, color: AppTheme.accentGold),
+                SizedBox(width: 8),
+                Text('Editar Prêmio'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do Prêmio',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: tokenCostCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Custo em Tokens (ou Pontos)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: imageCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'URL da Imagem / Foto do Prêmio',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: linkCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Link Externo (Opcional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    title: const Text('Ativo para resgate'),
+                    value: isActive,
+                    activeColor: AppTheme.primaryGreen,
+                    onChanged: (val) => setDialogState(() => isActive = val),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  final newName = nameCtrl.text.trim();
+                  final newTokens = int.tryParse(tokenCostCtrl.text.trim()) ?? 0;
+                  final newImage = imageCtrl.text.trim();
+                  final newLink = linkCtrl.text.trim();
+
+                  await doc.reference.update({
+                    'name': newName,
+                    'token_cost': newTokens,
+                    'image_url': newImage,
+                    'prize_link': newLink,
+                    'active': isActive,
+                  });
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Prêmio atualizado com sucesso!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Salvar Alterações'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmDeletePrize(BuildContext context, DocumentSnapshot doc) {
+    final prize = doc.data() as Map<String, dynamic>;
+    final prizeName = prize['name'] ?? 'este prêmio';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Excluir Prêmio'),
+          ],
+        ),
+        content: Text('Tem certeza que deseja excluir "$prizeName"? Esta ação não poderá ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              await doc.reference.delete();
+              if (context.mounted) {
+                Navigator.pop(dialogCtx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Prêmio excluído!'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            },
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
     );
   }
 
