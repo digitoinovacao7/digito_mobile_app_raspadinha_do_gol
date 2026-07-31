@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import { generateGeminiContent } from "./gemini";
@@ -587,6 +587,126 @@ export const proxyFootballData = onCall(async (request) => {
     } catch (e: any) {
         console.error("Falha ao consultar API Football-Data.org:", e);
         throw new HttpsError("internal", `Erro interno no proxy: ${e.message}`);
+    }
+});
+
+/**
+ * Retorna os jogos ao vivo e do dia da API-Football / Football-Data para exibição pública na Landing Page
+ */
+export const getPublicMatches = onRequest({
+    cors: true,
+    region: "southamerica-east1",
+}, async (_req, res) => {
+    try {
+        const settingsDoc = await db.collection("settings").doc("general").get();
+        const data = settingsDoc.data() || {};
+        const keys = data.api_keys || {};
+        const apiKey = keys.api_football || data.api_football_key || data.api_football;
+
+        if (!apiKey) {
+            res.status(503).json({
+                success: false,
+                error: "API-Football não configurada.",
+            });
+            return;
+        }
+
+        const today = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(new Date());
+        const apiUrl = `https://v3.football.api-sports.io/fixtures?date=${today}&timezone=America/Sao_Paulo`;
+        const apiResponse = await fetch(apiUrl, {
+            headers: {"x-apisports-key": apiKey},
+        });
+
+        if (!apiResponse.ok) {
+            throw new Error(`API-Football retornou status ${apiResponse.status}.`);
+        }
+
+        const apiData: any = await apiResponse.json();
+        if (apiData.errors && Object.keys(apiData.errors).length > 0) {
+            throw new Error("A API-Football recusou a consulta.");
+        }
+
+        const matchesList = Array.isArray(apiData.response) ? apiData.response : [];
+        const liveStatuses = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
+        const finishedStatuses = ['FT', 'AET', 'PEN'];
+
+        // Prioriza partidas ao vivo, depois as próximas e por último as encerradas.
+        matchesList.sort((a: any, b: any) => {
+            const aStatus = a.fixture?.status?.short || '';
+            const bStatus = b.fixture?.status?.short || '';
+            const rank = (status: string) => liveStatuses.includes(status) ? 0 :
+                finishedStatuses.includes(status) ? 2 : 1;
+            const rankDifference = rank(aStatus) - rank(bStatus);
+            return rankDifference ||
+                new Date(a.fixture?.date || 0).getTime() - new Date(b.fixture?.date || 0).getTime();
+        });
+
+        const formattedMatches = matchesList.slice(0, 9).map((item: any) => {
+            const fix = item.fixture || {};
+            const league = item.league || {};
+            const teams = item.teams || {};
+            const goals = item.goals || {};
+            const score = item.score || {};
+            const statusShort = fix.status?.short || '';
+            const elapsed = fix.status?.elapsed;
+            const isLive = liveStatuses.includes(statusShort);
+            const isFinished = finishedStatuses.includes(statusShort);
+
+            let statusText = 'AGENDADO';
+            if (isLive) {
+                statusText = statusShort === 'HT' ? 'INTERVALO' :
+                    `${fix.status?.long || 'AO VIVO'}${elapsed ? ` (${elapsed}')` : ''}`;
+            } else if (isFinished) {
+                statusText = 'ENCERRADO';
+            } else if (fix.date) {
+                const matchDate = new Date(fix.date);
+                statusText = matchDate.toLocaleTimeString('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+            }
+
+            return {
+                id: fix.id,
+                league: league.name || 'Futebol',
+                leagueLogo: league.logo || '',
+                country: league.country || '',
+                round: league.round || '',
+                homeTeam: teams.home?.name || 'Casa',
+                homeLogo: teams.home?.logo || '',
+                awayTeam: teams.away?.name || 'Visitante',
+                awayLogo: teams.away?.logo || '',
+                score: goals.home == null || goals.away == null ?
+                    '—' : `${goals.home} - ${goals.away}`,
+                halfTimeScore: score.halftime?.home == null || score.halftime?.away == null ?
+                    null : `${score.halftime.home} - ${score.halftime.away}`,
+                status: statusText,
+                statusLong: fix.status?.long || '',
+                isLive,
+                isFinished,
+                kickoff: fix.date || null,
+                venue: fix.venue?.name || '',
+                city: fix.venue?.city || '',
+                referee: fix.referee || '',
+            };
+        });
+
+        res.set("Cache-Control", "public, max-age=60, s-maxage=60");
+        res.json({
+            success: true,
+            source: "API-Football",
+            date: today,
+            matches: formattedMatches,
+        });
+    } catch (e: any) {
+        console.error("Erro ao buscar jogos públicos:", e);
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

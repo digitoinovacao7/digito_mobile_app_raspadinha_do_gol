@@ -9,59 +9,61 @@ const heroImages = [
   "/player_kicking.png",
 ];
 
-const liveMatchesMock = [
-  {
-    league: "Brasileirão Série A",
-    homeTeam: "Flamengo",
-    awayTeam: "Palmeiras",
-    score: "2 - 1",
-    minute: "78'",
-    status: "EM ANDAMENTO",
-    event: "GOL DA RODADA! RASPADINHA DISPONÍVEL ⚽",
-  },
-  {
-    league: "Copa Libertadores",
-    homeTeam: "Atlético-MG",
-    awayTeam: "River Plate",
-    score: "1 - 0",
-    minute: "45+2'",
-    status: "INTERVALO",
-    event: "QUIZ DA IA LIBERADO! +250 TOKENS 🧠",
-  },
-];
-
-const faqs = [
-  {
-    question: "O Raspadinha do Gol é pago ou é casa de apostas?",
-    answer:
-      "Não! O Raspadinha do Gol é 100% gratuito e não envolve apostas em dinheiro. É um jogo de entretenimento e habilidade onde você responde perguntas sobre futebol, ganha tokens e concorrem a prêmios reais entregues na sua casa.",
-  },
-  {
-    question: "Como funcionam as raspadinhas ao vivo?",
-    answer:
-      "Durante os jogos dos principais campeonatos, sempre que sai um gol, o jogo vai para o intervalo ou termina, o aplicativo libera raspadinhas especiais instantâneas. Basta abrir o app e raspar!",
-  },
-  {
-    question: "Como recebo os prêmios que ganho?",
-    answer:
-      "Prêmios físicos (como camisas oficiais e bolas) são entregues diretamente no seu endereço via Correios ou Transportadora sem custo. Prêmios digitais ou valores de PIX são enviados diretamente pelo WhatsApp cadastrado.",
-  },
-  {
-    question: "O que são os Quizzes da IA?",
-    answer:
-      "Nossa Inteligência Artificial analisa os lances do jogo em tempo real e faz perguntas interativas sobre a partida. Acertando os palpites e curiosidades, você ganha Tokens do Gol para resgatar mais raspadinhas e prêmios na loja.",
-  },
-];
+interface LiveMatchItem {
+  id: number | string;
+  league: string;
+  leagueLogo?: string;
+  country?: string;
+  round?: string;
+  homeTeam: string;
+  homeLogo?: string;
+  awayTeam: string;
+  awayLogo?: string;
+  score: string;
+  halfTimeScore?: string | null;
+  status: string;
+  statusLong?: string;
+  isLive?: boolean;
+  isFinished?: boolean;
+  kickoff?: string | null;
+  venue?: string;
+  city?: string;
+  referee?: string;
+}
 
 export function Home() {
   const [currentImage, setCurrentImage] = useState(0);
-  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(0);
+  const [matches, setMatches] = useState<LiveMatchItem[]>([]);
+  const [matchesState, setMatchesState] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImage((prev) => (prev + 1) % heroImages.length);
     }, 5000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("https://southamerica-east1-raspadinhadogol.cloudfunctions.net/getPublicMatches", {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Não foi possível carregar os jogos.");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && Array.isArray(data.matches)) {
+          setMatches(data.matches);
+          setMatchesState("success");
+          return;
+        }
+        throw new Error("Resposta inválida do serviço de jogos.");
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setMatchesState("error");
+      });
+    return () => controller.abort();
   }, []);
 
   return (
@@ -170,50 +172,113 @@ export function Home() {
         </div>
       </section>
 
-      {/* 3. LIVE MATCH SIMULATOR SECTION */}
+      {/* 3. LIVE MATCH SIMULATOR / API-FOOTBALL REAL TIME SECTION */}
       <section className="py-20 px-4 max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-            Tempo Real
+          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            Dados oficiais da API-Football
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-white mt-3">
-            Gols ao Vivo = Raspadinhas Instantâneas
+            Jogos de Hoje & Partidas Ao Vivo
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto mt-2 text-base">
             Enquanto a bola rola nos campeonatos, nosso sistema detecta os lances e envia oportunidades de raspar diretamente para o seu celular.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {liveMatchesMock.map((match, idx) => (
+        {matchesState === "loading" && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Carregando jogos">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="h-72 rounded-3xl bg-slate-900/80 border border-slate-800 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {matchesState === "error" && (
+          <div className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-8 text-center">
+            <p className="font-bold text-amber-300">Os dados dos jogos estão temporariamente indisponíveis.</p>
+            <p className="text-sm text-gray-400 mt-2">Tente novamente em alguns minutos.</p>
+          </div>
+        )}
+
+        {matchesState === "success" && matches.length === 0 && (
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+            <p className="font-bold text-white">Nenhuma partida encontrada para hoje.</p>
+            <p className="text-sm text-gray-400 mt-2">A programação é atualizada automaticamente pela API-Football.</p>
+          </div>
+        )}
+
+        {matchesState === "success" && matches.length > 0 && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {matches.map((match, idx) => (
             <div
-              key={idx}
-              className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-emerald-500/40 transition-all"
+              key={match.id || idx}
+              className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between"
             >
               <div className="flex justify-between items-center text-xs text-gray-400 font-bold mb-4 border-b border-slate-800 pb-3">
-                <span className="uppercase tracking-wider">{match.league}</span>
-                <span className="text-emerald-400 font-black animate-pulse flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  {match.status} ({match.minute})
+                <span className="uppercase tracking-wider truncate max-w-[170px] flex items-center gap-2">
+                  {match.leagueLogo && <img src={match.leagueLogo} alt="" className="w-5 h-5 object-contain" />}
+                  {match.league}
+                </span>
+                <span className={`font-black flex items-center gap-1.5 ${match.isLive ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`}>
+                  {match.isLive && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
+                  {match.status}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center my-4 px-4">
-                <span className="text-xl font-black text-white w-1/3 text-left">{match.homeTeam}</span>
-                <span className="text-3xl font-black text-amber-400 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
-                  {match.score}
-                </span>
-                <span className="text-xl font-black text-white w-1/3 text-right">{match.awayTeam}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 my-4">
+                <div className="flex min-w-0 flex-col items-center text-center">
+                  {match.homeLogo ? (
+                    <img src={match.homeLogo} alt={match.homeTeam} className="w-10 h-10 object-contain mb-2" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs mb-2">⚽</div>
+                  )}
+                  <span className="text-sm font-black text-white line-clamp-2">{match.homeTeam}</span>
+                </div>
+
+                <div className="text-center">
+                  <span className="inline-flex min-w-[4.5rem] items-center justify-center whitespace-nowrap text-xl font-black text-amber-400 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+                    {match.score}
+                  </span>
+                </div>
+
+                <div className="flex min-w-0 flex-col items-center text-center">
+                  {match.awayLogo ? (
+                    <img src={match.awayLogo} alt={match.awayTeam} className="w-10 h-10 object-contain mb-2" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs mb-2">⚽</div>
+                  )}
+                  <span className="text-sm font-black text-white line-clamp-2">{match.awayTeam}</span>
+                </div>
               </div>
 
-              <div className="mt-4 bg-emerald-950/60 border border-emerald-500/30 rounded-xl p-3 text-center">
-                <span className="text-xs font-black text-emerald-300 uppercase tracking-wide">
-                  {match.event}
-                </span>
+              <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                <div>
+                  <span className="block text-gray-500 uppercase font-bold">Competição</span>
+                  <span className="text-gray-300">{[match.country, match.round].filter(Boolean).join(" • ") || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 uppercase font-bold">Estádio</span>
+                  <span className="text-gray-300">{[match.venue, match.city].filter(Boolean).join(", ") || "A definir"}</span>
+                </div>
+                {match.halfTimeScore && (
+                  <div>
+                    <span className="block text-gray-500 uppercase font-bold">Intervalo</span>
+                    <span className="text-gray-300">{match.halfTimeScore}</span>
+                  </div>
+                )}
+                {match.referee && (
+                  <div>
+                    <span className="block text-gray-500 uppercase font-bold">Árbitro</span>
+                    <span className="text-gray-300">{match.referee}</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
+        )}
       </section>
 
       {/* 4. SLIDER DE PRÊMIOS */}
@@ -265,46 +330,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 6. FAQ ACCORDION SECTION */}
-      <section className="py-20 px-4 max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-black text-white">
-            Perguntas Frequentes (FAQ)
-          </h2>
-          <p className="text-gray-400 text-base mt-2">
-            Tire todas as suas dúvidas sobre o funcionamento do aplicativo.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          {faqs.map((faq, index) => {
-            const isOpen = activeFaqIndex === index;
-            return (
-              <div
-                key={index}
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden transition-all"
-              >
-                <button
-                  onClick={() => setActiveFaqIndex(isOpen ? null : index)}
-                  className="w-full text-left p-6 flex justify-between items-center font-bold text-lg text-white hover:text-amber-400 transition-colors"
-                >
-                  <span>{faq.question}</span>
-                  <span className="text-2xl text-amber-400 ml-4 font-black">
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="px-6 pb-6 text-gray-300 text-sm leading-relaxed border-t border-slate-800/50 pt-4">
-                    {faq.answer}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 7. FINAL CTA BANNER */}
+      {/* 6. FINAL CTA BANNER */}
       <section className="py-20 px-4 text-center bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-t border-emerald-500/20 relative">
         <div className="max-w-4xl mx-auto relative z-10">
           <h2 className="text-3xl sm:text-5xl font-black text-white mb-6">
