@@ -45,24 +45,31 @@ export function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("https://southamerica-east1-raspadinhadogol.cloudfunctions.net/getPublicMatches", {
-      signal: controller.signal,
-    })
-      .then((res) => {
+    const primaryUrl =
+      "https://us-central1-raspadinhadogol.cloudfunctions.net/getPublicMatches";
+    const secondaryUrl =
+      "https://southamerica-east1-raspadinhadogol.cloudfunctions.net/getPublicMatches";
+
+    async function loadMatches() {
+      try {
+        let res = await fetch(primaryUrl, { signal: controller.signal });
+        if (!res.ok) {
+          res = await fetch(secondaryUrl, { signal: controller.signal });
+        }
         if (!res.ok) throw new Error("Não foi possível carregar os jogos.");
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
         if (data.success && Array.isArray(data.matches)) {
           setMatches(data.matches);
           setMatchesState("success");
           return;
         }
         throw new Error("Resposta inválida do serviço de jogos.");
-      })
-      .catch((error) => {
+      } catch (error: any) {
         if (error.name !== "AbortError") setMatchesState("error");
-      });
+      }
+    }
+
+    loadMatches();
     return () => controller.abort();
   }, []);
 
