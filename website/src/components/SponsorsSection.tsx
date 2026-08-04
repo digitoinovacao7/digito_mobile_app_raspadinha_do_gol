@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
 interface Sponsor {
@@ -17,23 +17,22 @@ export function SponsorsSection() {
   useEffect(() => {
     async function loadSponsors() {
       try {
-        const q = query(
-          collection(db, "sponsors"),
-          where("active", "==", true),
-          orderBy("order", "asc")
-        );
+        const q = query(collection(db, "sponsors"));
         const snapshot = await getDocs(q);
         const list: Sponsor[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
-          list.push({
-            id: doc.id,
-            name: data.name || "",
-            logoUrl: data.logoUrl || data.image_url || "",
-            siteUrl: data.siteUrl || data.site_url || "",
-            order: data.order ?? 0,
-          });
+          if (data.active === true || data.active === undefined) {
+            list.push({
+              id: doc.id,
+              name: data.name || "",
+              logoUrl: data.logoUrl || data.image_url || "",
+              siteUrl: data.siteUrl || data.site_url || "",
+              order: Number(data.order ?? 0),
+            });
+          }
         });
+        list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setSponsors(list);
       } catch (err) {
         console.error("Erro ao carregar patrocinadores:", err);

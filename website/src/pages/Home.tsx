@@ -46,17 +46,12 @@ export function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const primaryUrl =
-      "https://us-central1-raspadinhadogol.cloudfunctions.net/getPublicMatches";
-    const secondaryUrl =
+    const matchesUrl =
       "https://southamerica-east1-raspadinhadogol.cloudfunctions.net/getPublicMatches";
 
     async function loadMatches() {
       try {
-        let res = await fetch(primaryUrl, { signal: controller.signal });
-        if (!res.ok) {
-          res = await fetch(secondaryUrl, { signal: controller.signal });
-        }
+        const res = await fetch(matchesUrl, { signal: controller.signal });
         if (!res.ok) throw new Error("Não foi possível carregar os jogos.");
         const data = await res.json();
         if (data.success && Array.isArray(data.matches)) {
