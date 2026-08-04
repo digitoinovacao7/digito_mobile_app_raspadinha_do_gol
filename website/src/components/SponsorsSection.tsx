@@ -57,7 +57,7 @@ export function SponsorsSection() {
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
           {sponsors.map((sponsor) => {
             const content = (
-              <div className="bg-slate-950/70 border border-slate-800 hover:border-amber-400/50 px-6 py-4 rounded-2xl flex items-center justify-center min-w-[160px] h-20 transition-all transform hover:scale-105 hover:shadow-[0_0_20px_rgba(251,191,36,0.2)] group">
+              <div className="bg-white border border-slate-200 hover:border-amber-400 px-6 py-4 rounded-2xl flex items-center justify-center min-w-[170px] h-20 transition-all transform hover:scale-105 shadow-md hover:shadow-[0_0_25px_rgba(251,191,36,0.5)] group">
                 {sponsor.logoUrl ? (
                   <img
                     src={sponsor.logoUrl}
@@ -65,7 +65,7 @@ export function SponsorsSection() {
                     className="max-h-12 max-w-[140px] object-contain transition-all duration-300 group-hover:scale-105"
                   />
                 ) : (
-                  <span className="text-white font-black text-base group-hover:text-amber-400 transition-colors uppercase tracking-wide">
+                  <span className="text-slate-900 font-black text-base group-hover:text-amber-600 transition-colors uppercase tracking-wide">
                     {sponsor.name}
                   </span>
                 )}
