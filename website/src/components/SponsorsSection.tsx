@@ -57,18 +57,23 @@ export function SponsorsSection() {
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
           {sponsors.map((sponsor) => {
             const content = (
-              <div className="bg-white border border-slate-200 hover:border-amber-400 px-6 py-4 rounded-2xl flex items-center justify-center min-w-[170px] h-20 transition-all duration-300 transform hover:scale-110 shadow-md animate-pulse-zoom group">
-                {sponsor.logoUrl ? (
-                  <img
-                    src={sponsor.logoUrl}
-                    alt={sponsor.name}
-                    className="max-h-12 max-w-[140px] object-contain transition-all duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <span className="text-slate-900 font-black text-base group-hover:text-amber-600 transition-colors uppercase tracking-wide">
-                    {sponsor.name}
-                  </span>
-                )}
+              <div className="bg-slate-950/80 border border-slate-800 hover:border-amber-400/60 p-3.5 rounded-2xl flex flex-col items-center justify-center min-w-[170px] max-w-[200px] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-[0_0_25px_rgba(251,191,36,0.3)] group cursor-pointer">
+                <div className="bg-white rounded-xl p-2.5 w-full h-20 flex items-center justify-center shadow-inner overflow-hidden">
+                  {sponsor.logoUrl ? (
+                    <img
+                      src={sponsor.logoUrl}
+                      alt={sponsor.name}
+                      className="max-h-14 max-w-[140px] object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="text-slate-900 font-black text-sm uppercase">
+                      {sponsor.name}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-bold text-gray-300 mt-2.5 text-center truncate max-w-[150px] group-hover:text-amber-400 transition-colors uppercase tracking-wider">
+                  {sponsor.name}
+                </span>
               </div>
             );
 
