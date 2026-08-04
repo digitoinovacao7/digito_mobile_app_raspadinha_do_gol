@@ -41,6 +41,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /sponsors/{sponsorId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /token_transactions/{transactionId} {
       allow read: if signedIn() &&
         (resource.data.uid == request.auth.uid || isAdmin());

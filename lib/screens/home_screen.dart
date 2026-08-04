@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme.dart';
 import '../models/league_info.dart';
@@ -256,6 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? _buildEmptyState()
                         : _buildLeaguesGrid(),
                     const SizedBox(height: 24),
+                    _buildSponsorsSection(),
                   ],
                   if (_isRewardedAdLoaded) ...[
                     _buildRewardedTokensCard(),
@@ -1015,33 +1018,114 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            style: BorderStyle.solid,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           children: [
-            Icon(Icons.sports_soccer, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
+            Icon(Icons.emoji_events_outlined, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
             Text(
-              'Nenhum jogo disponível hoje',
+              'Nenhum campeonato disponível',
               style: TextStyle(
-                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
                 color: Colors.grey.shade700,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'A API de futebol não encontrou partidas para hoje. Volte mais tarde!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSponsorsSection() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('sponsors')
+          .where('active', isEqualTo: true)
+          .orderBy('order', descending: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final docs = snapshot.data!.docs;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Patrocinadores & Parceiros', Icons.handshake),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 70,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final name = data['name'] ?? '';
+                  final logoUrl = data['logoUrl'] ?? data['image_url'] ?? '';
+                  final siteUrl = data['siteUrl'] ?? data['site_url'] ?? '';
+
+                  return InkWell(
+                    onTap: () async {
+                      if (siteUrl.isNotEmpty) {
+                        final uri = Uri.tryParse(siteUrl);
+                        if (uri != null && await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (logoUrl.isNotEmpty) ...[
+                            Image.network(
+                              logoUrl,
+                              height: 40,
+                              width: 60,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.business, color: Colors.grey),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else
+                            const Icon(Icons.business, color: AppTheme.primaryGreen),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 }

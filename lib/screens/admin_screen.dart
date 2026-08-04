@@ -47,6 +47,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isSaving = false;
   bool _isSavingPrize = false;
 
+  final _newSponsorNameCtrl = TextEditingController();
+  final _newSponsorLogoCtrl = TextEditingController();
+  final _newSponsorLinkCtrl = TextEditingController();
+  final _newSponsorOrderCtrl = TextEditingController(text: '0');
+  bool _isSavingSponsor = false;
+
   @override
   void initState() {
     super.initState();
@@ -209,7 +215,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         backgroundColor: AppTheme.primaryGreen,
         appBar: PreferredSize(
@@ -222,6 +228,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
+              Tab(icon: Icon(Icons.handshake), text: 'Patrocinadores'),
               Tab(icon: Icon(Icons.api), text: 'Integrações'),
               Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
               Tab(icon: Icon(Icons.trending_up), text: 'Lucro'),
@@ -233,6 +240,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             : TabBarView(
                 children: [
                   _buildPrizesTab(),
+                  _buildSponsorsTab(),
                   _buildIntegrationsTab(),
                   _buildRedemptionsTab(),
                   _buildProfitGuideTab(),
@@ -2150,6 +2158,398 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSponsorsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            Icons.add_business,
+            'Novo Patrocinador / Parceiro',
+          ),
+          const SizedBox(height: 16),
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _newSponsorNameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do Patrocinador',
+                      hintText: 'Ex: Nike, Cervejaria X, Banco Y',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newSponsorLogoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'URL da Logomarca (Imagem)',
+                      hintText: 'https://exemplo.com/logo.png',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newSponsorLinkCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Link de Destino / Site (Opcional)',
+                      hintText: 'https://sitepatrocinador.com.br',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newSponsorOrderCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordem de Exibição (0, 1, 2...)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentGold,
+                        foregroundColor: AppTheme.textDark,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      icon: _isSavingSponsor
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(
+                        _isSavingSponsor
+                            ? 'SALVANDO...'
+                            : 'CADASTRAR PATROCINADOR',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _isSavingSponsor ? null : _saveNewSponsor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          _buildSectionHeader(
+            Icons.handshake,
+            'Patrocinadores Cadastrados',
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('sponsors')
+                .orderBy('order', descending: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text(
+                  'Erro: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                );
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Center(
+                      child: Text('Nenhum patrocinador cadastrado ainda.'),
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = data['name'] ?? 'Sem Nome';
+                  final logoUrl = data['logoUrl'] ?? data['image_url'] ?? '';
+                  final siteUrl = data['siteUrl'] ?? data['site_url'] ?? '';
+                  final isActive = data['active'] == true;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: logoUrl.isNotEmpty
+                            ? Image.network(
+                                logoUrl,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.broken_image),
+                              )
+                            : const Icon(Icons.business),
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        siteUrl.isNotEmpty ? siteUrl : 'Sem link externo',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: siteUrl.isNotEmpty
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: isActive,
+                            activeColor: AppTheme.primaryGreen,
+                            onChanged: (val) {
+                              doc.reference.update({'active': val});
+                            },
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (val) {
+                              if (val == 'edit') {
+                                _showEditSponsorDialog(context, doc);
+                              } else if (val == 'delete') {
+                                doc.reference.delete();
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, color: Colors.blue),
+                                    SizedBox(width: 8),
+                                    Text('Editar'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Excluir'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveNewSponsor() async {
+    final name = _newSponsorNameCtrl.text.trim();
+    final logo = _newSponsorLogoCtrl.text.trim();
+    final link = _newSponsorLinkCtrl.text.trim();
+    final order = int.tryParse(_newSponsorOrderCtrl.text.trim()) ?? 0;
+
+    if (name.isEmpty || logo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preencha o Nome e a URL da Logomarca.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSavingSponsor = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('sponsors').add({
+        'name': name,
+        'logoUrl': logo,
+        'image_url': logo,
+        'siteUrl': link,
+        'site_url': link,
+        'order': order,
+        'active': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      _newSponsorNameCtrl.clear();
+      _newSponsorLogoCtrl.clear();
+      _newSponsorLinkCtrl.clear();
+      _newSponsorOrderCtrl.text = '0';
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Patrocinador cadastrado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao cadastrar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingSponsor = false);
+    }
+  }
+
+  void _showEditSponsorDialog(BuildContext context, DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final nameCtrl = TextEditingController(text: data['name'] ?? '');
+    final logoCtrl = TextEditingController(
+      text: data['logoUrl'] ?? data['image_url'] ?? '',
+    );
+    final linkCtrl = TextEditingController(
+      text: data['siteUrl'] ?? data['site_url'] ?? '',
+    );
+    final orderCtrl = TextEditingController(
+      text: (data['order'] ?? 0).toString(),
+    );
+    bool isActive = data['active'] == true;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.edit, color: AppTheme.accentGold),
+                SizedBox(width: 8),
+                Text('Editar Patrocinador'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do Patrocinador',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: logoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'URL da Logomarca (Imagem)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: linkCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Link de Destino / Site (Opcional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: orderCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordem de Exibição',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    title: const Text('Ativo para exibição'),
+                    value: isActive,
+                    activeThumbColor: AppTheme.primaryGreen,
+                    onChanged: (val) => setDialogState(() => isActive = val),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  final newName = nameCtrl.text.trim();
+                  final newLogo = logoCtrl.text.trim();
+                  final newLink = linkCtrl.text.trim();
+                  final newOrder = int.tryParse(orderCtrl.text.trim()) ?? 0;
+
+                  await doc.reference.update({
+                    'name': newName,
+                    'logoUrl': newLogo,
+                    'image_url': newLogo,
+                    'siteUrl': newLink,
+                    'site_url': newLink,
+                    'order': newOrder,
+                    'active': isActive,
+                  });
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Patrocinador atualizado!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Salvar Alterações'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
