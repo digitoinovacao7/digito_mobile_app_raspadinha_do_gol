@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { PrizesSlider } from "../components/PrizesSlider";
 import { DemoScratchcard } from "../components/DemoScratchcard";
+import { SponsorsSection } from "../components/SponsorsSection";
 
 const heroImages = [
   "/hero-football.png?v=2",
@@ -338,6 +339,9 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {/* 5. PATROCINADORES */}
+      <SponsorsSection />
 
       {/* 6. FINAL CTA BANNER */}
       <section className="py-20 px-4 text-center bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-t border-emerald-500/20 relative">
