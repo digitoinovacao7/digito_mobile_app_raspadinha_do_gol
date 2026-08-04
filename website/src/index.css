@@ -14,21 +14,17 @@ body {
   color: var(--color-text-dark);
 }
 
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
+@keyframes pulseZoom {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   }
-  100% {
-    transform: translateX(-50%);
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 8px 25px rgba(251, 191, 36, 0.35);
   }
 }
 
-.animate-marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee 25s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
+.animate-pulse-zoom {
+  animation: pulseZoom 3s ease-in-out infinite;
 }
