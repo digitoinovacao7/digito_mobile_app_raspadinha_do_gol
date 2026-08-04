@@ -114,10 +114,12 @@ export function Home() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
               <a
-                href="https://app-raspadinhadogol.web.app"
+                href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-slate-950 text-xl font-black px-8 py-4 rounded-2xl shadow-[0_0_35px_rgba(251,191,36,0.6)] hover:scale-105 transition-all duration-300 text-center uppercase tracking-wide border border-amber-300/50"
               >
-                🎮 JOGAR AGORA GRÁTIS
+                📱 BAIXAR NA PLAY STORE
               </a>
               <Link
                 to="/como-funciona"
@@ -347,10 +349,12 @@ export function Home() {
             Junte-se a milhares de torcedores, acompanhe seu time e conquiste prêmios oficiais hoje mesmo.
           </p>
           <a
-            href="https://app-raspadinhadogol.web.app"
+            href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-block bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-slate-950 text-xl font-black px-10 py-5 rounded-2xl shadow-[0_0_40px_rgba(251,191,36,0.6)] hover:scale-105 transition-all duration-300 uppercase tracking-wide"
           >
-            JOGAR AGORA NO APP GRÁTIS
+            BAIXAR APP NA PLAY STORE
           </a>
         </div>
       </section>

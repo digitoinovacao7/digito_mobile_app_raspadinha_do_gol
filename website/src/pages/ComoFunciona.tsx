@@ -46,8 +46,8 @@ export function ComoFunciona() {
           <p className="text-lg mb-8 max-w-2xl mx-auto text-gray-200">
             Não perca tempo, os jogos já estão rolando e as raspadinhas estão esperando por você. Baixe o app agora mesmo e comece a pontuar.
           </p>
-          <a href="https://app-raspadinhadogol.web.app" className="inline-block bg-accent text-text-dark text-xl px-10 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30">
-            Baixar Aplicativo
+          <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="inline-block bg-accent text-text-dark text-xl px-10 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-accent/30">
+            Baixar Aplicativo na Play Store
           </a>
         </div>
       </section>

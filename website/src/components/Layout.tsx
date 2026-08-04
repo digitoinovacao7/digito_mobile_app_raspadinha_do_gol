@@ -36,7 +36,7 @@ export function Layout() {
             <Link to="/" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Início</Link>
             <Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Como Funciona</Link>
             <Link to="/faq" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Dúvidas (FAQ)</Link>
-            <a href="https://app-raspadinhadogol.web.app" className="bg-accent text-text-dark px-4 py-2 rounded-lg hover:brightness-110 transition-all font-bold drop-shadow-none">
+            <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="bg-accent text-text-dark px-4 py-2 rounded-lg hover:brightness-110 transition-all font-bold drop-shadow-none">
               Baixar App
             </a>
           </nav>
@@ -62,7 +62,7 @@ export function Layout() {
             <Link to="/" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Início</Link>
             <Link to="/como-funciona" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Como Funciona</Link>
             <Link to="/faq" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Dúvidas (FAQ)</Link>
-            <a href="https://app-raspadinhadogol.web.app" className="mt-4 bg-accent text-text-dark text-lg px-4 py-3 rounded-xl font-bold text-center hover:scale-[1.02] transition-transform">Baixar App</a>
+            <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="mt-4 bg-accent text-text-dark text-lg px-4 py-3 rounded-xl font-bold text-center hover:scale-[1.02] transition-transform">Baixar App</a>
           </div>
         )}
       </header>
@@ -97,7 +97,7 @@ export function Layout() {
                 <li><Link to="/sobre-nos" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Sobre Nós</Link></li>
                 <li><Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Como Funciona</Link></li>
                 <li><Link to="/faq" onClick={() => window.scrollTo(0, 0)} className="text-gray-400 hover:text-accent transition-colors text-sm">Dúvidas Frequentes (FAQ)</Link></li>
-                <li><a href="https://app-raspadinhadogol.web.app" className="text-gray-400 hover:text-accent transition-colors text-sm">Baixar o Aplicativo</a></li>
+                <li><a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent transition-colors text-sm">Baixar o Aplicativo</a></li>
               </ul>
             </div>
 
@@ -133,8 +133,8 @@ export function Layout() {
           <span className="text-white font-black text-sm">COPA DO MUNDO 🏆</span>
           <span className="text-accent text-xs font-bold">Raspadinhas Liberadas</span>
         </div>
-        <a href="https://app-raspadinhadogol.web.app" className="bg-green-500 text-white px-5 py-2.5 rounded-full font-black uppercase text-xs shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
-          JOGAR AGORA
+        <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="bg-green-500 text-white px-5 py-2.5 rounded-full font-black uppercase text-xs shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse">
+          BAIXAR APP
         </a>
       </div>
     </div>

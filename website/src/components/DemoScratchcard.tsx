@@ -59,10 +59,12 @@ export function DemoScratchcard() {
       {scratched && (
         <div className="mt-4 animate-fade-in">
           <a
-            href="https://app-raspadinhadogol.web.app"
+            href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-block w-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-base py-3.5 px-6 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.6)] hover:brightness-110 transition-all uppercase tracking-wide"
           >
-            USAR TOKENS NO APP GRÁTIS 🚀
+            BAIXAR APP NA PLAY STORE 🚀
           </a>
         </div>
       )}
