@@ -155,27 +155,8 @@ export function Home() {
         </div>
       </section>
 
-      {/* 2. STATS FLOATING BAR */}
-      <section className="w-full bg-slate-900 border-y border-slate-800 py-8 px-4">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div className="p-4 bg-slate-950/40 rounded-2xl border border-white/5">
-            <span className="block text-3xl md:text-4xl font-black text-emerald-400">+50 MIL</span>
-            <span className="text-xs text-gray-400 font-semibold uppercase mt-1">Raspadinhas Entregues</span>
-          </div>
-          <div className="p-4 bg-slate-950/40 rounded-2xl border border-white/5">
-            <span className="block text-3xl md:text-4xl font-black text-amber-400">100%</span>
-            <span className="text-xs text-gray-400 font-semibold uppercase mt-1">Gratuito e Sem Risco</span>
-          </div>
-          <div className="p-4 bg-slate-950/40 rounded-2xl border border-white/5">
-            <span className="block text-3xl md:text-4xl font-black text-emerald-400">4.9 ★</span>
-            <span className="text-xs text-gray-400 font-semibold uppercase mt-1">Avaliação dos Torcedores</span>
-          </div>
-          <div className="p-4 bg-slate-950/40 rounded-2xl border border-white/5">
-            <span className="block text-3xl md:text-4xl font-black text-amber-400">24/7</span>
-            <span className="text-xs text-gray-400 font-semibold uppercase mt-1">Jogos e Quizzes com IA</span>
-          </div>
-        </div>
-      </section>
+      {/* 2. SPONSORS BAR */}
+      <SponsorsSection />
 
       {/* 3. LIVE MATCH SIMULATOR / API-FOOTBALL REAL TIME SECTION */}
       <section className="py-20 px-4 max-w-6xl mx-auto">
@@ -335,8 +316,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 5. PATROCINADORES */}
-      <SponsorsSection />
+
 
       {/* 6. FINAL CTA BANNER */}
       <section className="py-20 px-4 text-center bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-t border-emerald-500/20 relative">

@@ -49,30 +49,23 @@ export function SponsorsSection() {
   }
 
   return (
-    <section className="py-16 px-4 w-full bg-slate-900/90 border-t border-slate-800 text-center">
+    <section className="w-full bg-slate-900/90 border-y border-slate-800 py-8 px-4 text-center">
       <div className="max-w-6xl mx-auto">
-        <span className="bg-amber-400/10 text-amber-400 border border-amber-400/30 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider inline-block mb-3">
-          Parceiros Oficiais
+        <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-4">
+          🤝 Patrocinadores & Parceiros Oficiais
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
-          Patrocinadores & Apoio
-        </h2>
-        <p className="text-gray-400 max-w-xl mx-auto mb-10 text-sm md:text-base">
-          Marcas incríveis que acreditam na cultura do futebol e financiam as premiações dos torcedores.
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
           {sponsors.map((sponsor) => {
             const content = (
-              <div className="bg-slate-950/60 border border-slate-800 hover:border-amber-400/50 p-6 rounded-2xl flex items-center justify-center w-44 h-24 transition-all transform hover:scale-105 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)] group">
+              <div className="bg-slate-950/70 border border-slate-800 hover:border-amber-400/50 px-6 py-4 rounded-2xl flex items-center justify-center min-w-[160px] h-20 transition-all transform hover:scale-105 hover:shadow-[0_0_20px_rgba(251,191,36,0.2)] group">
                 {sponsor.logoUrl ? (
                   <img
                     src={sponsor.logoUrl}
                     alt={sponsor.name}
-                    className="max-h-14 max-w-[130px] object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
+                    className="max-h-12 max-w-[140px] object-contain transition-all duration-300 group-hover:scale-105"
                   />
                 ) : (
-                  <span className="text-white font-bold text-lg group-hover:text-amber-400 transition-colors">
+                  <span className="text-white font-black text-base group-hover:text-amber-400 transition-colors uppercase tracking-wide">
                     {sponsor.name}
                   </span>
                 )}
