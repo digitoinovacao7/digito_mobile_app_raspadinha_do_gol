@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { PrizesSlider } from "../components/PrizesSlider";
 import { DemoScratchcard } from "../components/DemoScratchcard";
@@ -116,16 +117,13 @@ export function Home() {
               >
                 📱 BAIXAR NA PLAY STORE
               </a>
-              <a
-                href="#como-funciona"
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" });
-                }}
+              <Link
+                to="/como-funciona"
+                onClick={() => window.scrollTo(0, 0)}
                 className="w-full sm:w-auto bg-slate-900/80 border border-white/20 text-white text-lg font-bold px-8 py-4 rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all text-center backdrop-blur-md cursor-pointer"
               >
                 Como Funciona
-              </a>
+              </Link>
             </div>
 
             <div className="mt-8 flex items-center gap-6 text-xs text-gray-400 font-medium">

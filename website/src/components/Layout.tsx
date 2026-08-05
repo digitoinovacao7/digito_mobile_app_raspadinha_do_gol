@@ -34,20 +34,7 @@ export function Layout() {
           </Link>
           <nav className="hidden md:flex gap-6 font-semibold items-center drop-shadow-md">
             <Link to="/" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Início</Link>
-            <a
-              href="#como-funciona"
-              onClick={(e) => {
-                if (isHome) {
-                  e.preventDefault();
-                  document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" });
-                } else {
-                  window.scrollTo(0, 0);
-                }
-              }}
-              className="hover:text-accent transition-colors cursor-pointer"
-            >
-              Como Funciona
-            </a>
+            <Link to="/como-funciona" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Como Funciona</Link>
             <Link to="/faq" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Dúvidas (FAQ)</Link>
             <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="bg-accent text-text-dark px-4 py-2 rounded-lg hover:brightness-110 transition-all font-bold drop-shadow-none">
               Baixar App
@@ -73,21 +60,7 @@ export function Layout() {
         {isMobileMenuOpen && (
           <div className="md:hidden bg-primary/95 backdrop-blur-md border-t border-white/10 absolute top-full left-0 w-full flex flex-col p-4 shadow-xl text-white">
             <Link to="/" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Início</Link>
-            <a
-              href="#como-funciona"
-              onClick={(e) => {
-                setIsMobileMenuOpen(false);
-                if (isHome) {
-                  e.preventDefault();
-                  document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" });
-                } else {
-                  window.scrollTo(0, 0);
-                }
-              }}
-              className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10 cursor-pointer"
-            >
-              Como Funciona
-            </a>
+            <Link to="/como-funciona" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Como Funciona</Link>
             <Link to="/faq" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-white/10">Dúvidas (FAQ)</Link>
             <a href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol" target="_blank" rel="noopener noreferrer" className="mt-4 bg-accent text-text-dark text-lg px-4 py-3 rounded-xl font-bold text-center hover:scale-[1.02] transition-transform">Baixar App</a>
           </div>
