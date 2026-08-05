@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { PrizesSlider } from "../components/PrizesSlider";
 import { DemoScratchcard } from "../components/DemoScratchcard";
@@ -117,13 +116,16 @@ export function Home() {
               >
                 📱 BAIXAR NA PLAY STORE
               </a>
-              <Link
-                to="/como-funciona"
-                onClick={() => window.scrollTo(0, 0)}
-                className="w-full sm:w-auto bg-slate-900/80 border border-white/20 text-white text-lg font-bold px-8 py-4 rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all text-center backdrop-blur-md"
+              <a
+                href="#como-funciona"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="w-full sm:w-auto bg-slate-900/80 border border-white/20 text-white text-lg font-bold px-8 py-4 rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all text-center backdrop-blur-md cursor-pointer"
               >
                 Como Funciona
-              </Link>
+              </a>
             </div>
 
             <div className="mt-8 flex items-center gap-6 text-xs text-gray-400 font-medium">
@@ -273,7 +275,7 @@ export function Home() {
       </section>
 
       {/* 5. COMO FUNCIONA (PASSO A PASSO Visual) */}
-      <section className="py-20 px-4 max-w-6xl mx-auto">
+      <section id="como-funciona" className="py-20 px-4 max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-black text-white">
             Como Funciona em 3 Passos Simples
