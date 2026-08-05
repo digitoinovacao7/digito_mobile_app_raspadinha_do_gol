@@ -72,7 +72,7 @@ export function Home() {
   return (
     <div className="w-full bg-slate-950 text-white font-sans overflow-hidden">
       {/* 1. HERO SECTION */}
-      <section className="relative w-full min-h-[92vh] pt-32 pb-20 px-4 md:px-8 flex items-center justify-center overflow-hidden">
+      <section className="relative w-full pt-28 pb-10 px-4 md:px-8 flex items-center justify-center overflow-hidden">
         {/* Background Images Slider with Smooth Blur */}
         {heroImages.map((img, index) => (
           <img

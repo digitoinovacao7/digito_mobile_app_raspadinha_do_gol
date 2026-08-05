@@ -49,9 +49,9 @@ export function SponsorsSection() {
   }
 
   return (
-    <section className="w-full bg-slate-900/90 border-y border-slate-800 py-6 px-4 text-center">
+    <section className="w-full bg-slate-900/90 border-y border-slate-800 py-4 px-4 text-center">
       <div className="max-w-6xl mx-auto">
-        <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-4">
+        <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-2">
           🤝 Patrocinadores & Parceiros Oficiais
         </span>
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
