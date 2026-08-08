@@ -918,10 +918,125 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
+  void _applyPreset({
+    required String name,
+    required String type,
+    required String scope,
+    required int tokenCost,
+    required String imageUrl,
+    required String prizeLink,
+  }) {
+    setState(() {
+      _newPrizeNameCtrl.text = name;
+      _newPrizeType = type;
+      _newPrizeScope = scope;
+      _newPrizeTokenCostCtrl.text = tokenCost.toString();
+      _newPrizeImageCtrl.text = imageUrl;
+      _newPrizeLinkCtrl.text = prizeLink;
+      _selectedLeagueId = null;
+      _selectedFixtureId = null;
+      _fetchedMatches = [];
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Modelo "$name" aplicado! Clique em Adicionar Prêmio para confirmar.'),
+        backgroundColor: Colors.blueAccent,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Widget _buildPrizeForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.bolt, color: Colors.amber, size: 20),
+                  SizedBox(width: 6),
+                  Text(
+                    'Preenchimento Rápido (1 Clique)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.brown,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.pix, size: 16, color: Colors.teal),
+                    label: const Text('PIX R\$ 10'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _applyPreset(
+                      name: 'PIX Instantâneo R\$ 10,00',
+                      type: 'pix',
+                      scope: 'global',
+                      tokenCost: 0,
+                      imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo%E2%80%94pix_powered_by_Banco_Central_%28Brasil_-_2020%29.png',
+                      prizeLink: '',
+                    ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.pix, size: 16, color: Colors.teal),
+                    label: const Text('PIX R\$ 50'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _applyPreset(
+                      name: 'PIX Instantâneo R\$ 50,00',
+                      type: 'pix',
+                      scope: 'global',
+                      tokenCost: 0,
+                      imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo%E2%80%94pix_powered_by_Banco_Central_%28Brasil_-_2020%29.png',
+                      prizeLink: '',
+                    ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.checkroom, size: 16, color: Colors.deepOrange),
+                    label: const Text('Camisa Oficial'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _applyPreset(
+                      name: 'Camisa Oficial do Seu Time',
+                      type: 'produto',
+                      scope: 'global',
+                      tokenCost: 0,
+                      imageUrl: '',
+                      prizeLink: '',
+                    ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.card_giftcard, size: 16, color: Colors.purple),
+                    label: const Text('Vale Compras R\$ 20'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _applyPreset(
+                      name: 'Vale Compras R\$ 20,00',
+                      type: 'produto',
+                      scope: 'global',
+                      tokenCost: 0,
+                      imageUrl: '',
+                      prizeLink: '',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         const Text(
           'Escopo do Prêmio',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -1351,6 +1466,34 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     }
   }
 
+  Future<void> _duplicatePrize(DocumentSnapshot doc) async {
+    final prize = doc.data() as Map<String, dynamic>;
+    try {
+      final copy = Map<String, dynamic>.from(prize);
+      copy['name'] = '${prize['name']} (Cópia)';
+      copy['createdAt'] = FieldValue.serverTimestamp();
+      copy['active'] = true;
+      await FirebaseFirestore.instance.collection('prizes').add(copy);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Prêmio duplicado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao duplicar prêmio: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildPrizesList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -1480,6 +1623,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         onSelected: (value) {
                           if (value == 'edit') {
                             _showEditPrizeDialog(context, doc);
+                          } else if (value == 'duplicate') {
+                            _duplicatePrize(doc);
                           } else if (value == 'delete') {
                             _confirmDeletePrize(context, doc);
                           }
@@ -1492,6 +1637,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                 Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 18),
                                 SizedBox(width: 8),
                                 Text('Editar Prêmio'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'duplicate',
+                            child: Row(
+                              children: [
+                                Icon(Icons.copy, color: Colors.amber, size: 18),
+                                SizedBox(width: 8),
+                                Text('Duplicar Prêmio'),
                               ],
                             ),
                           ),
