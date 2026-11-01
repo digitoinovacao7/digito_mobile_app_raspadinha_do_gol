@@ -408,9 +408,9 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.red.shade200),
+                      border: Border.all(color: Colors.orange.shade300),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -419,15 +419,15 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: Color(0xFFFF6D00),
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           '${match.elapsed}\' - ${match.status}',
-                          style: TextStyle(
-                            color: Colors.red.shade900,
+                          style: const TextStyle(
+                            color: Color(0xFFE65100),
                             fontWeight: FontWeight.bold,
                           ),
                         ),

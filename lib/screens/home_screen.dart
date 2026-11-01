@@ -271,13 +271,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isLive ? Colors.red.shade300 : Colors.grey.shade200,
+            color: isLive ? Colors.orange.shade400 : Colors.grey.shade200,
             width: isLive ? 1.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
               color: isLive
-                  ? Colors.red.withValues(alpha: 0.08)
+                  ? Colors.orange.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
@@ -320,7 +320,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isLive
-                        ? Colors.red.withValues(alpha: 0.12)
+                        ? Colors.orange.withValues(alpha: 0.15)
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -331,7 +331,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           width: 6,
                           height: 6,
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: Color(0xFFFF6D00),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -340,7 +340,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Text(
                         isLive ? 'AO VIVO' : status,
                         style: TextStyle(
-                          color: isLive ? Colors.red : Colors.grey.shade700,
+                          color: isLive
+                              ? const Color(0xFFE65100)
+                              : Colors.grey.shade700,
                           fontWeight: FontWeight.w900,
                           fontSize: 10,
                         ),
@@ -373,7 +375,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: isLive ? 24 : 16,
-                      color: isLive ? Colors.red : AppTheme.textDark,
+                      color: isLive
+                          ? const Color(0xFFE65100)
+                          : AppTheme.textDark,
                     ),
                   ),
                 ),
@@ -395,7 +399,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isLive
-                      ? [const Color(0xFFDC2626), const Color(0xFFB91C1C)]
+                      ? [const Color(0xFFFF6D00), const Color(0xFFE65100)]
                       : [AppTheme.primaryGreen, const Color(0xFF007A33)],
                 ),
                 borderRadius: BorderRadius.circular(10),
@@ -546,7 +550,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: const Color(0xFFFF6D00),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(

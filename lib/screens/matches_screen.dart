@@ -131,7 +131,7 @@ class _MatchesScreenState extends ConsumerState<MatchesScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: isLive ? Colors.red : (isFinished ? Colors.grey : AppTheme.primaryGreen),
+                                      color: isLive ? const Color(0xFFFF6D00) : (isFinished ? Colors.grey : AppTheme.primaryGreen),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
