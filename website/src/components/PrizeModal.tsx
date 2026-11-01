@@ -156,7 +156,7 @@ export function PrizeModal() {
               <span className="text-amber-400 font-black text-sm">🪙 Qual o Papel Real dos Tokens?</span>
             </div>
             <p className="text-xs text-emerald-100/80 leading-relaxed">
-              Tokens <strong>NÃO são dinheiro e NÃO são apostas!</strong> São pontos que você acumula 100% grátis acertando quizzes com IA durante a partida e vibrando nos gols. O papel real dos Tokens é <strong>trocar por prêmios físicos reais</strong> (como este!) na Loja do App e liberar mais raspadinhas!
+              Tokens <strong>NÃO são dinheiro e NÃO são apostas!</strong> Você ganha Tokens 100% grátis acertando quizzes com IA e participando da torcida. O papel real dos Tokens é <strong>trocar por cartelas de Raspadinha</strong>, onde você raspa e concorre a prêmios físicos reais (como este!) entregues na sua casa com frete e rastreio!
             </p>
           </div>
 
@@ -175,7 +175,7 @@ export function PrizeModal() {
               onClick={() => setIsOpen(false)}
               className="w-full py-2.5 text-xs font-bold text-emerald-300/80 hover:text-white transition-colors cursor-pointer text-center"
             >
-              Ver jogos de hoje no site
+              Continuar navegando no site
             </button>
           </div>
         </div>

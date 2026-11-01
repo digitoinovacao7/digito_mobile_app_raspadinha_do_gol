@@ -62,7 +62,7 @@ class HelpScreen extends StatelessWidget {
             iconColor: AppTheme.accentGold,
             title: 'Qual o Papel Real dos Tokens?',
             description:
-                'Tokens do Gol (🟡) são pontos de fidelidade e conhecimento do torcedor — NÃO são apostas nem dinheiro real. Você ganha tokens 100% grátis respondendo aos quizzes de IA durante as partidas ao vivo, assistindo a vídeos premiados e indicando amigos. O papel real dos Tokens é ser trocado por Prêmios Físicos Reais (camisas oficiais de clubes, tênis, bolas e produtos de parceiros) entregues com código de rastreio na sua casa, além de liberar cartelas extras de raspadinha!',
+                'Tokens do Gol (🟡) são pontos de fidelidade e conhecimento do torcedor — NÃO são apostas nem dinheiro real. Você ganha tokens 100% grátis respondendo aos quizzes de IA durante as partidas, assistindo a vídeos premiados e indicando amigos. O papel real dos Tokens é trocar por novas cartelas de Raspadinha! Ao raspar suas cartelas, você concorre e fatura na hora Prêmios Físicos Reais (camisas oficiais de clubes, tênis, bolas e produtos de parceiros) entregues com código de rastreio na sua casa!',
           ),
           const SizedBox(height: 14),
           _buildHelpCard(

@@ -1080,7 +1080,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: Text(
-                          '🪙 Papel dos Tokens: Pontue grátis nos quizzes com IA e gols para trocar por prêmios físicos reais sem apostas!',
+                          '🪙 Papel dos Tokens: Ganhe grátis nos quizzes com IA para trocar por Raspadinhas e concorrer a camisas oficiais entregues na sua casa!',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,

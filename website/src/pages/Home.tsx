@@ -27,17 +27,17 @@ const heroImages = [
 const HOME_FAQS = [
   {
     q: "O que a Raspadinha do Gol oferece para os torcedores?",
-    a: "O aplicativo oferece uma experiência 100% gratuita em 4 pilares: 1) Quizzes dinâmicos com IA para testar seus conhecimentos e faturar Tokens do Gol; 2) Raspadinhas instantâneas liberadas a cada gol marcado nos jogos oficiais valendo prêmios na hora; 3) Bolão do Gol para disputar palpites de placar exato com amigos ou bares com apuração automática; 4) Loja oficial onde seus Tokens são trocados por camisas oficiais de clubes, bolas e brindes entregues na sua casa!",
+    a: "O aplicativo oferece uma experiência 100% gratuita em 4 pilares: 1) Quizzes dinâmicos com IA para testar seus conhecimentos e faturar Tokens do Gol; 2) Troca de Tokens por Raspadinhas, onde você concorre a camisas oficiais e produtos parceiros; 3) Raspadinhas instantâneas liberadas a cada gol marcado nos jogos oficiais; 4) Bolão do Gol para disputar palpites com a galera e bares com apuração automática!",
     badge: "⚽ O que o App Oferece",
   },
   {
     q: "Qual o papel real dos Tokens no aplicativo?",
-    a: "Os Tokens do Gol são o sistema de pontos e fidelidade do torcedor — NÃO são apostas nem dinheiro real. Você ganha Tokens gratuitamente acertando quizzes de IA durante os jogos, assistindo a vídeos e vibrando nos gols. Seus Tokens servem exclusivamente para trocar por Prêmios Físicos Reais (camisas oficiais, tênis, bolas, eletrônicos) na Loja de Prêmios e desbloquear raspadinhas extras!",
+    a: "Os Tokens do Gol são o sistema de pontos e fidelidade do torcedor — NÃO são apostas nem dinheiro real. Você ganha Tokens gratuitamente acertando quizzes de IA e assistindo a vídeos. O papel real dos seus Tokens é serem trocados por novas cartelas de Raspadinha, onde você raspa e concorre a Prêmios Físicos Reais (camisas oficiais de clubes, tênis, bolas, eletrônicos) entregues na sua casa!",
     badge: "🪙 Papel Real dos Tokens",
   },
   {
     q: "Como são entregues os prêmios e camisas oficiais?",
-    a: "Assim que você acumula Tokens do Gol ou acerta 3 símbolos na raspadinha, basta solicitar o resgate direto pelo aplicativo. Todas as camisas oficiais, bolas e brindes são enviados diretamente com código de rastreamento para o seu endereço sem custo de frete!",
+    a: "Ao raspar a cartela e encontrar os 3 símbolos premiados, basta solicitar a entrega direto pelo aplicativo. Todas as camisas oficiais, bolas e produtos de parceiros são enviados com código de rastreamento para o seu endereço sem custo de frete!",
     badge: "🎁 Entrega Garantida",
   },
   {
@@ -191,7 +191,7 @@ export function Home() {
                 Quizzes Esportivos Diários
               </h3>
               <p className="text-emerald-100/75 text-sm leading-relaxed">
-                Desafie sua mente com perguntas dinâmicas geradas por IA sobre a história do futebol, escalações históricas, clássicos e copas. Acerte e acumule Tokens do Gol gratuitos todos os dias.
+                Desafie sua mente com perguntas dinâmicas geradas por IA sobre a história do futebol, escalações históricas, clássicos e copas. Acerte e acumule Tokens do Gol gratuitos para trocar por cartelas de Raspadinha!
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-emerald-300 font-bold">
@@ -257,7 +257,7 @@ export function Home() {
                 Prêmios Físicos Reais
               </h3>
               <p className="text-emerald-100/75 text-sm leading-relaxed">
-                O papel real dos Tokens do Gol é serem trocados por produtos oficiais! Camisas oficiais de clubes do Brasileirão, bolas, chuteiras e produtos de marcas parceiras enviados com rastreamento para o seu endereço.
+                Ao raspar suas cartelas obtidas com Tokens ou nos gols ao vivo, encontre 3 símbolos iguais para faturar Camisas Oficiais de clubes, bolas e brindes exclusivos entregues na sua casa!
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-emerald-300 font-bold">
