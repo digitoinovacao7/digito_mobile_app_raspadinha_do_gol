@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/theme.dart';
 
 class HelpScreen extends StatelessWidget {
@@ -103,7 +104,107 @@ class HelpScreen extends StatelessWidget {
             description:
                 'Nossas empresas parceiras apoiam o futebol e financiam os prêmios oficiais entregues aos torcedores vencedores. Visite os sites oficiais através dos banners na página inicial!',
           ),
+          const SizedBox(height: 14),
+          _buildSocialChannelsCard(context),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSocialChannelsCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF062414),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGold.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.share, color: AppTheme.accentGold, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Redes Sociais Oficiais',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Siga o Guia do Player para não perder análises dos jogos, novidades das rodadas e avisos de prêmios!',
+            style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse('https://www.youtube.com/@guiadoplayeroficial');
+                    try {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      debugPrint('Error launching youtube: $e');
+                    }
+                  },
+                  icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 18),
+                  label: const Text('YouTube', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse('https://www.tiktok.com/@guiadoplayeroficial');
+                    try {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      debugPrint('Error launching tiktok: $e');
+                    }
+                  },
+                  icon: const Icon(Icons.music_note, color: Colors.white, size: 18),
+                  label: const Text('TikTok', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

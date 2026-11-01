@@ -283,7 +283,6 @@ export function Suporte() {
 
         {/* Informações rápidas de rodapé */}
         <div className="mt-8 text-center text-xs text-emerald-200/70 space-y-1">
-          <p>E-mail direto da administração: <a href="mailto:contato@digitoinovacao.com.br" className="text-amber-300 underline font-semibold">contato@digitoinovacao.com.br</a></p>
           <p>Dúvidas frequentes sobre camisas oficiais e envio de prêmios? <Link to="/faq" className="text-emerald-300 underline">Acesse o FAQ</Link></p>
         </div>
       </div>

@@ -55,47 +55,55 @@ export function SponsorsSection() {
           🤝 Patrocinadores & Parceiros Oficiais
         </span>
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
-          {sponsors.map((sponsor) => {
-            const content = (
-              <div className="bg-white border border-gray-100 hover:border-amber-400 p-3.5 rounded-2xl flex flex-col items-center justify-center min-w-[170px] max-w-[200px] transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-xl group cursor-pointer">
-                <div className="bg-gray-50 rounded-xl p-2.5 w-full h-20 flex items-center justify-center border border-gray-100 overflow-hidden">
-                  {sponsor.logoUrl ? (
-                    <img
-                      src={sponsor.logoUrl}
-                      alt={`Logo do patrocinador oficial ${sponsor.name}`}
-                      loading="lazy"
-                      className="max-h-14 max-w-[140px] object-contain transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <span className="text-gray-950 font-black text-sm uppercase">
-                      {sponsor.name}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-gray-900 mt-2.5 text-center truncate max-w-[150px] group-hover:text-amber-600 transition-colors uppercase tracking-wider">
-                  {sponsor.name}
-                </span>
-              </div>
-            );
-
-            if (sponsor.siteUrl && sponsor.siteUrl.trim().length > 0) {
-              return (
-                <a
-                  key={sponsor.id}
-                  href={sponsor.siteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={sponsor.name}
-                >
-                  {content}
-                </a>
-              );
-            }
-
-            return <div key={sponsor.id}>{content}</div>;
-          })}
+          {sponsors.map((sponsor) => (
+            <SponsorItem key={sponsor.id} sponsor={sponsor} />
+          ))}
         </div>
       </div>
     </section>
   );
+}
+
+function SponsorItem({ sponsor }: { sponsor: Sponsor }) {
+  const [imgError, setImgError] = useState(false);
+
+  const content = (
+    <div className="bg-white border border-gray-100 hover:border-amber-400 p-3.5 rounded-2xl flex flex-col items-center justify-center min-w-[170px] max-w-[200px] transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-xl group cursor-pointer">
+      <div className="bg-gray-50 rounded-xl p-2.5 w-full h-20 flex items-center justify-center border border-gray-100 overflow-hidden">
+        {sponsor.logoUrl && !imgError ? (
+          <img
+            src={sponsor.logoUrl}
+            alt={`Logo do patrocinador oficial ${sponsor.name}`}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="max-h-14 max-w-[140px] object-contain transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-emerald-50 rounded-lg border border-emerald-100">
+            <span className="text-emerald-950 font-black text-sm uppercase tracking-wide text-center px-2">
+              {sponsor.name}
+            </span>
+          </div>
+        )}
+      </div>
+      <span className="text-xs font-bold text-gray-900 mt-2.5 text-center truncate max-w-[150px] group-hover:text-amber-600 transition-colors uppercase tracking-wider">
+        {sponsor.name}
+      </span>
+    </div>
+  );
+
+  if (sponsor.siteUrl && sponsor.siteUrl.trim().length > 0) {
+    return (
+      <a
+        href={sponsor.siteUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={sponsor.name}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <div>{content}</div>;
 }

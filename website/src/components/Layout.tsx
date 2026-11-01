@@ -153,12 +153,15 @@ export function Layout() {
                   </Link>
                 </li>
                 <li>
-                  <a href="mailto:contato@digitoinovacao.com.br?subject=Suporte%20Raspadinha%20do%20Gol" className="text-emerald-100/70 hover:text-white transition-colors text-sm flex items-center gap-2">
-                    <span>✉️</span> contato@digitoinovacao.com.br
+                  <a href="https://www.youtube.com/@guiadoplayeroficial" target="_blank" rel="noopener noreferrer" className="text-emerald-100/70 hover:text-red-400 transition-colors text-sm flex items-center gap-2">
+                    <span>▶️</span> YouTube (@guiadoplayeroficial)
                   </a>
                 </li>
-                <li><a href="https://www.youtube.com/@digitoinovacao" target="_blank" rel="noopener noreferrer" className="text-emerald-100/70 hover:text-red-400 transition-colors text-sm flex items-center gap-2">▶️ YouTube</a></li>
-                <li><a href="https://www.instagram.com/digitoinovacaooficial/" target="_blank" rel="noopener noreferrer" className="text-emerald-100/70 hover:text-pink-400 transition-colors text-sm flex items-center gap-2">📷 Instagram</a></li>
+                <li>
+                  <a href="https://www.tiktok.com/@guiadoplayeroficial" target="_blank" rel="noopener noreferrer" className="text-emerald-100/70 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2">
+                    <span>🎵</span> TikTok (@guiadoplayeroficial)
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

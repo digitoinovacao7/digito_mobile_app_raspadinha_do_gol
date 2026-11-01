@@ -41,7 +41,10 @@
 
       gtag("config", "G-S332DVYP0G");
     </script>
-    <style id="splash-screen-style">
+    
+  
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+  <style id="splash-screen-style">
     html {
       height: 100%
     }
@@ -106,7 +109,6 @@
       document.body.style.background = "transparent";
     }
   </script>
-  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 </head>
   <body>
   <picture id="splash">
@@ -114,6 +116,7 @@
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
+  
     <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -122,7 +125,37 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-    <script src="flutter_bootstrap.js" async=""></script>
+    <script>
+      (function() {
+        try {
+          var BUILD_VER = "20261025-v11";
+          if (localStorage.getItem("rdg_sw_purged") !== BUILD_VER) {
+            if ("serviceWorker" in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                var hadSw = regs.length > 0;
+                Promise.all(regs.map(function(r) { return r.unregister(); })).then(function() {
+                  if ("caches" in window) {
+                    return caches.keys().then(function(keys) {
+                      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                    });
+                  }
+                }).then(function() {
+                  localStorage.setItem("rdg_sw_purged", BUILD_VER);
+                  if (hadSw) {
+                    window.location.reload();
+                  }
+                });
+              });
+            } else {
+              localStorage.setItem("rdg_sw_purged", BUILD_VER);
+            }
+          }
+        } catch (e) {
+          console.warn("SW purge warning:", e);
+        }
+      })();
+    </script>
+    <script src="flutter_bootstrap.js?v=20261025-v11" async=""></script>
   
 
 </body></html>

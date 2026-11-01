@@ -281,9 +281,9 @@ export function Home() {
           <span>📍 {heroImages[currentImage].name}</span>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center w-full">
+        <div className="relative z-10 max-w-7xl mx-auto grid lg:grid-cols-12 gap-8 items-center w-full">
           {/* Left Column: Headline, Social Proof & Primary Call to Actions */}
-          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="lg:col-span-8 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="inline-flex items-center gap-2 bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold px-3.5 py-1.5 rounded-full mb-5 uppercase tracking-wider backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               App Oficial de Futebol & Bolão
@@ -329,7 +329,7 @@ export function Home() {
           </div>
 
           {/* Right Column: Interactive Demo Scratchcard */}
-          <div className="lg:col-span-5 flex justify-center w-full">
+          <div className="lg:col-span-4 flex justify-center lg:justify-end w-full">
             <DemoScratchcard />
           </div>
         </div>
@@ -806,7 +806,62 @@ export function Home() {
         </div>
       </section>
 
-      {/* 8. FINAL CTA BANNER */}
+      {/* 8. REDES SOCIAIS OFICIAIS */}
+      <section className="py-14 px-4 max-w-5xl mx-auto text-center border-t border-emerald-900/40">
+        <span className="bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider inline-flex items-center gap-2">
+          <span>📲</span> Comunidade & Conteúdos Exclusivos
+        </span>
+        <h2 className="text-3xl md:text-4xl font-black text-white mt-3">
+          Siga Nossas Redes Oficiais
+        </h2>
+        <p className="text-emerald-100/75 max-w-xl mx-auto mt-2 text-sm sm:text-base mb-8">
+          Acompanhe análises de rodadas, vídeos de gols, bastidores e novidades sobre os prêmios no canal oficial.
+        </p>
+
+        <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {/* YouTube */}
+          <a
+            href="https://www.youtube.com/@guiadoplayeroficial"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-5 rounded-2xl bg-[#062916] border border-red-500/30 hover:border-red-500 hover:bg-[#0a3820] transition-all group shadow-lg hover:scale-[1.02]"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 group-hover:bg-red-600 group-hover:text-white transition-all text-2xl shadow-inner">
+              ▶
+            </div>
+            <div className="text-left flex-1">
+              <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Canal Oficial</span>
+              <span className="text-lg font-black text-white group-hover:text-red-300 transition-colors block">
+                YouTube
+              </span>
+              <span className="text-xs text-emerald-200/60 font-medium">@guiadoplayeroficial</span>
+            </div>
+            <span className="text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all">→</span>
+          </a>
+
+          {/* TikTok */}
+          <a
+            href="https://www.tiktok.com/@guiadoplayeroficial"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-5 rounded-2xl bg-[#062916] border border-cyan-400/30 hover:border-cyan-400 hover:bg-[#0a3820] transition-all group shadow-lg hover:scale-[1.02]"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-black border border-white/20 flex items-center justify-center text-cyan-400 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all text-2xl shadow-inner">
+              🎵
+            </div>
+            <div className="text-left flex-1">
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">Vídeos Curtos</span>
+              <span className="text-lg font-black text-white group-hover:text-cyan-300 transition-colors block">
+                TikTok
+              </span>
+              <span className="text-xs text-emerald-200/60 font-medium">@guiadoplayeroficial</span>
+            </div>
+            <span className="text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all">→</span>
+          </a>
+        </div>
+      </section>
+
+      {/* 9. FINAL CTA BANNER */}
       <section className="py-20 px-4 text-center bg-gradient-to-r from-[#03170c] via-[#07301a] to-[#03170c] border-t border-emerald-500/30 relative">
         <div className="max-w-4xl mx-auto relative z-10">
           <h2 className="text-3xl sm:text-5xl font-black text-white mb-6">
