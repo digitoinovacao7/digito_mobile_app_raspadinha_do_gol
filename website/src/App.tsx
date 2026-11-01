@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
-import { Regulamento, Privacidade, Termos, JogoResponsavel, SobreNos } from './pages/StaticPages';
+import { Regulamento, Privacidade, Termos, JogoResponsavel, SobreNos, Suporte } from './pages/StaticPages';
 import { FAQ } from './pages/FAQ';
 import { ComoFunciona } from './pages/ComoFunciona';
 
@@ -18,6 +18,7 @@ function App() {
           <Route path="como-funciona" element={<ComoFunciona />} />
           <Route path="sobre-nos" element={<SobreNos />} />
           <Route path="faq" element={<FAQ />} />
+          <Route path="suporte" element={<Suporte />} />
         </Route>
       </Routes>
     </BrowserRouter>

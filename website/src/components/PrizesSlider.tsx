@@ -38,7 +38,7 @@ export function PrizesSlider() {
   }, []);
 
   return (
-    <div className="relative w-full overflow-hidden h-[600px] bg-black group">
+    <div className="relative w-full overflow-hidden h-[600px] bg-[#041d10] group">
       {/* Título fixo sobreposto ao banner */}
       <div className="absolute top-16 left-0 w-full z-20 text-center pointer-events-none">
         <h3 className="text-3xl md:text-5xl font-black text-white drop-shadow-2xl tracking-wide">
@@ -46,20 +46,26 @@ export function PrizesSlider() {
         </h3>
       </div>
 
-      {/* Fade no topo para misturar com o espaçamento preto acima */}
-      <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
+      {/* Fade no topo para misturar com o gramado acima */}
+      <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-[#041d10] to-transparent z-10 pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#041d10] to-transparent z-10 pointer-events-none"></div>
 
       {slides.map((slide, index) => (
         <div
           key={slide.id}
-          className={`absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center p-8 transition-opacity duration-1000 bg-cover bg-center text-white ${
+          className={`absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center p-8 transition-opacity duration-1000 text-white ${
             index === currentSlide
               ? "opacity-100 z-10"
               : "opacity-0 z-0 pointer-events-none"
           }`}
-          style={{ backgroundImage: `url(${slide.image})` }}
         >
-          <div className="absolute inset-0 bg-black/60 z-0"></div>
+          <img
+            src={slide.image}
+            alt={`${slide.title} - ${slide.description}`}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover z-0"
+          />
+          <div className="absolute inset-0 bg-[#03170c]/65 z-0"></div>
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-center max-w-6xl mx-auto w-full mt-16">
             <div className="text-7xl mb-4 md:mb-0 md:mr-8 drop-shadow-lg">
               {slide.icon}

@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #006400; /* Verde Gramado */
+  --color-primary: #064e28; /* Verde Gramado Escuro */
+  --color-pitch-bg: #041d10; /* Gramado Noturno Principal */
+  --color-pitch-surface: #072917; /* Superfície Gramado */
+  --color-pitch-card: #0a351e; /* Card Verde Futebol */
+  --color-pitch-border: #14532d; /* Borda Verde Gramado */
   --color-accent: #FFD700; /* Dourado */
-  --color-bg-light: #F8F9FA;
-  --color-text-dark: #1E293B;
+  --color-bg-light: #041d10;
+  --color-text-dark: #03150b;
 }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--color-bg-light);
-  color: var(--color-text-dark);
+  background-color: var(--color-pitch-bg);
+  color: #ffffff;
 }
 
 @keyframes pulseZoom {

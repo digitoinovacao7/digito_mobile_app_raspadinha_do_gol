@@ -295,8 +295,8 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
     final List<Widget> playerScreens = [
       const HomeScreen(),
-      const BolaoScreen(),
       const QuizStandaloneScreen(),
+      const BolaoScreen(),
       MyScratchcardsScreen(onExploreGames: () => onTabTapped(0)),
       WalletStoreScreen(onExploreGames: () => onTabTapped(0)),
     ];
@@ -307,12 +307,12 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         label: 'Home',
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.emoji_events),
-        label: 'Bolão',
-      ),
-      BottomNavigationBarItem(
         icon: Icon(Icons.psychology),
         label: 'Quiz',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.emoji_events),
+        label: 'Bolão',
       ),
       BottomNavigationBarItem(
         icon: Icon(Icons.style),
@@ -328,9 +328,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       if (isViewingAdminScreen) return 'Painel Admin';
       switch (_currentIndex) {
         case 1:
-          return 'Bolão do Gol ⚽';
-        case 2:
           return 'Quiz por Diversão';
+        case 2:
+          return 'Bolão do Gol ⚽';
         case 3:
           return 'Minhas Cartelas';
         case 4:

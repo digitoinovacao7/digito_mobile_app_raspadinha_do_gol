@@ -1072,16 +1072,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      Text(
-                        'Tome uma cerveja, acompanhe os lances e acerte o quiz para raspar e levar!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          height: 1.3,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          '🪙 Papel dos Tokens: Pontue grátis nos quizzes com IA e gols para trocar por prêmios físicos reais sem apostas!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade800,
+                            height: 1.25,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
 
                       // CTA Button
                       SizedBox(

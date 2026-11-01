@@ -49,7 +49,7 @@ export function SponsorsSection() {
   }
 
   return (
-    <section className="w-full bg-slate-900/90 border-y border-slate-800 py-4 px-4 text-center">
+    <section className="w-full bg-[#062414]/90 border-y border-emerald-800/60 py-4 px-4 text-center">
       <div className="max-w-6xl mx-auto">
         <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-2">
           🤝 Patrocinadores & Parceiros Oficiais
@@ -57,21 +57,22 @@ export function SponsorsSection() {
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
           {sponsors.map((sponsor) => {
             const content = (
-              <div className="bg-slate-950/80 border border-slate-800 hover:border-amber-400/60 p-3.5 rounded-2xl flex flex-col items-center justify-center min-w-[170px] max-w-[200px] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-[0_0_25px_rgba(251,191,36,0.3)] group cursor-pointer">
-                <div className="bg-white rounded-xl p-2.5 w-full h-20 flex items-center justify-center shadow-inner overflow-hidden">
+              <div className="bg-white border border-gray-100 hover:border-amber-400 p-3.5 rounded-2xl flex flex-col items-center justify-center min-w-[170px] max-w-[200px] transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-xl group cursor-pointer">
+                <div className="bg-gray-50 rounded-xl p-2.5 w-full h-20 flex items-center justify-center border border-gray-100 overflow-hidden">
                   {sponsor.logoUrl ? (
                     <img
                       src={sponsor.logoUrl}
-                      alt={sponsor.name}
+                      alt={`Logo do patrocinador oficial ${sponsor.name}`}
+                      loading="lazy"
                       className="max-h-14 max-w-[140px] object-contain transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <span className="text-slate-900 font-black text-sm uppercase">
+                    <span className="text-gray-950 font-black text-sm uppercase">
                       {sponsor.name}
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-bold text-gray-300 mt-2.5 text-center truncate max-w-[150px] group-hover:text-amber-400 transition-colors uppercase tracking-wider">
+                <span className="text-xs font-bold text-gray-900 mt-2.5 text-center truncate max-w-[150px] group-hover:text-amber-600 transition-colors uppercase tracking-wider">
                   {sponsor.name}
                 </span>
               </div>

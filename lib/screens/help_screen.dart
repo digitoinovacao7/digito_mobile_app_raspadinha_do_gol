@@ -57,11 +57,11 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _buildHelpCard(
-            icon: Icons.monetization_on,
+            icon: Icons.stars,
             iconColor: AppTheme.accentGold,
-            title: 'O que são Moedas (Tokens)?',
+            title: 'Qual o Papel Real dos Tokens?',
             description:
-                'Tokens (🟡) são a moeda do torcedor no app! Você ganha moedas respondendo aos Quizzes diários, acompanhando jogos ao vivo na Arquibancada ou acertando cartelas. Use suas moedas para adquirir mais raspadinhas e resgatar recompensas na Loja!',
+                'Tokens do Gol (🟡) são pontos de fidelidade e conhecimento do torcedor — NÃO são apostas nem dinheiro real. Você ganha tokens 100% grátis respondendo aos quizzes de IA durante as partidas ao vivo, assistindo a vídeos premiados e indicando amigos. O papel real dos Tokens é ser trocado por Prêmios Físicos Reais (camisas oficiais de clubes, tênis, bolas e produtos de parceiros) entregues com código de rastreio na sua casa, além de liberar cartelas extras de raspadinha!',
           ),
           const SizedBox(height: 14),
           _buildHelpCard(
