@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
+import 'scratch_game_screen.dart';
 
 class MyScratchcardsScreen extends ConsumerStatefulWidget {
   final VoidCallback? onExploreGames;
@@ -90,7 +91,7 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
         }).toList();
 
         return Container(
-          color: const Color(0xFF0F172A), // Fundo azul escuro estádio
+          color: AppTheme.backgroundWhite, // Fundo branco padrão do app
           child: Column(
             children: [
               // Top Stats Banner
@@ -98,18 +99,19 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                 margin: const EdgeInsets.all(16.0),
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                  gradient: LinearGradient(
+                    colors: [AppTheme.primaryGreen, const Color(0xFF004D00)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.accentGold.withValues(alpha: 0.35),
+                    color: AppTheme.accentGold.withValues(alpha: 0.5),
+                    width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.3),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -120,7 +122,7 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                   children: [
                     _buildStatItem(
                       icon: Icons.style,
-                      iconColor: Colors.blueAccent,
+                      iconColor: AppTheme.accentGold,
                       title: 'Raspadas',
                       value: '$totalCount',
                     ),
@@ -135,12 +137,60 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                     _buildStatItem(
                       icon: Icons.stars,
                       iconColor: Colors.amber,
-                      title: 'Tokens Ganhas',
+                      title: 'Prêmios em Tokens',
                       value: '+$totalTokensWon',
                     ),
                   ],
                 ),
               ),
+
+              // Buy Scratchcard with Tokens Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('settings').doc('general').get(),
+                  builder: (context, snapshot) {
+                    int cost = 1000; // Default
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
+                      if (data != null && data['economy'] != null) {
+                        cost = int.tryParse(data['economy']['scratchcard_token_cost']?.toString() ?? '1000') ?? 1000;
+                      }
+                    }
+
+                    final bool canPlay = user.tokens >= cost;
+
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: canPlay
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ScratchGameScreen(useTokens: true)),
+                                );
+                              }
+                            : null,
+                        icon: Icon(Icons.style, color: canPlay ? Colors.black : Colors.grey),
+                        label: Text(
+                          canPlay ? 'Comprar Raspadinha ($cost Tokens)' : 'Saldo Insuficiente ($cost Tokens)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentGold,
+                          foregroundColor: Colors.black,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 4,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
 
               // Filter Chips
               Padding(
@@ -226,19 +276,19 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
           decoration: BoxDecoration(
             color: isSelected
                 ? AppTheme.accentGold
-                : Colors.white.withValues(alpha: 0.08),
+                : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? AppTheme.accentGold
-                  : Colors.white.withValues(alpha: 0.15),
+                  : Colors.grey.shade300,
             ),
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isSelected ? Colors.black : Colors.white,
+              color: isSelected ? Colors.black : AppTheme.textDark,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -277,7 +327,7 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                   ? 'Nenhuma cartela raspada ainda'
                   : 'Nenhuma cartela neste filtro',
               style: const TextStyle(
-                color: Colors.white,
+                color: AppTheme.textDark,
                 fontWeight: FontWeight.w900,
                 fontSize: 20,
               ),
@@ -288,8 +338,8 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                   ? 'Acompanhe os jogos ao vivo, acerte as perguntas do quiz e raspe cartelas premiadas!'
                   : 'Tente alterar o filtro acima para visualizar suas outras cartelas.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
+              style: const TextStyle(
+                color: Colors.black54,
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -339,12 +389,19 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
     }
 
     final prizeType = card['prizeType'] as String? ?? 'none';
+    final prizeName = card['prizeName'] as String?;
     final rawTokens = card['wonTokens'];
     final wonTokens = rawTokens is num ? rawTokens.toInt() : int.tryParse(rawTokens?.toString() ?? '') ?? 0;
+    final rawPix = card['wonPixAmount'];
+    final wonPix = rawPix is num ? rawPix.toDouble() : double.tryParse(rawPix?.toString() ?? '') ?? 0.0;
 
     String prizeText = 'Sem prêmio';
-    if (prizeType == 'tokens' && wonTokens > 0) {
+    if (wonPix > 0) {
+      prizeText = 'PIX R\$ ${wonPix.toStringAsFixed(2).replaceAll('.', ',')}';
+    } else if (wonTokens > 0) {
       prizeText = '+$wonTokens Tokens';
+    } else if (prizeName != null && prizeName.isNotEmpty) {
+      prizeText = prizeName;
     } else if (prizeType == 'item') {
       prizeText = 'Prêmio Físico Exclusivo!';
     } else if (won) {
@@ -354,29 +411,19 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: won
-              ? [
-                  const Color(0xFF1E293B),
-                  AppTheme.primaryGreen.withValues(alpha: 0.25),
-                ]
-              : [
-                  const Color(0xFF1E293B),
-                  const Color(0xFF0F172A),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: won ? Colors.white : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: won
-              ? AppTheme.accentGold.withValues(alpha: 0.6)
-              : Colors.white.withValues(alpha: 0.1),
-          width: won ? 1.5 : 1.0,
+              ? AppTheme.accentGold.withValues(alpha: 0.7)
+              : Colors.grey.shade200,
+          width: won ? 2.0 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: won
+                ? AppTheme.accentGold.withValues(alpha: 0.15)
+                : Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -391,17 +438,17 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: won
-                    ? AppTheme.accentGold.withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.06),
+                    ? AppTheme.accentGold.withValues(alpha: 0.15)
+                    : Colors.grey.shade100,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: won ? AppTheme.accentGold : Colors.white24,
+                  color: won ? AppTheme.accentGold : Colors.grey.shade300,
                   width: 1.5,
                 ),
               ),
               child: Icon(
                 won ? Icons.emoji_events : Icons.sports_soccer,
-                color: won ? AppTheme.accentGold : Colors.white54,
+                color: won ? AppTheme.accentGold : Colors.grey.shade400,
                 size: 26,
               ),
             ),
@@ -417,7 +464,7 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                       Text(
                         won ? 'VITORIOSA' : 'TENTATIVA',
                         style: TextStyle(
-                          color: won ? AppTheme.accentGold : Colors.white54,
+                          color: won ? AppTheme.accentGold : Colors.grey.shade500,
                           fontWeight: FontWeight.w900,
                           fontSize: 11,
                           letterSpacing: 0.8,
@@ -431,14 +478,14 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: won
-                              ? AppTheme.primaryGreen.withValues(alpha: 0.3)
-                              : Colors.white10,
+                              ? AppTheme.primaryGreen.withValues(alpha: 0.12)
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           '$winCount/3 Bolas',
                           style: TextStyle(
-                            color: won ? Colors.greenAccent : Colors.white70,
+                            color: won ? AppTheme.primaryGreen : Colors.grey.shade600,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -450,7 +497,7 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                   Text(
                     won ? 'Cartela Premiada 🏆' : 'Raspadinha do Gol',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textDark,
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
@@ -458,8 +505,8 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     formattedDate,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
+                    style: const TextStyle(
+                      color: Colors.black45,
                       fontSize: 11.5,
                     ),
                   ),
@@ -493,8 +540,8 @@ class _MyScratchcardsScreenState extends ConsumerState<MyScratchcardsScreen> {
                 ] else ...[
                   Text(
                     'Não premiada',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                    style: const TextStyle(
+                      color: Colors.black38,
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
                     ),

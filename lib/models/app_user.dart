@@ -13,6 +13,7 @@ class AppUser {
   final String? watchingAwayTeam;
   final int? favoriteTeamId;
   final String? favoriteTeamName;
+  final double realBalance;
 
   AppUser({
     required this.id,
@@ -29,6 +30,7 @@ class AppUser {
     this.watchingAwayTeam,
     this.favoriteTeamId,
     this.favoriteTeamName,
+    this.realBalance = 0.0,
   });
 
   bool get isAdmin => role.trim().toLowerCase() == 'admin';
@@ -53,6 +55,7 @@ class AppUser {
       watchingAwayTeam: map['watching_away_team'],
       favoriteTeamId: map['favorite_team_id'],
       favoriteTeamName: map['favorite_team_name'],
+      realBalance: (map['real_balance'] ?? 0.0).toDouble(),
     );
   }
 
@@ -71,6 +74,7 @@ class AppUser {
       if (watchingAwayTeam != null) 'watching_away_team': watchingAwayTeam,
       if (favoriteTeamId != null) 'favorite_team_id': favoriteTeamId,
       if (favoriteTeamName != null) 'favorite_team_name': favoriteTeamName,
+      'real_balance': realBalance,
     };
   }
 
@@ -89,6 +93,7 @@ class AppUser {
     String? watchingAwayTeam,
     int? favoriteTeamId,
     String? favoriteTeamName,
+    double? realBalance,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -106,6 +111,7 @@ class AppUser {
       watchingAwayTeam: watchingAwayTeam ?? this.watchingAwayTeam,
       favoriteTeamId: favoriteTeamId ?? this.favoriteTeamId,
       favoriteTeamName: favoriteTeamName ?? this.favoriteTeamName,
+      realBalance: realBalance ?? this.realBalance,
     );
   }
 }

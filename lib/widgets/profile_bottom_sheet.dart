@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
-import '../screens/login_screen.dart';
-import '../core/auth_wrapper.dart';
 import '../screens/settings_screen.dart';
-import '../screens/admin_screen.dart';
 import '../screens/profile_edit_screen.dart';
 import '../core/theme.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
   const ProfileBottomSheet({super.key});
-
-  Future<void> _launchUrl(String path) async {
-    final url = Uri.parse('https://raspadinhadogol.web.app$path');
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('Could not launch $url: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

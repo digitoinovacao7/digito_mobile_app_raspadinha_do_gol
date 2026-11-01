@@ -73,12 +73,12 @@ Estes termos podem ser atualizados periodicamente para refletir mudanças operac
 ''';
 
   static const String jogoResponsavel = '''
-Política de Jogo Responsável
+Política de Uso Consciente e Entretenimento
 
-A diversão deve ser o único objetivo ao acessar a Raspadinha do Gol. Apostar ou jogar com dinheiro real não deve ser encarado como uma forma de gerar renda ou pagar dívidas.
+A diversão e o entretenimento esportivo são os únicos objetivos ao acessar a Raspadinha do Gol. O aplicativo não é uma casa de apostas e deve ser utilizado exclusivamente para lazer entre torcedores.
 
-AVISO DE RISCO (+18)
-A plataforma é estritamente proibida para menores de 18 anos. Jogos de probabilidade podem causar dependência. Jogue com moderação.
+AVISO DE CLASSIFICAÇÃO (+18)
+A plataforma é destinada a maiores de 18 anos para elegibilidade de recebimento de prêmios via PIX. Divirta-se com moderação.
 
 Nossas Ferramentas de Proteção
 Para garantir um ambiente seguro, disponibilizamos as seguintes ferramentas:

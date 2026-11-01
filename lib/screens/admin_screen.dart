@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
-import '../providers/game_provider.dart';
-import '../core/theme.dart';
-import '../models/league_info.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:dio/dio.dart';
+import 'dart:convert';
+import '../core/theme.dart';
+import '../providers/game_provider.dart';
+import '../models/league_info.dart';
+import 'admin_bolao_manager.dart';
 class AdminScreen extends ConsumerStatefulWidget {
-  const AdminScreen({Key? key}) : super(key: key);
+  const AdminScreen({super.key});
 
   @override
   ConsumerState<AdminScreen> createState() => _AdminScreenState();
@@ -35,7 +38,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _otherRevenueCtrl = TextEditingController(text: '0');
   final _monthlyPrizeCostCtrl = TextEditingController(text: '500');
   final _monthlyOperationCostCtrl = TextEditingController(text: '300');
-  String _newPrizeType = 'pix'; // 'produto' ou 'pix'
+  String _newPrizeType = 'produto'; // Prêmios 100% físicos e oficiais
   String _newPrizeScope = 'global'; // 'global', 'league', 'match'
   int? _selectedLeagueId;
   int? _selectedFixtureId;
@@ -46,21 +49,104 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isSavingPrize = false;
+  bool _isSyncingShopisa = false;
 
   final _newSponsorNameCtrl = TextEditingController();
   final _newSponsorLogoCtrl = TextEditingController();
   final _newSponsorLinkCtrl = TextEditingController();
   final _newSponsorOrderCtrl = TextEditingController(text: '0');
   bool _isSavingSponsor = false;
+  final _simTeamCtrl = TextEditingController(text: 'Atlético Mineiro');
+  final _simOpponentCtrl = TextEditingController(text: 'Cruzeiro');
+  bool _isSimulatingGoal = false;
+  final ValueNotifier<int> _sectionRevision = ValueNotifier<int>(0);
+
+  final _userSearchCtrl = TextEditingController();
+  String _userSearchQuery = '';
+
+  // Estatísticas em tempo real para a Home do Painel Admin
+  int _totalUsersCount = 0;
+  int _totalBoloesCount = 0;
+  double _totalBoloesPot = 0.0;
+  int _totalPrizesCount = 0;
+  int _pendingRedemptionsCount = 0;
+  int _completedRedemptionsCount = 0;
+  int _productPrizesCount = 0;
+  bool _isLoadingDashboardStats = false;
+
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    _sectionRevision.value++;
+  }
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadDashboardStats();
+  }
+
+  Future<void> _loadDashboardStats() async {
+    if (!mounted) return;
+    setState(() => _isLoadingDashboardStats = true);
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // 1. Total de Usuários
+      try {
+        final usersCountSnap = await firestore.collection('users').count().get();
+        _totalUsersCount = usersCountSnap.count ?? 0;
+      } catch (_) {}
+
+      // 2. Bolões e Pote Total
+      try {
+        final boloesSnap = await firestore.collection('boloes').get();
+        _totalBoloesCount = boloesSnap.size;
+        double potSum = 0.0;
+        for (final doc in boloesSnap.docs) {
+          final data = doc.data();
+          final count = (data['participantsCount'] as num?)?.toInt() ?? 0;
+          final feeStr = data['entryFee']?.toString().replaceAll(',', '.') ?? '0';
+          final fee = double.tryParse(feeStr) ?? 0.0;
+          potSum += (count * fee);
+        }
+        _totalBoloesPot = potSum;
+      } catch (_) {}
+
+      // 3. Prêmios Cadastrados
+      try {
+        final prizesSnap = await firestore.collection('prizes').get();
+        _totalPrizesCount = prizesSnap.size;
+        _productPrizesCount = prizesSnap.size;
+      } catch (_) {}
+
+      // 4. Resgates (Pendentes vs Concluídos)
+      try {
+        final redemptionsSnap = await firestore.collection('redemptions').get();
+        int pending = 0;
+        int completed = 0;
+        for (final doc in redemptionsSnap.docs) {
+          final status = doc.data()['status']?.toString().toLowerCase() ?? '';
+          if (status == 'completed' || status == 'approved' || status == 'pago') {
+            completed++;
+          } else {
+            pending++;
+          }
+        }
+        _pendingRedemptionsCount = pending;
+        _completedRedemptionsCount = completed;
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('Erro ao carregar estatísticas do dashboard: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDashboardStats = false);
+      }
+    }
   }
 
   Future<void> _loadSettings() async {
-    Map<String, dynamic> generalData = {};
     try {
       final docSnap = await FirebaseFirestore.instance
           .collection('settings')
@@ -69,7 +155,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       if (docSnap.exists) {
         final data = docSnap.data() ?? {};
-        generalData = data;
 
         final apiKeys = (data['api_keys'] as Map<String, dynamic>?) ?? {};
 
@@ -159,6 +244,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     _otherRevenueCtrl.dispose();
     _monthlyPrizeCostCtrl.dispose();
     _monthlyOperationCostCtrl.dispose();
+    _userSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -212,40 +298,478 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        backgroundColor: AppTheme.primaryGreen,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(kToolbarHeight),
-          child: const TabBar(
-            isScrollable: true,
-            indicatorColor: AppTheme.accentGold,
-            indicatorWeight: 4,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(icon: Icon(Icons.stars), text: 'Regras e Prêmios'),
-              Tab(icon: Icon(Icons.handshake), text: 'Patrocinadores'),
-              Tab(icon: Icon(Icons.api), text: 'Integrações'),
-              Tab(icon: Icon(Icons.receipt_long), text: 'Resgates'),
-              Tab(icon: Icon(Icons.trending_up), text: 'Lucro'),
-            ],
-          ),
+  void _openAdminSection(String title, Widget Function() contentBuilder) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) {
+      return ValueListenableBuilder<int>(
+        valueListenable: _sectionRevision,
+        builder: (context, _, _) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              backgroundColor: AppTheme.primaryGreen,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: contentBuilder(),
+          );
+        },
+      );
+    }));
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textDark,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfigShortcutTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required String badgeText,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildPrizesTab(),
-                  _buildSponsorsTab(),
-                  _buildIntegrationsTab(),
-                  _buildRedemptionsTab(),
-                  _buildProfitGuideTab(),
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppTheme.primaryGreen,
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
+    }
+
+    final isWide = MediaQuery.of(context).size.width > 700;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F6F8),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _loadSettings();
+          await _loadDashboardStats();
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1000),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Header com Status Geral e Boas-Vindas
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF041D10), Color(0xFF07301A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Text(
+                                  '⚽ Painel Executivo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.accentGold,
+                                foregroundColor: Colors.black,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: _isLoadingDashboardStats
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                                  : const Icon(Icons.refresh, size: 16),
+                              label: const Text('Atualizar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              onPressed: _isLoadingDashboardStats ? null : _loadDashboardStats,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Indicadores em tempo real, inteligência de receita e atalhos de configuração.',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.sports_soccer, size: 14, color: AppTheme.accentGold),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'API: ${_activeFootballApi == "football_data" ? "Football-Data.org" : "API-Football"}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.smart_toy, size: 14, color: Colors.lightGreenAccent),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'IA Gemini: Ativa',
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.shield_outlined, size: 14, color: Colors.amber),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Sem Apostas / 100% Legal',
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 2. Grid de KPIs Principais
+                  GridView.count(
+                    crossAxisCount: isWide ? 4 : 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: isWide ? 1.4 : 1.15,
+                    children: [
+                      _buildKpiCard(
+                        title: 'Torcedores',
+                        value: '$_totalUsersCount',
+                        subtitle: 'Usuários cadastrados',
+                        icon: Icons.people_alt_outlined,
+                        color: Colors.blue,
+                        onTap: () => _openAdminSection('Torcedores Cadastrados', _buildUsersTab),
+                      ),
+                      _buildKpiCard(
+                        title: 'Bolões do Gol',
+                        value: 'R\$ ${_totalBoloesPot.toStringAsFixed(0)}',
+                        subtitle: '$_totalBoloesCount bolões criados',
+                        icon: Icons.sports_soccer,
+                        color: Colors.teal,
+                        onTap: () => _openAdminSection('Gestão de Bolões', () => const AdminBolaoManager()),
+                      ),
+                      _buildKpiCard(
+                        title: 'Prêmios Ativos',
+                        value: '$_totalPrizesCount itens',
+                        subtitle: '$_productPrizesCount Produtos Físicos / Parceiros',
+                        icon: Icons.card_giftcard,
+                        color: Colors.amber.shade800,
+                        onTap: () => _openAdminSection('Gerenciar Prêmios', _buildPrizesTab),
+                      ),
+                      _buildKpiCard(
+                        title: 'Resgates',
+                        value: '$_pendingRedemptionsCount pendentes',
+                        subtitle: '$_completedRedemptionsCount concluídos',
+                        icon: Icons.receipt_long,
+                        color: Colors.orange,
+                        onTap: () => _openAdminSection('Resgates', _buildRedemptionsTab),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 4. Seção de Atalhos Rápidos e Configurações
+                  const Text(
+                    '⚙️ Atalhos de Configuração da Plataforma',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Column(
+                    children: [
+                      _buildConfigShortcutTile(
+                        title: 'Torcedores Cadastrados',
+                        subtitle: 'Lista completa de usuários, saldos em moedas e reais, times do coração e concessão de bônus',
+                        icon: Icons.people_alt,
+                        color: Colors.blue.shade700,
+                        badgeText: 'Torcedores',
+                        onTap: () => _openAdminSection('Torcedores Cadastrados', _buildUsersTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Regras de Economia',
+                        subtitle: 'Tokens por real, custo da cartela, limites diários de quiz e chance global de vitória',
+                        icon: Icons.settings_applications,
+                        color: Colors.teal.shade700,
+                        badgeText: 'Economia',
+                        onTap: () => _openAdminSection('Regras de Economia', _buildRulesTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Gerenciar Prêmios',
+                        subtitle: 'Cadastrar camisas oficiais, bolas, vale-compras e produtos parceiros',
+                        icon: Icons.stars,
+                        color: Colors.amber.shade800,
+                        badgeText: 'Raspadinha & Loja',
+                        onTap: () => _openAdminSection('Gerenciar Prêmios', _buildPrizesTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Gestão de Bolões',
+                        subtitle: 'Acompanhar bolões da galera e de bares, participantes e apuração automática ao apito final',
+                        icon: Icons.sports_soccer,
+                        color: Colors.indigo.shade700,
+                        badgeText: 'Amigos & Bares',
+                        onTap: () => _openAdminSection('Gestão de Bolões', () => const AdminBolaoManager()),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Patrocinadores & Parceiros',
+                        subtitle: 'Logos e banners oficiais exibidos no carrossel do aplicativo e landing page web',
+                        icon: Icons.handshake,
+                        color: Colors.blue.shade700,
+                        badgeText: 'Parcerias',
+                        onTap: () => _openAdminSection('Patrocinadores', _buildSponsorsTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Integrações e APIs',
+                        subtitle: 'Chaves da Football-Data.org, Google Gemini IA (Quizzes), Z-API WhatsApp e Mercado Pago',
+                        icon: Icons.api,
+                        color: Colors.purple.shade700,
+                        badgeText: 'Conexões',
+                        onTap: () => _openAdminSection('Integrações', _buildIntegrationsTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Fila de Resgates de Prêmios',
+                        subtitle: 'Gerenciar envios de prêmios e rastrear entrega de camisas e produtos aos ganhadores',
+                        icon: Icons.receipt_long,
+                        color: Colors.orange.shade700,
+                        badgeText: 'Entregas',
+                        onTap: () => _openAdminSection('Resgates', _buildRedemptionsTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Chamados de Suporte',
+                        subtitle: 'Mensagens, dúvidas e solicitações enviadas pelos torcedores pelo formulário do site oficial',
+                        icon: Icons.support_agent,
+                        color: Colors.deepOrange.shade700,
+                        badgeText: 'Atendimento',
+                        onTap: () => _openAdminSection('Chamados de Suporte', _buildSupportTicketsTab),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildConfigShortcutTile(
+                        title: 'Simulador de Lucro e Métricas',
+                        subtitle: 'Calculadora completa de faturamento com anúncios AdMob, eCPM e ponto de equilíbrio',
+                        icon: Icons.trending_up,
+                        color: Colors.green.shade700,
+                        badgeText: 'Rentabilidade',
+                        onTap: () => _openAdminSection('Lucro', _buildProfitGuideTab),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -391,9 +915,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         controller: _mercadoPagoController,
                         label: 'Chave Mercado Pago',
                         hint:
-                            'Usada para disparar PIX automaticamente (Futuro)',
+                            'Usada para cobranças e checkout (Futuro)',
                         helpText:
-                            'Chave da API do Mercado Pago. Servirá para realizar o pagamento automático via PIX aos usuários (em breve).',
+                            'Chave da API do Mercado Pago. Mantida para cobranças ou pacotes de tokens via checkout seguro.',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
@@ -408,6 +932,93 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: const Color(0xFFFBBF24).withValues(alpha: 0.4)),
+                ),
+                color: const Color(0xFF0F291E),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFBBF24),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.sports_soccer, color: Colors.black, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Simular Gol do Time do Coração',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  'Toca o áudio oficial (goal.wav) no app e notifica os torcedores no WhatsApp!',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTextField(
+                        controller: _simTeamCtrl,
+                        label: 'Time que marcou o gol',
+                        hint: 'Ex: Atlético Mineiro, Flamengo, Corinthians',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                        controller: _simOpponentCtrl,
+                        label: 'Adversário',
+                        hint: 'Ex: Cruzeiro, Vasco, Palmeiras',
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFBBF24),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: _isSimulatingGoal
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                )
+                              : const Icon(Icons.campaign, size: 22),
+                          label: Text(
+                            _isSimulatingGoal ? 'Disparando...' : '⚽ Disparar Gol de Teste',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          onPressed: _isSimulatingGoal ? null : _simulateGoalNotification,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
               _buildSaveButton(),
             ],
@@ -415,6 +1026,64 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _simulateGoalNotification() async {
+    final team = _simTeamCtrl.text.trim();
+    final opponent = _simOpponentCtrl.text.trim();
+    if (team.isEmpty) return;
+
+    setState(() => _isSimulatingGoal = true);
+    try {
+      // 1. Grava no recent_goals para acionar o som goal.wav no app
+      await FirebaseFirestore.instance.collection('recent_goals').add({
+        'fixtureId': 999999,
+        'scoringTeam': team,
+        'homeTeamName': team,
+        'awayTeamName': opponent.isEmpty ? 'Adversário' : opponent,
+        'homeScore': 1,
+        'awayScore': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Chama a Cloud Function para disparar WhatsApp aos torcedores
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable('triggerGoalNotification');
+        final res = await callable.call({
+          'teamName': team,
+          'opponentName': opponent,
+          'homeScore': 1,
+          'awayScore': 0,
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.data['message']?.toString() ?? 'Gol disparado com sucesso!'),
+              backgroundColor: AppTheme.primaryGreen,
+            ),
+          );
+        }
+      } catch (fErr) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gol acionado no app! (Notificação WhatsApp: $fErr)'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao simular gol: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSimulatingGoal = false);
+      }
+    }
   }
 
   Widget _buildSaveButton() {
@@ -746,7 +1415,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
   }
 
-  Widget _buildPrizesTab() {
+  Widget _buildRulesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Center(
@@ -809,7 +1478,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         hint: 'Ex: 3',
                         keyboardType: TextInputType.number,
                         helpText:
-                            'Quantidade máxima de quizzes que um usuário pode gerar por dia (para controle de custos da API do Gemini).',
+                            'Quantidade máxima de quizzes que um usuário pode gerar por dia (para controle de custos da API do Gemini). Digite 0 para quizzes ilimitados.',
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
@@ -847,7 +1516,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrizesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
@@ -860,29 +1544,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     children: [
                       _buildSectionHeader(
                         Icons.add_circle_outline,
-                        'Adicionar Prêmio da Raspadinha',
+                        'Adicionar Prêmio da Raspadinha & Loja',
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.0),
                         child: Text(
-                          'Cadastre os prêmios (PIX ou Físicos) que podem sair quando o usuário raspar a cartela e tirar 3 figuras iguais.',
+                          'Cadastre os prêmios físicos e produtos oficiais que podem sair na raspadinha ou serem resgatados na loja com Tokens.',
                           style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: TextButton.icon(
-                          onPressed: () => launchUrl(
-                            Uri.parse('https://dashboard.api-football.com/'),
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text(
-                            'Consultar IDs no Dashboard da API-Football',
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.blue,
-                          ),
                         ),
                       ),
                       _buildPrizeForm(),
@@ -890,7 +1558,61 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.storefront, color: Colors.purple, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Integração Shopisa (E-commerce)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Sincroniza os produtos marcados como prêmio na loja Shopisa para a vitrine da Raspadinha do Gol.',
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.purple.shade700,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: _isSyncingShopisa ? null : _syncShopisaPrizes,
+                        icon: _isSyncingShopisa
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.sync),
+                        label: Text(_isSyncingShopisa ? 'Sincronizando...' : 'Sincronizar Shopisa'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
@@ -916,6 +1638,36 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _syncShopisaPrizes() async {
+    setState(() => _isSyncingShopisa = true);
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+          .httpsCallable('syncShopisaPrizes');
+      final result = await callable.call();
+      final data = result.data as Map<dynamic, dynamic>? ?? {};
+      final count = data['count'] ?? 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$count prêmios sincronizados com a Shopisa com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao sincronizar com a Shopisa: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncingShopisa = false);
+    }
   }
 
   void _applyPreset({
@@ -944,6 +1696,50 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _generatePrizeWithAI() async {
+    final apiKey = _geminiApiController.text;
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Configure a chave do Gemini nas Regras de Economia!')),
+      );
+      return;
+    }
+    
+    setState(() => _isSaving = true);
+    try {
+      final dio = Dio();
+      final response = await dio.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+        data: {
+          "contents": [{
+            "parts": [{"text": "Gere um prêmio fictício muito criativo para um bolão de futebol ou raspadinha (ex: 'Camisa Autografada', 'Vale Ifood R\$ 100', '1 Ano de Cerveja'). Retorne APENAS um JSON no formato exato: {\"name\": \"Nome do Prêmio\", \"type\": \"produto\", \"value\": 100, \"imageUrl\": \"\"}"}]
+          }],
+          "generationConfig": {"responseMimeType": "application/json"}
+        }
+      );
+      
+      final text = response.data['candidates'][0]['content']['parts'][0]['text'];
+      final jsonResponse = jsonDecode(text);
+      
+      _applyPreset(
+        name: jsonResponse['name']?.toString() ?? 'Prêmio Surpresa',
+        type: jsonResponse['type']?.toString() ?? 'produto',
+        scope: 'global',
+        tokenCost: 0,
+        imageUrl: jsonResponse['imageUrl']?.toString() ?? '',
+        prizeLink: '',
+      );
+    } catch(e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar prêmio com IA: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Widget _buildPrizeForm() {
@@ -980,32 +1776,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 runSpacing: 8,
                 children: [
                   ActionChip(
-                    avatar: const Icon(Icons.pix, size: 16, color: Colors.teal),
-                    label: const Text('PIX R\$ 10'),
-                    backgroundColor: Colors.white,
-                    onPressed: () => _applyPreset(
-                      name: 'PIX Instantâneo R\$ 10,00',
-                      type: 'pix',
-                      scope: 'global',
-                      tokenCost: 0,
-                      imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo%E2%80%94pix_powered_by_Banco_Central_%28Brasil_-_2020%29.png',
-                      prizeLink: '',
-                    ),
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.pix, size: 16, color: Colors.teal),
-                    label: const Text('PIX R\$ 50'),
-                    backgroundColor: Colors.white,
-                    onPressed: () => _applyPreset(
-                      name: 'PIX Instantâneo R\$ 50,00',
-                      type: 'pix',
-                      scope: 'global',
-                      tokenCost: 0,
-                      imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo%E2%80%94pix_powered_by_Banco_Central_%28Brasil_-_2020%29.png',
-                      prizeLink: '',
-                    ),
-                  ),
-                  ActionChip(
                     avatar: const Icon(Icons.checkroom, size: 16, color: Colors.deepOrange),
                     label: const Text('Camisa Oficial'),
                     backgroundColor: Colors.white,
@@ -1014,22 +1784,41 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       type: 'produto',
                       scope: 'global',
                       tokenCost: 0,
-                      imageUrl: '',
+                      imageUrl: 'https://images.unsplash.com/photo-1577212017184-80cc0da11082?auto=format&fit=crop&w=400&q=80',
                       prizeLink: '',
                     ),
                   ),
                   ActionChip(
-                    avatar: const Icon(Icons.card_giftcard, size: 16, color: Colors.purple),
-                    label: const Text('Vale Compras R\$ 20'),
+                    avatar: const Icon(Icons.sports_soccer, size: 16, color: Colors.blue),
+                    label: const Text('Bola Oficial'),
                     backgroundColor: Colors.white,
                     onPressed: () => _applyPreset(
-                      name: 'Vale Compras R\$ 20,00',
+                      name: 'Bola de Futebol Oficial Campo/Society',
+                      type: 'produto',
+                      scope: 'global',
+                      tokenCost: 0,
+                      imageUrl: 'https://images.unsplash.com/photo-1614632537423-1e6c2e7e0aab?auto=format&fit=crop&w=400&q=80',
+                      prizeLink: '',
+                    ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.shopping_bag, size: 16, color: Colors.purple),
+                    label: const Text('Vale Shopisa R\$ 50'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _applyPreset(
+                      name: 'Vale Compras Shopisa R\$ 50,00',
                       type: 'produto',
                       scope: 'global',
                       tokenCost: 0,
                       imageUrl: '',
-                      prizeLink: '',
+                      prizeLink: 'https://shopisa.com.br',
                     ),
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.smart_toy, size: 16, color: Colors.white),
+                    label: const Text('Gerar com IA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    backgroundColor: AppTheme.primaryGreen,
+                    onPressed: _isSaving ? null : _generatePrizeWithAI,
                   ),
                 ],
               ),
@@ -1112,13 +1901,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   ],
                 )
               : DropdownButtonFormField<int>(
+                  key: ValueKey('league_${_selectedLeagueId ?? "none"}'),
                   decoration: InputDecoration(
                     labelText: 'Selecione o Campeonato',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  value: _selectedLeagueId,
+                  initialValue: _selectedLeagueId,
                   items: _activeLeagues
                       .map(
                         (l) =>
@@ -1130,8 +1920,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       _selectedLeagueId = val;
                       _selectedFixtureId = null;
                     });
-                    if (_newPrizeScope == 'match' && val != null)
+                    if (_newPrizeScope == 'match' && val != null) {
                       _fetchMatchesForAdmin(val);
+                    }
                   },
                 ),
         ],
@@ -1150,13 +1941,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   style: TextStyle(color: Colors.orange),
                 )
               : DropdownButtonFormField<int>(
+                  key: ValueKey('fixture_${_selectedFixtureId ?? "none"}'),
                   decoration: InputDecoration(
                     labelText: 'Selecione a Partida de Hoje',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  value: _selectedFixtureId,
+                  initialValue: _selectedFixtureId,
                   items: _fetchedMatches
                       .map(
                         (m) => DropdownMenuItem<int>(
@@ -1177,98 +1969,49 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => setState(() => _newPrizeType = 'pix'),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: _newPrizeType == 'pix'
-                        ? AppTheme.primaryGreen.withValues(alpha: 0.05)
-                        : Colors.white,
-                    border: Border.all(
-                      color: _newPrizeType == 'pix'
-                          ? AppTheme.primaryGreen
-                          : Colors.grey.shade300,
-                      width: 2,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.card_giftcard, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Prêmio Físico / Produto / Parceiro',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.pix,
-                        color: _newPrizeType == 'pix'
-                            ? AppTheme.primaryGreen
-                            : Colors.grey,
-                        size: 36,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Saque PIX',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: _newPrizeType == 'pix'
-                              ? AppTheme.primaryGreen
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Prêmios 100% físicos (camisas oficiais, bolas, vestuário, calçados e vouchers Shopisa) entregues no endereço do vencedor.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: InkWell(
-                onTap: () => setState(() => _newPrizeType = 'produto'),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: _newPrizeType == 'produto'
-                        ? AppTheme.primaryGreen.withValues(alpha: 0.05)
-                        : Colors.white,
-                    border: Border.all(
-                      color: _newPrizeType == 'produto'
-                          ? AppTheme.primaryGreen
-                          : Colors.grey.shade300,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.card_giftcard,
-                        color: _newPrizeType == 'produto'
-                            ? AppTheme.primaryGreen
-                            : Colors.grey,
-                        size: 36,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Produto / Link',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: _newPrizeType == 'produto'
-                              ? AppTheme.primaryGreen
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         const Text(
           'Detalhes do Prêmio',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -1276,12 +2019,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         const SizedBox(height: 12),
         _buildTextField(
           controller: _newPrizeNameCtrl,
-          label: _newPrizeType == 'pix'
-              ? 'Valor do PIX a ser pago (Ex: R\$ 50,00)'
-              : 'Nome do Produto (Ex: Camisa)',
-          hint: _newPrizeType == 'pix'
-              ? 'Ex: 50,00'
-              : 'O que o usuário vai ganhar?',
+          label: 'Nome do Produto / Prêmio (Ex: Camisa Oficial)',
+          hint: 'O que o usuário vai receber em casa?',
         ),
         const SizedBox(height: 16),
         _buildTextField(
@@ -1292,22 +2031,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           helpText:
               'Preço se o usuário quiser COMPRAR este prêmio na loja usando os tokens acumulados (sem contar com a sorte).\nDeixe 0 se o prêmio só puder ser ganho raspando.',
         ),
-        if (_newPrizeType == 'produto') ...[
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _newPrizeImageCtrl,
-            label: 'URL da Imagem (Opcional)',
-            hint: 'https://site.com/foto.png',
-          ),
-        ],
-        if (_newPrizeType == 'produto') ...[
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _newPrizeLinkCtrl,
-            label: 'URL do Link Afiliado / Cupom (Opcional)',
-            hint: 'Link de indicação (Ex: Shopee, Betano, etc)',
-          ),
-        ],
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: _newPrizeImageCtrl,
+          label: 'URL da Imagem do Prêmio (Opcional)',
+          hint: 'https://site.com/foto.png',
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: _newPrizeLinkCtrl,
+          label: 'URL do Link do Parceiro / Cupom (Opcional)',
+          hint: 'Link da loja parceira (Ex: Shopisa, Centauro, Shopee)',
+        ),
         const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
@@ -1572,32 +2307,70 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Icon(
-                              prize['scope'] == 'global'
-                                  ? Icons.public
-                                  : (prize['scope'] == 'league'
-                                        ? Icons.emoji_events
-                                        : Icons.sports_soccer),
-                              size: 16,
-                              color: AppTheme.accentGold,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  prize['scope'] == 'global'
+                                      ? Icons.public
+                                      : (prize['scope'] == 'league'
+                                            ? Icons.emoji_events
+                                            : Icons.sports_soccer),
+                                  size: 16,
+                                  color: AppTheme.accentGold,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  prize['scope'] == 'global'
+                                      ? 'Prêmio Global'
+                                      : (prize['scope'] == 'league'
+                                            ? prize['leagueName']?.toString() ??
+                                                  'Liga ID: ${prize['leagueId']}'
+                                            : prize['matchLabel']?.toString() ??
+                                                  'Jogo ID: ${prize['fixtureId']}'),
+                                  style: const TextStyle(
+                                    color: AppTheme.accentGold,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 4),
+                            if (prize['provider'] == 'shopisa')
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.purple.shade200),
+                                ),
+                                child: Text(
+                                  '🛍️ Shopisa (${prize['discount_percent'] ?? 100}% OFF)',
+                                  style: TextStyle(
+                                    color: Colors.purple.shade800,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
                             Text(
-                              prize['scope'] == 'global'
-                                  ? 'Prêmio Global'
-                                  : (prize['scope'] == 'league'
-                                        ? prize['leagueName']?.toString() ??
-                                              'Liga ID: ${prize['leagueId']}'
-                                        : prize['matchLabel']?.toString() ??
-                                              'Jogo ID: ${prize['fixtureId']}'),
+                              '${prize['token_cost'] ?? 0} tokens',
                               style: const TextStyle(
-                                color: AppTheme.accentGold,
+                                color: AppTheme.primaryGreen,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
                             ),
+                            if (prize['quantity'] != null)
+                              Text(
+                                'Estoque: ${prize['quantity']}',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
                           ],
                         ),
                       ],
@@ -2259,6 +3032,33 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           ),
                         if (!isPix)
                           Text('CPF: ${data['userCpf'] ?? 'Não informado'}'),
+                        if (data['rewardCode'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              'Código Shopisa: ${data['rewardCode']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple.shade800,
+                              ),
+                            ),
+                          ),
+                        if (data['claimUrl'] != null && data['claimUrl'].toString().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.purple.shade700,
+                                side: BorderSide(color: Colors.purple.shade300),
+                              ),
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('Abrir Link de Resgate Shopisa'),
+                              onPressed: () => launchUrl(
+                                Uri.parse(data['claimUrl']),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2707,4 +3507,886 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       ),
     );
   }
+
+  Widget _buildUsersTab() {
+    return StatefulBuilder(
+      builder: (context, setUsersState) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
+                      Text('Erro ao carregar torcedores: ${snapshot.error}', textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            final totalUsers = docs.length;
+
+            final query = _userSearchQuery.trim().toLowerCase();
+            final filteredDocs = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>? ?? {};
+              final name = (data['name'] ?? '').toString().toLowerCase();
+              final email = (data['email'] ?? '').toString().toLowerCase();
+              final phone = (data['phone'] ?? '').toString().toLowerCase();
+              final cpf = (data['cpf'] ?? '').toString().toLowerCase();
+              final team = (data['favorite_team_name'] ?? data['favoriteTeamName'] ?? '').toString().toLowerCase();
+              return name.contains(query) ||
+                  email.contains(query) ||
+                  phone.contains(query) ||
+                  cpf.contains(query) ||
+                  team.contains(query);
+            }).toList();
+
+            // Total de tokens e saldo real na lista filtrada
+            int totalFilteredTokens = 0;
+            double totalFilteredReal = 0.0;
+            for (var d in filteredDocs) {
+              final data = d.data() as Map<String, dynamic>? ?? {};
+              totalFilteredTokens += (data['tokens'] as num?)?.toInt() ?? 0;
+              totalFilteredReal += (data['real_balance'] as num?)?.toDouble() ?? 0.0;
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header & Search
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.people_alt, color: Colors.blue, size: 24),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Torcedores Cadastrados',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.textDark,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Total: $totalUsers torcedores • Exibindo: ${filteredDocs.length}',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _userSearchCtrl,
+                                onChanged: (val) {
+                                  setUsersState(() {
+                                    _userSearchQuery = val;
+                                  });
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Buscar por nome, e-mail, telefone, CPF ou time...',
+                                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                                  suffixIcon: _userSearchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () {
+                                            _userSearchCtrl.clear();
+                                            setUsersState(() {
+                                              _userSearchQuery = '';
+                                            });
+                                          },
+                                        )
+                                      : null,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Metrics Bar
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.monetization_on, color: Colors.blue, size: 22),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Moedas em Circulação', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                                      Text(
+                                        NumberFormat('#,###', 'pt_BR').format(totalFilteredTokens),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.teal.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.account_balance_wallet, color: Colors.teal, size: 22),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Saldo Real (R\$)', style: TextStyle(fontSize: 11, color: Colors.teal)),
+                                      Text(
+                                        'R\$ ${totalFilteredReal.toStringAsFixed(2)}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.teal),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Users List
+                      if (filteredDocs.isEmpty)
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              children: [
+                                Icon(Icons.person_search, size: 48, color: Colors.grey.shade400),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _userSearchQuery.isEmpty
+                                      ? 'Nenhum torcedor cadastrado ainda.'
+                                      : 'Nenhum torcedor encontrado para "$_userSearchQuery".',
+                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredDocs.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final doc = filteredDocs[index];
+                            final data = doc.data() as Map<String, dynamic>? ?? {};
+                            final name = (data['name'] ?? '').toString();
+                            final email = (data['email'] ?? '').toString();
+                            final phone = (data['phone'] ?? '').toString();
+                            final cpf = (data['cpf'] ?? '').toString();
+                            final role = (data['role'] ?? 'user').toString().toLowerCase();
+                            final isAdmin = role == 'admin';
+                            final tokens = (data['tokens'] as num?)?.toInt() ?? 0;
+                            final realBalance = (data['real_balance'] as num?)?.toDouble() ?? 0.0;
+                            final favoriteTeam = (data['favorite_team_name'] ?? data['favoriteTeamName'] ?? '').toString();
+
+                            final initialLetter = name.isNotEmpty
+                                ? name[0].toUpperCase()
+                                : (email.isNotEmpty ? email[0].toUpperCase() : '?');
+
+                            return Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: isAdmin ? Colors.amber.shade400 : Colors.grey.shade200),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 22,
+                                          backgroundColor: isAdmin ? Colors.amber.shade700 : AppTheme.primaryGreen,
+                                          child: Text(
+                                            initialLetter,
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      name.isNotEmpty ? name : 'Torcedor (Sem nome)',
+                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  if (isAdmin) ...[
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.amber.shade100,
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.amber.shade600),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(Icons.workspace_premium, size: 12, color: Colors.amber.shade900),
+                                                          const SizedBox(width: 2),
+                                                          Text(
+                                                            'ADMIN',
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              fontWeight: FontWeight.bold,
+                                                              color: Colors.amber.shade900,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                email.isNotEmpty ? email : 'UID: ${doc.id}',
+                                                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.amber.shade600),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.monetization_on, size: 14, color: Colors.amber),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${NumberFormat('#,###', 'pt_BR').format(tokens)} moedas',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.amber.shade900),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: Colors.teal.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.teal.shade300),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.account_balance_wallet, size: 14, color: Colors.teal),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'R\$ ${realBalance.toStringAsFixed(2)}',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.teal.shade900),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (favoriteTeam.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.green.shade300),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.sports_soccer, size: 14, color: Colors.green),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  favoriteTeam,
+                                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.green.shade900),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        if (phone.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.grey.shade300),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  phone,
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        if (cpf.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.grey.shade300),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.badge, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'CPF: $cpf',
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.add_circle_outline, size: 16),
+                                          label: const Text('Ajustar Saldo'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.teal.shade800,
+                                            side: BorderSide(color: Colors.teal.shade400),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          onPressed: () => _showEditUserTokensDialog(
+                                            context,
+                                            doc.id,
+                                            name.isNotEmpty ? name : email,
+                                            tokens,
+                                            realBalance,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.info_outline, size: 16),
+                                          label: const Text('Detalhes'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.grey.shade700,
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          onPressed: () => _showUserDetailsDialog(context, doc.id, data),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditUserTokensDialog(
+    BuildContext context,
+    String uid,
+    String userName,
+    int currentTokens,
+    double currentRealBalance,
+  ) {
+    final tokensCtrl = TextEditingController(text: '$currentTokens');
+    final realCtrl = TextEditingController(text: currentRealBalance.toStringAsFixed(2));
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet, color: Colors.teal),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ajustar Saldo: $userName',
+                    style: const TextStyle(fontSize: 18),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Moedas (Tokens):',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: tokensCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.monetization_on, color: Colors.amber),
+                      labelText: 'Saldo em Moedas',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      ActionChip(
+                        label: const Text('+100'),
+                        onPressed: () {
+                          final cur = int.tryParse(tokensCtrl.text) ?? currentTokens;
+                          tokensCtrl.text = '${cur + 100}';
+                        },
+                      ),
+                      ActionChip(
+                        label: const Text('+500'),
+                        onPressed: () {
+                          final cur = int.tryParse(tokensCtrl.text) ?? currentTokens;
+                          tokensCtrl.text = '${cur + 500}';
+                        },
+                      ),
+                      ActionChip(
+                        label: const Text('+1.000'),
+                        onPressed: () {
+                          final cur = int.tryParse(tokensCtrl.text) ?? currentTokens;
+                          tokensCtrl.text = '${cur + 1000}';
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Saldo Real em Reais (R\$):',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: realCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money, color: Colors.teal),
+                      labelText: 'Saldo Real (R\$)',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final newTokens = int.tryParse(tokensCtrl.text.trim()) ?? currentTokens;
+                        final newReal = double.tryParse(realCtrl.text.trim().replaceAll(',', '.')) ?? currentRealBalance;
+
+                        setDialogState(() => isSaving = true);
+                        try {
+                          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                            'tokens': newTokens,
+                            'real_balance': newReal,
+                          });
+
+                          // Registrar transação de auditoria
+                          await FirebaseFirestore.instance.collection('token_transactions').add({
+                            'uid': uid,
+                            'amount': newTokens - currentTokens,
+                            'type': 'admin_manual_adjustment',
+                            'description': 'Ajuste manual pelo painel administrativo',
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+
+                          if (context.mounted) {
+                            Navigator.pop(dialogCtx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Saldo do torcedor atualizado com sucesso!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erro ao atualizar: $e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Salvar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showUserDetailsDialog(BuildContext context, String uid, Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.info, color: Colors.blue),
+            const SizedBox(width: 8),
+            const Text('Detalhes do Torcedor'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildUserDetailRow('UID', uid),
+              _buildUserDetailRow('Nome', (data['name'] ?? 'Não informado').toString()),
+              _buildUserDetailRow('E-mail', (data['email'] ?? 'Não informado').toString()),
+              _buildUserDetailRow('Função (Role)', (data['role'] ?? 'user').toString()),
+              _buildUserDetailRow('Telefone', (data['phone'] ?? 'Não informado').toString()),
+              _buildUserDetailRow('CPF', (data['cpf'] ?? 'Não informado').toString()),
+              _buildUserDetailRow('Time do Coração', (data['favorite_team_name'] ?? data['favoriteTeamName'] ?? 'Nenhum').toString()),
+              _buildUserDetailRow('Moedas (Tokens)', '${data['tokens'] ?? 0}'),
+              _buildUserDetailRow('Saldo Real (R\$)', 'R\$ ${(data['real_balance'] ?? 0.0).toString()}'),
+              _buildUserDetailRow('Notificações WhatsApp', (data['wants_whatsapp_notifications'] == true) ? 'Sim' : 'Não'),
+              if (data['watching_home_team'] != null)
+                _buildUserDetailRow('Assistindo', '${data['watching_home_team']} x ${data['watching_away_team']}'),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          children: [
+            TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportTicketsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('support_tickets')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                'Erro ao carregar chamados: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        final tickets = snapshot.data?.docs ?? [];
+        if (tickets.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Nenhum chamado de suporte recebido ainda.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Mensagens enviadas pelo formulário do site aparecerão aqui em tempo real.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: tickets.length,
+          itemBuilder: (context, index) {
+            final doc = tickets[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final nome = (data['nome'] ?? 'Sem nome').toString();
+            final email = (data['email'] ?? 'Sem e-mail').toString();
+            final descricao = (data['descricao'] ?? '').toString();
+            final status = (data['status'] ?? 'aberto').toString().toLowerCase();
+            final createdAt = data['createdAt'] != null && data['createdAt'] is Timestamp
+                ? (data['createdAt'] as Timestamp).toDate()
+                : null;
+            final dateStr = createdAt != null
+                ? DateFormat('dd/MM/yyyy HH:mm').format(createdAt)
+                : 'Data recente';
+
+            final isAberto = status == 'aberto';
+            final Color statusColor = isAberto ? Colors.orange.shade800 : Colors.green.shade700;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              child: ExpansionTile(
+                leading: CircleAvatar(
+                  backgroundColor: isAberto ? Colors.orange.shade50 : Colors.green.shade50,
+                  child: Icon(
+                    isAberto ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined,
+                    color: statusColor,
+                  ),
+                ),
+                title: Text(
+                  nome,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                subtitle: Text(
+                  '$email • $dateStr',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    isAberto ? 'ABERTO' : 'RESOLVIDO',
+                    style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Mensagem do Torcedor:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: SelectableText(
+                            descricao.isNotEmpty ? descricao : '(Sem descrição)',
+                            style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.email_outlined, size: 16),
+                              label: const Text('Responder por E-mail'),
+                              onPressed: () async {
+                                final uri = Uri(
+                                  scheme: 'mailto',
+                                  path: email,
+                                  query: 'subject=Suporte Raspadinha do Gol - Atendimento',
+                                );
+                                try {
+                                  await launchUrl(uri);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('E-mail: $email')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isAberto ? Colors.green.shade700 : Colors.orange.shade800,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: Icon(isAberto ? Icons.check_circle : Icons.replay, size: 16),
+                              label: Text(isAberto ? 'Marcar como Resolvido' : 'Reabrir Chamado'),
+                              onPressed: () async {
+                                await doc.reference.update({
+                                  'status': isAberto ? 'resolvido' : 'aberto',
+                                  'resolvedAt': isAberto ? FieldValue.serverTimestamp() : null,
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
+

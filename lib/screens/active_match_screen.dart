@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:audioplayers/audioplayers.dart';
+import '../core/audio_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/arquibancada_provider.dart';
 import '../widgets/custom_app_bar.dart';
 import '../services/db_service.dart';
 import '../core/theme.dart';
@@ -38,7 +37,7 @@ class ActiveMatchScreen extends ConsumerStatefulWidget {
 class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
   bool _isMarkingWatching = false;
   bool _isOpeningScratch = false;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final SafeAudioPlayer _audioPlayer = SafeAudioPlayer();
 
   @override
   void dispose() {
@@ -182,9 +181,7 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
       context,
       MaterialPageRoute(builder: (_) => const ScratchGameScreen()),
     );
-    if (user != null) {
-      ref.invalidate(appUserFutureProvider(user.uid));
-    }
+    ref.invalidate(appUserFutureProvider(user.uid));
     if (mounted) {
       setState(() {
         _isOpeningScratch = false;
@@ -201,10 +198,10 @@ class _ActiveMatchScreenState extends ConsumerState<ActiveMatchScreen> {
         final nextMatch = next.value!;
         
         if (nextMatch.homeScore > prevMatch.homeScore || nextMatch.awayScore > prevMatch.awayScore) {
-          _audioPlayer.play(AssetSource('sounds/goal.wav'));
+          _audioPlayer.play('sounds/goal.wav');
         }
         if (prevMatch.status != 'HT' && nextMatch.status == 'HT') {
-          _audioPlayer.play(AssetSource('sounds/whistle.wav'));
+          _audioPlayer.play('sounds/whistle.wav');
         }
       }
     });
@@ -952,35 +949,6 @@ class _AnimatedScratchButtonState extends State<_AnimatedScratchButton>
       },
     );
   }
-}
-
-class _ScratchCoatingPainter extends CustomPainter {
-  const _ScratchCoatingPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stripePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.18)
-      ..strokeWidth = 2;
-
-    for (double x = -size.height; x < size.width; x += 12) {
-      canvas.drawLine(
-        Offset(x, size.height),
-        Offset(x + size.height, 0),
-        stripePaint,
-      );
-    }
-
-    final dotPaint = Paint()..color = Colors.black.withValues(alpha: 0.06);
-    for (double y = 10; y < size.height; y += 18) {
-      for (double x = 8; x < size.width; x += 22) {
-        canvas.drawCircle(Offset(x, y), 1.4, dotPaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── FAB: Arquibancada Digital ────────────────────────────────────────────────

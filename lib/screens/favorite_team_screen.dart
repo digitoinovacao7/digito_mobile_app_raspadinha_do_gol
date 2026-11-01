@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
-import '../models/app_user.dart';
 import '../providers/auth_provider.dart';
 import '../services/db_service.dart';
 import '../widgets/smart_image.dart';

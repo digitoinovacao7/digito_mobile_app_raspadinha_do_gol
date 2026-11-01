@@ -6,7 +6,7 @@ import '../services/db_service.dart';
 class WithdrawScreen extends ConsumerStatefulWidget {
   final int tokensPerReal;
 
-  const WithdrawScreen({Key? key, required this.tokensPerReal}) : super(key: key);
+  const WithdrawScreen({Key? key, this.tokensPerReal = 1000}) : super(key: key);
 
   @override
   ConsumerState<WithdrawScreen> createState() => _WithdrawScreenState();
@@ -30,14 +30,14 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
   Future<void> _requestWithdraw() async {
     final user = ref.read(currentUserProvider);
-    if (user == null || user.tokens < widget.tokensPerReal) {
+    if (user == null || user.realBalance <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mínimo para saque é de ${widget.tokensPerReal} Tokens.')),
+        const SnackBar(content: Text('Você não possui saldo em Reais disponível para saque.')),
       );
       return;
     }
 
-    if (_pixKeyController.text.isEmpty) {
+    if (_pixKeyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Informe sua chave PIX.')),
       );
@@ -45,7 +45,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     }
     
     // Check for phone number
-    final phone = _phoneController.text.isNotEmpty ? _phoneController.text : user.phone;
+    final phone = _phoneController.text.isNotEmpty ? _phoneController.text.trim() : user.phone;
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('É obrigatório informar um telefone com DDD (WhatsApp).')),
@@ -64,7 +64,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
         ref.read(currentUserProvider.notifier).state = user.copyWith(phone: phone);
       }
       
-      await dbService.requestPixOtp(_pixKeyController.text, user.tokens, phone);
+      await dbService.requestPixOtp(_pixKeyController.text.trim(), 0, user.realBalance, phone);
 
       setState(() {
         _showOtpStep = true;
@@ -101,12 +101,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
     try {
       final dbService = DbService();
-      await dbService.validatePixOtpAndWithdraw(_otpController.text);
+      await dbService.validatePixOtpAndWithdraw(_otpController.text.trim());
 
-      final double withdrawValue = user.tokens / widget.tokensPerReal;
+      final double withdrawValue = user.realBalance;
 
-      // Zerar saldo simulado no frontend:
-      ref.read(currentUserProvider.notifier).state = user.copyWith(tokens: 0);
+      // Atualiza saldo em reais no frontend mantendo os tokens intactos:
+      ref.read(currentUserProvider.notifier).state = user.copyWith(realBalance: 0.0);
+      ref.invalidate(appUserFutureProvider(user.id));
 
       if (mounted) {
         showDialog(
@@ -114,7 +115,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: const Text('Saque Solicitado e Confirmado!', style: TextStyle(color: Colors.green)),
-            content: Text('O valor de R\$ ${withdrawValue.toStringAsFixed(2)} será depositado na sua conta via PIX.'),
+            content: Text('O valor de R\$ ${withdrawValue.toStringAsFixed(2).replaceAll('.', ',')} será depositado na sua conta via PIX.'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -141,8 +142,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final int currentTokens = user?.tokens ?? 0;
-    final double valueInReais = currentTokens / widget.tokensPerReal;
+    final double valueInReais = user?.realBalance ?? 0.0;
     final bool needsPhone = user?.phone == null || user!.phone!.isEmpty;
 
     return Scaffold(
@@ -155,20 +155,20 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Seus Tokens:',
+              'Saldo em Reais (Bolões e Raspadinhas):',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              '🟡 $currentTokens',
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: Colors.amber[800],
+              'R\$ ${(user?.realBalance ?? 0.0).toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.green[600],
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'Valor em Reais (${widget.tokensPerReal} Tokens = R\$ 1,00):',
+              'Total a Sacar:',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
@@ -178,7 +178,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
             const Text('Informe sua chave PIX para receber o valor:'),
             const SizedBox(height: 12),
             TextField(
@@ -204,7 +204,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             ],
             const Spacer(),
             ElevatedButton(
-              onPressed: currentTokens >= widget.tokensPerReal ? _requestWithdraw : null,
+              onPressed: valueInReais > 0 ? _requestWithdraw : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),

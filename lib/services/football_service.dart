@@ -308,8 +308,11 @@ class FootballService {
 
   Future<List<LeagueInfo>> _getActiveLeaguesFootballData() async {
     final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final tomorrowStr =
+        "${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}";
 
     try {
       final callable = FirebaseFunctions.instance.httpsCallable(
@@ -317,7 +320,7 @@ class FootballService {
       );
       final response = await callable.call({
         'endpoint': 'matches',
-        'queryParams': {'dateFrom': dateStr, 'dateTo': dateStr},
+        'queryParams': {'dateFrom': dateStr, 'dateTo': tomorrowStr},
       });
 
       if (response.data['success'] == true) {
@@ -416,8 +419,11 @@ class FootballService {
 
   Future<List<dynamic>> _getMatchesForLeagueFootballData(int leagueId) async {
     final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final tomorrowStr =
+        "${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}";
 
     try {
       final callable = FirebaseFunctions.instance.httpsCallable(
@@ -425,7 +431,7 @@ class FootballService {
       );
       final response = await callable.call({
         'endpoint': 'competitions/$leagueId/matches',
-        'queryParams': {'dateFrom': dateStr, 'dateTo': dateStr},
+        'queryParams': {'dateFrom': dateStr, 'dateTo': tomorrowStr},
       });
 
       if (response.data['success'] == true) {
@@ -475,12 +481,14 @@ class FootballService {
                       m['homeTeam']?['shortName']?.toString() ??
                       m['homeTeam']?['name']?.toString() ??
                       'Casa',
+                  'logo': m['homeTeam']?['crest'],
                 },
                 'away': {
                   'name':
                       m['awayTeam']?['shortName']?.toString() ??
                       m['awayTeam']?['name']?.toString() ??
                       'Visitante',
+                  'logo': m['awayTeam']?['crest'],
                 },
               },
               'goals': {'home': homeScore, 'away': awayScore},
@@ -502,8 +510,11 @@ class FootballService {
     if (_apiKey == null || _apiKey!.isEmpty) return [];
 
     final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final tomorrowStr =
+        "${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}";
 
     if (_activeApi == 'football_data') {
       try {
@@ -512,7 +523,7 @@ class FootballService {
         );
         final response = await callable.call({
           'endpoint': 'matches',
-          'queryParams': {'dateFrom': dateStr, 'dateTo': dateStr},
+          'queryParams': {'dateFrom': dateStr, 'dateTo': tomorrowStr},
         });
 
         if (response.data['success'] == true) {

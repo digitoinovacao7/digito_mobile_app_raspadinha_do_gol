@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/ai_quiz_service.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/custom_app_bar.dart';
 
 class QuizStandaloneScreen extends ConsumerStatefulWidget {
   const QuizStandaloneScreen({super.key});
@@ -18,6 +17,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
   Map<String, dynamic>? _quizData;
   String? _errorMessage;
   int? _selectedOption;
+  int? _correctIndex;
   bool _isAnswered = false;
   bool _isSubmitting = false;
   bool? _wasCorrect;
@@ -35,6 +35,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
       _errorMessage = null;
       _quizData = null;
       _selectedOption = null;
+      _correctIndex = null;
       _isAnswered = false;
       _isSubmitting = false;
       _wasCorrect = null;
@@ -84,6 +85,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
 
       final isCorrect = result['isCorrect'] == true;
       final earnedTokens = (result['earnedTokens'] as num?)?.toInt() ?? 0;
+      final correctIdx = (result['correctIndex'] as num?)?.toInt();
       final user = ref.read(currentUserProvider);
 
       if (isCorrect && user != null && earnedTokens > 0) {
@@ -97,6 +99,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
         _isAnswered = true;
         _isSubmitting = false;
         _wasCorrect = isCorrect;
+        _correctIndex = correctIdx;
         _earnedTokens = earnedTokens;
       });
 
@@ -105,7 +108,7 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
           content: Text(
             isCorrect
                 ? 'Resposta certa! Você ganhou $earnedTokens tokens.'
-                : 'Não foi dessa vez. Sua resposta foi registrada.',
+                : 'Não foi dessa vez. Veja a resposta correta destacada em verde!',
           ),
           backgroundColor: isCorrect ? Colors.green : Colors.red,
           duration: const Duration(seconds: 3),
@@ -159,7 +162,14 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
   }
 
   Widget _buildErrorState() {
-    final message = _errorMessage!.replaceAll('Exception: ', '');
+    final rawMessage = _errorMessage!.replaceAll('Exception: ', '');
+    final isLimit = rawMessage.toLowerCase().contains('limite');
+
+    final displayTitle = isLimit ? 'Limite Diário Atingido' : 'Desafio em Preparação';
+    final displayMessage = isLimit
+        ? rawMessage
+        : 'Estamos escalando as melhores perguntas para você testar seu conhecimento. Toque abaixo para carregar um novo desafio!';
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -167,43 +177,56 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 76,
+              height: 76,
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: isLimit ? Colors.amber.shade50 : AppTheme.primaryGreen.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: isLimit ? Colors.amber.shade300 : AppTheme.primaryGreen.withValues(alpha: 0.25),
+                  width: 2,
+                ),
               ),
-              child: const Icon(
-                Icons.error_outline,
+              child: Icon(
+                isLimit ? Icons.emoji_events : Icons.sports_soccer,
                 size: 40,
-                color: Colors.red,
+                color: isLimit ? Colors.amber.shade800 : AppTheme.primaryGreen,
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'Quiz indisponível',
-              style: TextStyle(
+            Text(
+              displayTitle,
+              style: const TextStyle(
                 color: AppTheme.textDark,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 15,
-                height: 1.35,
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Text(
+                displayMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
               ),
             ),
-            if (!message.toLowerCase().contains('limite')) ...[
+            if (!isLimit) ...[
               const SizedBox(height: 24),
               ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 onPressed: _fetchQuiz,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Tentar Novamente'),
+                label: const Text('Carregar Desafio', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ],
@@ -311,19 +334,20 @@ class _QuizStandaloneScreenState extends ConsumerState<QuizStandaloneScreen> {
 
   Widget _buildOptionButton(int index, String text) {
     final isSelected = _selectedOption == index;
+    final isCorrectOption = _isAnswered && _correctIndex == index;
 
     Color btnColor = Colors.white;
     Color textColor = AppTheme.textDark;
     Color borderColor = Colors.grey.shade200;
     IconData? trailingIcon;
 
-    if (_isAnswered && isSelected) {
-      if (_wasCorrect == true) {
+    if (_isAnswered) {
+      if (isSelected && _wasCorrect == true || isCorrectOption) {
         btnColor = Colors.green.shade50;
         textColor = Colors.green.shade900;
         borderColor = Colors.green;
         trailingIcon = Icons.check_circle;
-      } else {
+      } else if (isSelected && _wasCorrect == false) {
         btnColor = Colors.red.shade50;
         textColor = Colors.red.shade900;
         borderColor = Colors.red;

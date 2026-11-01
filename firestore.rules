@@ -24,7 +24,13 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, create, update: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) &&
+        (!('role' in request.resource.data) || request.resource.data.role == 'user') || isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(uid) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'real_balance']))
+      );
       allow delete: if isAdmin();
 
       match /quiz_attempts/{attempt} {
@@ -38,7 +44,13 @@ service cloud.firestore {
 
     match /prizes/{prizeId} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity']) &&
+        request.resource.data.quantity == resource.data.quantity - 1 &&
+        request.resource.data.quantity >= 0
+      );
     }
 
     match /sponsors/{sponsorId} {
@@ -107,8 +119,24 @@ service cloud.firestore {
       }
     }
 
+    match /boloes/{bolaoId} {
+      allow read, create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if isAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
+
+      match /{subcollection=**} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /support_tickets/{ticketId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+

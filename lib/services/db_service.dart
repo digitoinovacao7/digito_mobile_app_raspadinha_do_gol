@@ -107,6 +107,27 @@ class DbService {
         throw Exception("Saldo insuficiente.");
       }
 
+      // Verificar estoque do prêmio se prizeId for informado
+      final prizeId = redemptionData['prizeId'];
+      if (prizeId != null) {
+        final prizeRef = _db.collection('prizes').doc(prizeId.toString());
+        final prizeSnap = await transaction.get(prizeRef);
+        if (prizeSnap.exists) {
+          final qty = (prizeSnap.data()?['quantity'] as num?)?.toInt() ?? -1;
+          if (qty == 0) {
+            throw Exception("Este prêmio já está esgotado.");
+          } else if (qty > 0) {
+            final newQty = qty - 1;
+            final Map<String, dynamic> updates = {'quantity': newQty};
+            if (newQty == 0) {
+              updates['active'] = false;
+              updates['closedAt'] = FieldValue.serverTimestamp();
+            }
+            transaction.update(prizeRef, updates);
+          }
+        }
+      }
+
       transaction.update(userRef, {'tokens': currentTokens - cost});
 
       final redemptionRef = _db.collection('redemptions').doc();
@@ -152,12 +173,13 @@ class DbService {
     return {};
   }
 
-  Future<void> requestPixOtp(String pixKey, int amount, String phone) async {
+  Future<void> requestPixOtp(String pixKey, int amountTokens, double amountReal, String phone) async {
     final functions = FirebaseFunctions.instance;
     final callable = functions.httpsCallable('requestPixOtp');
     final result = await callable.call({
       'pixKey': pixKey,
-      'amount': amount,
+      'amount': amountTokens,
+      'amountReal': amountReal,
       'phone': phone,
     });
     final data = result.data as Map<String, dynamic>;

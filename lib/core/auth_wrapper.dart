@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../screens/landing_screen.dart';
 import '../screens/main_layout.dart';
+import '../screens/splash_screen.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -21,8 +22,7 @@ class AuthWrapper extends ConsumerWidget {
           return const LandingScreen();
         }
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const SplashScreen(standalone: true),
       error: (err, stack) =>
           Scaffold(body: Center(child: Text('Erro de autenticação: $err'))),
     );
@@ -45,6 +45,7 @@ class _AppUserLoader extends ConsumerWidget {
             final current = ref.read(currentUserProvider);
             if (current?.id != appUser.id ||
                 current?.tokens != appUser.tokens ||
+                current?.realBalance != appUser.realBalance ||
                 current?.role != appUser.role ||
                 current?.watchingFixtureId != appUser.watchingFixtureId ||
                 current?.watchingHomeTeam != appUser.watchingHomeTeam ||
@@ -75,8 +76,7 @@ class _AppUserLoader extends ConsumerWidget {
           );
         }
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const SplashScreen(standalone: true),
       error: (err, stack) => Scaffold(
         body: Center(child: Text('Erro ao carregar dados do perfil: $err')),
       ),

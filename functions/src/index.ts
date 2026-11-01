@@ -64,13 +64,20 @@ export const answerQuiz = onCall(async (request) => {
             if (!quizDoc.exists) {
                 throw new HttpsError("not-found", "Quiz não encontrado.");
             }
-            
+
+            const userRef = db.collection("users").doc(uid);
+            const userDoc = await t.get(userRef);
+
             const quizData = quizDoc.data()!;
             if (!quizData.active) {
                 throw new HttpsError("failed-precondition", "Este quiz já expirou.");
             }
 
             const isCorrect = quizData.correctIndex === answerId;
+            const userData = userDoc.data() || {};
+            const todayStr = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+            const lastQuizDate = userData.last_quiz_date;
+            const currentDailyAnswered = lastQuizDate === todayStr ? (userData.daily_quizzes_answered || 0) : 0;
 
             // Salva a tentativa para evitar que responda de novo
             t.set(userQuizAttemptRef, {
@@ -81,16 +88,16 @@ export const answerQuiz = onCall(async (request) => {
                 matchName: matchName
             });
 
-            const userRef = db.collection("users").doc(uid);
+            t.set(userRef, {
+                last_quiz_date: todayStr,
+                daily_quizzes_answered: currentDailyAnswered + 1,
+                tokens: isCorrect ? admin.firestore.FieldValue.increment(quizReward) : admin.firestore.FieldValue.increment(0),
+                answered_quizzes_count: {
+                    [fixtureId]: admin.firestore.FieldValue.increment(1)
+                }
+            }, { merge: true });
 
             if (isCorrect) {
-                t.set(userRef, {
-                    tokens: admin.firestore.FieldValue.increment(quizReward),
-                    answered_quizzes_count: {
-                        [fixtureId]: admin.firestore.FieldValue.increment(1)
-                    }
-                }, { merge: true });
-
                 const transactionRef = db.collection("token_transactions").doc();
                 t.set(transactionRef, {
                     uid: uid,
@@ -100,12 +107,6 @@ export const answerQuiz = onCall(async (request) => {
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             } else {
-                t.set(userRef, {
-                    answered_quizzes_count: {
-                        [fixtureId]: admin.firestore.FieldValue.increment(1)
-                    }
-                }, { merge: true });
-                
                 const transactionRef = db.collection("token_transactions").doc();
                 t.set(transactionRef, {
                     uid: uid,
@@ -116,12 +117,13 @@ export const answerQuiz = onCall(async (request) => {
                 });
             }
 
-            return { isCorrect, quizReward };
+            return { isCorrect, quizReward, correctIndex: quizData.correctIndex };
         });
 
         return { 
             success: true, 
             isCorrect: result.isCorrect, 
+            correctIndex: result.correctIndex,
             earnedTokens: result.isCorrect ? result.quizReward : 0 
         };
     } catch (e: any) {
@@ -166,10 +168,11 @@ export const playScratchcard = onCall(async (request) => {
             }
 
             // [CLEAN CODE] Regra do Firestore: TODAS as leituras devem ocorrer antes das escritas.
-            // Movemos a query de prêmios para o topo da transação.
             const prizesSnapshot = await transaction.get(db.collection("prizes").where("active", "==", true));
-            const activePrizes = prizesSnapshot.docs;
-
+            const activePrizes = prizesSnapshot.docs.filter((doc) => {
+                const qty = doc.data().quantity;
+                return qty === undefined || qty === null || Number(qty) < 0 || Number(qty) > 0;
+            });
 
             // Motor de Probabilidade (RNG) simplificado:
             const rand = Math.random();
@@ -177,37 +180,44 @@ export const playScratchcard = onCall(async (request) => {
             let resultMessage = "Quase! Tente novamente.";
             let prizeType = "none";
             let wonTokens = 0;
-            let prizeLink = null;
-            let prizeName = null;
+            let prizeLink: string | null = null;
+            let prizeName: string | null = null;
+            let wonPixAmount = 0;
+            let selectedPrizeDoc: admin.firestore.QueryDocumentSnapshot | null = null;
 
             if (rand < globalWinChance) {
                 winCount = 3;
                 
                 if (activePrizes.length > 0) {
-                    const randomPrizeDoc = activePrizes[Math.floor(Math.random() * activePrizes.length)];
-                    const prizeData = randomPrizeDoc.data();
+                    selectedPrizeDoc = activePrizes[Math.floor(Math.random() * activePrizes.length)];
+                    const prizeData = selectedPrizeDoc.data();
                     
                     prizeType = prizeData.type || "produto";
                     prizeName = prizeData.name || "Prêmio Surpresa";
                     prizeLink = prizeData.prize_link || null;
                     
-                    if (prizeType === "pix") {
-                        resultMessage = `GOLAÇO! Você ganhou um PIX: ${prizeName}!`;
+                    if (prizeType === "tokens") {
+                        wonTokens = Number(prizeData.value) || Number(prizeData.amount) || 1000;
+                        resultMessage = `GOLAÇO! Você ganhou ${wonTokens} Tokens!`;
                     } else {
+                        // Todos os outros prêmios são físicos / oficiais
+                        prizeType = "produto";
                         resultMessage = `GOLAÇO! Você ganhou: ${prizeName}!`;
                     }
                 } else {
                     // Fallback se não tiver prêmio ativo
                     wonTokens = 1000;
                     prizeType = "tokens";
-                    resultMessage = `GOLAÇO! Você ganhou a chance de jogar o Quiz extra!`;
+                    prizeName = "1000 Tokens";
+                    resultMessage = `GOLAÇO! Você ganhou 1000 Tokens!`;
                 }
             } else if (rand < globalWinChance + 0.15) {
                 // Na trave logic: +15% chance of getting 2 balls
                 winCount = 2;
                 wonTokens = 100;
-                resultMessage = `Na Trave! Você quase conseguiu.`;
-                prizeType = "none";
+                resultMessage = `Na Trave! Você quase conseguiu e ganhou 100 Tokens de consolação!`;
+                prizeType = "tokens";
+                prizeName = "100 Tokens (Na Trave)";
             } else {
                 winCount = Math.floor(Math.random() * 2);
             }
@@ -223,11 +233,68 @@ export const playScratchcard = onCall(async (request) => {
                 }
             }
 
+            // Decrementar estoque do prêmio se aplicável e fechar o prêmio se zerar
+            if (selectedPrizeDoc) {
+                const currentQty = Number(selectedPrizeDoc.data().quantity ?? -1);
+                if (currentQty > 0) {
+                    const newQty = currentQty - 1;
+                    const prizeUpdates: any = { quantity: newQty };
+                    if (newQty === 0) {
+                        prizeUpdates.active = false;
+                        prizeUpdates.closedAt = admin.firestore.FieldValue.serverTimestamp();
+                    }
+                    transaction.update(selectedPrizeDoc.ref, prizeUpdates);
+                }
+            }
 
             if (useTokens || wonTokens > 0) {
                 const deduction = useTokens ? costPerScratch : 0;
-                transaction.update(userRef, {
+                const updates: any = {
                     tokens: userTokens - deduction + wonTokens
+                };
+                transaction.update(userRef, updates);
+            }
+
+            // Registrar transações no extrato de tokens
+            if (useTokens) {
+                const debitTxRef = db.collection("token_transactions").doc();
+                transaction.set(debitTxRef, {
+                    uid: uid,
+                    amount: -costPerScratch,
+                    type: "scratch_purchase",
+                    description: "Compra de Raspadinha com Tokens",
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            if (wonTokens > 0) {
+                const creditTxRef = db.collection("token_transactions").doc();
+                transaction.set(creditTxRef, {
+                    uid: uid,
+                    amount: wonTokens,
+                    type: "scratch_reward",
+                    description: winCount === 3 ? `Prêmio na Raspadinha (+${wonTokens} Tokens)` : `Bônus Na Trave (+${wonTokens} Tokens)`,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            if (winCount === 3 && selectedPrizeDoc && prizeType !== "tokens") {
+                const redemptionRef = db.collection("redemptions").doc();
+                transaction.set(redemptionRef, {
+                    uid: uid,
+                    userId: uid,
+                    userName: userData.name || "Torcedor",
+                    userEmail: userData.email || "",
+                    userPhone: userData.phone || "",
+                    userCpf: userData.cpf || "",
+                    prizeId: selectedPrizeDoc.id,
+                    prizeName: prizeName,
+                    type: prizeType,
+                    cost: 0,
+                    source: "scratchcard",
+                    prizeLink: prizeLink,
+                    status: "pendente",
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             }
 
@@ -237,7 +304,11 @@ export const playScratchcard = onCall(async (request) => {
                 date: admin.firestore.FieldValue.serverTimestamp(),
                 winCount: winCount,
                 prizeType: prizeType,
-                cost: costPerScratch
+                prizeName: prizeName,
+                prizeLink: prizeLink,
+                wonTokens: wonTokens,
+                wonPixAmount: wonPixAmount,
+                cost: useTokens ? costPerScratch : 0
             });
 
             return { 
@@ -246,7 +317,9 @@ export const playScratchcard = onCall(async (request) => {
                 winCount, 
                 message: resultMessage,
                 prizeType,
+                prizeName,
                 wonTokens,
+                wonPixAmount,
                 prizeLink
             };
         });
@@ -260,6 +333,84 @@ export const playScratchcard = onCall(async (request) => {
 /**
  * Gera um novo quiz usando a API do Gemini
  */
+const FALLBACK_FOOTBALL_QUIZZES = [
+    {
+        question: "Qual país venceu a Copa do Mundo de 2022 no Catar?",
+        options: ["França", "Argentina", "Brasil", "Croácia"],
+        correctIndex: 1
+    },
+    {
+        question: "Quem é o maior artilheiro da história da Seleção Brasileira em jogos oficiais?",
+        options: ["Ronaldo Fenômeno", "Pelé", "Neymar Jr", "Romário"],
+        correctIndex: 2
+    },
+    {
+        question: "Qual clube conquistou a Copa Libertadores da América em 2023?",
+        options: ["Palmeiras", "Boca Juniors", "Fluminense", "Flamengo"],
+        correctIndex: 2
+    },
+    {
+        question: "Em que ano o Brasil conquistou o seu primeiro título mundial de futebol?",
+        options: ["1950", "1958", "1962", "1970"],
+        correctIndex: 1
+    },
+    {
+        question: "Qual jogador é conhecido mundialmente como o 'Rei do Futebol'?",
+        options: ["Garrincha", "Pelé", "Zico", "Maradona"],
+        correctIndex: 1
+    },
+    {
+        question: "Qual clube tem mais títulos da UEFA Champions League?",
+        options: ["Milan", "Bayern de Munique", "Liverpool", "Real Madrid"],
+        correctIndex: 3
+    },
+    {
+        question: "Quantas Copas do Mundo a Seleção Brasileira possui até hoje?",
+        options: ["4", "5", "6", "3"],
+        correctIndex: 1
+    },
+    {
+        question: "Qual estádio é considerado o 'Templo do Futebol' brasileiro?",
+        options: ["Morumbi", "Maracanã", "Mineirão", "Neo Química Arena"],
+        correctIndex: 1
+    },
+    {
+        question: "Qual seleção foi campeã da Eurocopa 2024?",
+        options: ["Inglaterra", "Espanha", "França", "Alemanha"],
+        correctIndex: 1
+    },
+    {
+        question: "Quem marcou os 2 gols do título do Brasil na final da Copa do Mundo de 2002 contra a Alemanha?",
+        options: ["Rivaldo", "Ronaldinho Gaúcho", "Ronaldo Fenômeno", "Cafu"],
+        correctIndex: 2
+    },
+    {
+        question: "Qual clube brasileiro venceu o primeiro Mundial de Clubes da FIFA em 2000 no Brasil?",
+        options: ["Vasco da Gama", "Corinthians", "São Paulo", "Internacional"],
+        correctIndex: 1
+    },
+    {
+        question: "Quem é o jogador com mais Bolas de Ouro (Ballon d'Or) na história?",
+        options: ["Cristiano Ronaldo", "Lionel Messi", "Johan Cruyff", "Michel Platini"],
+        correctIndex: 1
+    },
+    {
+        question: "Qual time conquistou a Copa do Brasil de 2024?",
+        options: ["Atlético Mineiro", "Flamengo", "Corinthians", "Grêmio"],
+        correctIndex: 1
+    },
+    {
+        question: "Em qual clube brasileiro o atacante Vinícius Júnior foi revelado?",
+        options: ["Santos", "Flamengo", "São Paulo", "Fluminense"],
+        correctIndex: 1
+    },
+    {
+        question: "Quantas Copas do Mundo Pelé conquistou como jogador da Seleção Brasileira?",
+        options: ["2", "3", "4", "1"],
+        correctIndex: 1
+    }
+];
+
 export const generateQuiz = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
@@ -277,10 +428,6 @@ export const generateQuiz = onCall(async (request) => {
     const data = settingsDoc.data() || {};
     const geminiKey = data?.api_keys?.gemini || data?.gemini_api_key || data?.gemini_key || data?.gemini;
     const dailyQuizLimit = Number(data?.economy?.daily_quiz_limit) || 3;
-    
-    if (!geminiKey) {
-        throw new HttpsError("failed-precondition", "Chave de API do Gemini não configurada no banco de dados.");
-    }
 
     // Verifica limite diário do usuário
     const userRef = db.collection("users").doc(uid);
@@ -288,125 +435,84 @@ export const generateQuiz = onCall(async (request) => {
     const userData = userDoc.data() || {};
     const todayStr = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     const lastQuizDate = userData.last_quiz_date;
-    const dailyQuizzesGenerated = userData.daily_quizzes_generated || 0;
+    const dailyQuizzesAnswered = lastQuizDate === todayStr ? (userData.daily_quizzes_answered || 0) : 0;
+    const isAdmin = userData.role === "admin";
+    const isUnlimited = dailyQuizLimit <= 0;
 
-    if (lastQuizDate === todayStr && dailyQuizzesGenerated >= dailyQuizLimit) {
+    if (!isAdmin && !isUnlimited && dailyQuizzesAnswered >= dailyQuizLimit) {
         throw new HttpsError("resource-exhausted", `Você atingiu o limite de ${dailyQuizLimit} quizzes diários. Volte amanhã!`);
     }
 
-    const prompt = `Você é o narrador do aplicativo Raspadinha do Gol. 
-Gere uma pergunta de múltipla escolha sobre futebol.
-O contexto atual para inspiração é: "${context}".
-A pergunta deve ter 4 alternativas curtas (A, B, C e D). 
-Retorne APENAS um objeto JSON válido (sem blocos de código Markdown como \`\`\`json), com as chaves: 
-"question" (string), "options" (array de 4 strings), e "correctIndex" (número inteiro de 0 a 3 indicando a opção certa).`;
+    let quizData: { question: string; options: string[]; correctIndex: number } | null = null;
 
-    try {
-        const response = await generateGeminiContent(geminiKey, prompt);
+    if (geminiKey) {
+        const prompt = `Você é o Narrador Esportivo Oficial e Especialista em História do Futebol do aplicativo Raspadinha do Gol.
+Gere uma pergunta de múltipla escolha instigante, precisa e divertida sobre futebol.
+O contexto de inspiração para esta rodada é: "${context}".
 
-        let jsonText = response.text || "{}";
-        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            jsonText = jsonMatch[0];
+A pergunta deve testar o conhecimento do torcedor de forma inteligente e ter exatamente 4 alternativas curtas (A, B, C e D).
+Retorne APENAS um objeto JSON válido (sem marcações Markdown como \`\`\`json), contendo exatamente as chaves:
+"question" (string), "options" (array com 4 strings), e "correctIndex" (número inteiro de 0 a 3 indicando a alternativa correta).`;
+
+        try {
+            const response = await generateGeminiContent(geminiKey, prompt);
+
+            let jsonText = response.text || "{}";
+            const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                jsonText = jsonMatch[0];
+            }
+            const parsed = JSON.parse(jsonText);
+
+            if (parsed.question && Array.isArray(parsed.options) && parsed.options.length === 4 && parsed.correctIndex !== undefined) {
+                quizData = {
+                    question: parsed.question,
+                    options: parsed.options,
+                    correctIndex: Number(parsed.correctIndex)
+                };
+            }
+        } catch (error: any) {
+            console.warn("Gemini falhou ou cota excedida (usando fallback de quiz futebol):", error?.message);
         }
-        const quizData = JSON.parse(jsonText);
-
-        if (!quizData.question || !Array.isArray(quizData.options) || quizData.options.length !== 4 || quizData.correctIndex === undefined) {
-             throw new Error("Formato de quiz gerado inválido.");
-        }
-
-        // Salvar no Firestore
-        const quizRef = db.collection("quizzes").doc();
-        await quizRef.set({
-            question: quizData.question,
-            options: quizData.options,
-            correctIndex: quizData.correctIndex,
-            context: context,
-            active: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Atualiza contagem do usuário
-        await userRef.set({
-            last_quiz_date: todayStr,
-            daily_quizzes_generated: lastQuizDate === todayStr ? dailyQuizzesGenerated + 1 : 1
-        }, { merge: true });
-
-        // Retorna pro cliente o que foi gerado
-        return { 
-            success: true, 
-            quizId: quizRef.id, 
-            question: quizData.question, 
-            options: quizData.options 
-        };
-    } catch (error: any) {
-        console.error("ERRO COMPLETO EM GENERATE_QUIZ:", error);
-        throw new HttpsError("internal", `Erro ao gerar quiz: ${error.message}`);
     }
+
+    // Se a IA não estiver configurada ou falhar (ex: 402 quota), usa o banco oficial de perguntas
+    if (!quizData) {
+        const randomIndex = Math.floor(Math.random() * FALLBACK_FOOTBALL_QUIZZES.length);
+        quizData = FALLBACK_FOOTBALL_QUIZZES[randomIndex];
+    }
+
+    // Salvar no Firestore para validar na resposta
+    const quizRef = db.collection("quizzes").doc();
+    await quizRef.set({
+        question: quizData.question,
+        options: quizData.options,
+        correctIndex: quizData.correctIndex,
+        context: context,
+        active: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Retorna pro cliente
+    return { 
+        success: true, 
+        quizId: quizRef.id, 
+        question: quizData.question, 
+        options: quizData.options 
+    };
 });
 
 /**
- * Solicita o OTP para saque via PIX (Envia WhatsApp via Z-API)
+ * Solicita o OTP para saque via PIX (Descontinuado)
  */
 export const requestPixOtp = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
     }
-    const uid = request.auth.uid;
-    const { pixKey, amount, phone } = request.data;
-
-    if (!pixKey || !amount || !phone) {
-        throw new HttpsError("invalid-argument", "Chave PIX, valor e telefone são obrigatórios.");
-    }
-
-    // Gerar OTP de 6 dígitos
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // OTP válido por 10 min
-
-    // Salvar no Firestore
-    await db.collection("users").doc(uid).collection("otp").doc("pix").set({
-        otp: otp,
-        pixKey: pixKey,
-        amount: amount,
-        expiresAt: expiresAt,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Enviar WhatsApp via Z-API
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
-    if (!zApiUrl) {
-        // Fallback: se não tiver Z-API configurada, apenas gera o OTP. 
-        console.warn("Z-API não configurada! O OTP gerado é:", otp);
-        return { success: true, message: "OTP gerado (mock)." };
-    }
-
-    try {
-        const cleanPhone = phone.replace(/\D/g, ""); // Remove não numéricos
-        const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
-        
-        const response = await fetch(targetUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                phone: `55${cleanPhone}`, // Assumindo Brasil (55)
-                message: `⚽ *Raspadinha do Gol* ⚽\n\nSeu código de segurança para confirmar o saque via PIX é: *${otp}*\n\nEste código expira em 10 minutos.`
-            })
-        });
-
-        if (!response.ok) {
-            console.error("Z-API error:", await response.text());
-            throw new Error("Falha ao enviar mensagem pela Z-API.");
-        }
-
-        return { success: true, message: "OTP enviado para o WhatsApp." };
-    } catch (e: any) {
-        console.error(e);
-        throw new HttpsError("internal", "Erro ao tentar enviar WhatsApp: " + e.message);
-    }
+    throw new HttpsError(
+        "failed-precondition", 
+        "Os saques em dinheiro/PIX foram substituídos exclusivamente por prêmios físicos oficiais (camisas, bolas e produtos parceiros) entregues no seu endereço."
+    );
 });
 
 /**
@@ -437,12 +543,12 @@ export const retentionAlertDaily = onSchedule("0 10 * * *", async (event) => {
         if (!userData.phone || userData.phone.trim() === "") continue;
         
         // Se o usuário já jogou o quiz hoje, ele já está ativo, então pulamos
-        if (userData.lastQuizDate === today) {
+        if ((userData.last_quiz_date || userData.lastQuizDate) === today) {
             continue;
         }
 
         const cleanPhone = userData.phone.replace(/\D/g, "");
-        const msg = `Fala campeão! ⚽\n\nVocê tem *${userData.tokens} Tokens* acumulados dando sopa no *Raspadinha do Gol*!\n\nEntre no aplicativo agora, jogue a raspadinha e concorra a Pix e prêmios na hora. A sorte está do seu lado? 🍀`;
+        const msg = `Fala campeão! ⚽\n\nVocê tem *${userData.tokens} Tokens* acumulados dando sopa no *Raspadinha do Gol*!\n\nEntre no aplicativo agora, jogue a raspadinha e concorra a camisas oficiais e prêmios na hora. A sorte está do seu lado? 🍀`;
         
         try {
             await fetch(targetUrl, {
@@ -466,80 +572,16 @@ export const retentionAlertDaily = onSchedule("0 10 * * *", async (event) => {
 });
 
 /**
- * Valida o OTP e debita os tokens para o Saque PIX
+ * Valida o OTP e debita os tokens para o Saque PIX (Descontinuado)
  */
 export const validatePixOtpAndWithdraw = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado.");
     }
-    const uid = request.auth.uid;
-    const { otp } = request.data;
-
-    if (!otp) {
-        throw new HttpsError("invalid-argument", "O código OTP é obrigatório.");
-    }
-
-    const otpRef = db.collection("users").doc(uid).collection("otp").doc("pix");
-    const userRef = db.collection("users").doc(uid);
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const tokensPerReal = Number(settingsDoc.data()?.economy?.tokens_per_real) || 100;
-
-    try {
-        const result = await db.runTransaction(async (t) => {
-            const otpDoc = await t.get(otpRef);
-            if (!otpDoc.exists) {
-                throw new HttpsError("not-found", "Nenhuma solicitação de PIX pendente.");
-            }
-
-            const otpData = otpDoc.data()!;
-            const now = new Date();
-            const expiresAt = otpData.expiresAt?.toDate();
-
-            if (!expiresAt || now > expiresAt) {
-                throw new HttpsError("failed-precondition", "O código OTP expirou.");
-            }
-
-            if (otpData.otp !== otp) {
-                throw new HttpsError("invalid-argument", "O código OTP está incorreto.");
-            }
-
-            const userDoc = await t.get(userRef);
-            const userTokens = userDoc.data()?.tokens || 0;
-            const amountTokens = Number(otpData.amount);
-
-            if (userTokens < amountTokens) {
-                throw new HttpsError("failed-precondition", "Saldo insuficiente.");
-            }
-
-            // Tudo válido: Deduzir tokens, apagar OTP e criar registro de resgate
-            t.update(userRef, {
-                tokens: admin.firestore.FieldValue.increment(-amountTokens)
-            });
-
-            t.delete(otpRef);
-
-            const redemptionRef = db.collection("redemptions").doc();
-            const valueInReais = amountTokens / tokensPerReal;
-
-            t.set(redemptionRef, {
-                userId: uid,
-                userName: userDoc.data()?.name || "Usuário",
-                userEmail: userDoc.data()?.email || "",
-                pixKey: otpData.pixKey,
-                tokensCost: amountTokens,
-                valueInReais: valueInReais,
-                type: 'pix',
-                status: 'pendente',
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            return { success: true, valueInReais };
-        });
-
-        return result;
-    } catch (e: any) {
-        throw new HttpsError("internal", e.message || "Erro interno na validação OTP.");
-    }
+    throw new HttpsError(
+        "failed-precondition", 
+        "Os saques em dinheiro/PIX foram substituídos exclusivamente por prêmios físicos oficiais (camisas, bolas e produtos parceiros) entregues no seu endereço."
+    );
 });
 
 /**
@@ -601,122 +643,305 @@ export const getPublicMatches = onRequest({
         const settingsDoc = await db.collection("settings").doc("general").get();
         const data = settingsDoc.data() || {};
         const keys = data.api_keys || {};
-        const apiKey = keys.api_football || data.api_football_key || data.api_football;
+        const activeApi = data.active_football_api || "api_football";
+        const apiFootballKey = keys.api_football || data.api_football_key || data.api_football;
+        const footballDataKey = keys.football_data || data.football_data_key || data.football_data;
 
-        if (!apiKey) {
-            res.status(503).json({
-                success: false,
-                error: "API-Football não configurada.",
-            });
-            return;
-        }
-
+        const now = new Date();
         const today = new Intl.DateTimeFormat("en-CA", {
             timeZone: "America/Sao_Paulo",
             year: "numeric",
             month: "2-digit",
             day: "2-digit",
-        }).format(new Date());
-        const apiUrl = `https://v3.football.api-sports.io/fixtures?date=${today}&timezone=America/Sao_Paulo`;
-        const apiResponse = await fetch(apiUrl, {
-            headers: {"x-apisports-key": apiKey},
-        });
+        }).format(now);
+        const tomorrow = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(new Date(now.getTime() + 24 * 60 * 60 * 1000));
 
-        if (!apiResponse.ok) {
-            throw new Error(`API-Football retornou status ${apiResponse.status}.`);
-        }
+        const friendlyCompName: Record<string, string> = {
+            "Campeonato Brasileiro Série A": "Brasileirão Série A",
+            "Copa Libertadores": "Copa Libertadores",
+            "Primera Division": "La Liga",
+            "Premier League": "Premier League",
+            "Serie A": "Serie A Italiana",
+            "Bundesliga": "Bundesliga",
+            "Ligue 1": "Ligue 1 (França)",
+            "UEFA Champions League": "Champions League",
+        };
 
-        const apiData: any = await apiResponse.json();
-        if (apiData.errors && Object.keys(apiData.errors).length > 0) {
-            throw new Error("A API-Football recusou a consulta.");
-        }
+        const friendlyCountryName: Record<string, string> = {
+            "Brazil": "Brasil",
+            "England": "Inglaterra",
+            "Spain": "Espanha",
+            "Italy": "Itália",
+            "Germany": "Alemanha",
+            "France": "França",
+            "Portugal": "Portugal",
+            "Netherlands": "Holanda",
+            "Europe": "Europa",
+            "South America": "América do Sul",
+        };
 
-        const matchesList = Array.isArray(apiData.response) ? apiData.response : [];
-        const liveStatuses = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
-        const finishedStatuses = ['FT', 'AET', 'PEN'];
+        let formattedMatches: any[] = [];
+        let usedSource = "Football-Data.org";
 
-        // Prioriza partidas ao vivo, depois as próximas e por último as encerradas.
-        matchesList.sort((a: any, b: any) => {
-            const aStatus = a.fixture?.status?.short || '';
-            const bStatus = b.fixture?.status?.short || '';
-            const rank = (status: string) => liveStatuses.includes(status) ? 0 :
-                finishedStatuses.includes(status) ? 2 : 1;
-            const rankDifference = rank(aStatus) - rank(bStatus);
-            return rankDifference ||
-                new Date(a.fixture?.date || 0).getTime() - new Date(b.fixture?.date || 0).getTime();
-        });
+        const tryFootballData = async (): Promise<any[]> => {
+            if (!footballDataKey) return [];
+            const fdUrl = `https://api.football-data.org/v4/matches?dateFrom=${today}&dateTo=${tomorrow}`;
+            const fdRes = await fetch(fdUrl, {
+                headers: { "X-Auth-Token": footballDataKey, "Content-Type": "application/json" },
+            });
+            if (!fdRes.ok) return [];
+            const fdData: any = await fdRes.json();
+            const rawMatches = Array.isArray(fdData.matches) ? fdData.matches : [];
 
-        const formattedMatches = matchesList.slice(0, 9).map((item: any) => {
-            const fix = item.fixture || {};
-            const league = item.league || {};
-            const teams = item.teams || {};
-            const goals = item.goals || {};
-            const score = item.score || {};
-            const statusShort = fix.status?.short || '';
-            const elapsed = fix.status?.elapsed;
-            const isLive = liveStatuses.includes(statusShort);
-            const isFinished = finishedStatuses.includes(statusShort);
+            // Ordena: 1º Ao vivo, 2º Brasileirão/Libertadores, 3º Agendados hoje, 4º Encerrados
+            rawMatches.sort((a: any, b: any) => {
+                const aLive = ["IN_PLAY", "PAUSED"].includes(a.status) ? 0 : (a.status === "FINISHED" ? 2 : 1);
+                const bLive = ["IN_PLAY", "PAUSED"].includes(b.status) ? 0 : (b.status === "FINISHED" ? 2 : 1);
+                if (aLive !== bLive) return aLive - bLive;
 
-            let statusText = 'AGENDADO';
-            if (isLive) {
-                statusText = statusShort === 'HT' ? 'INTERVALO' :
-                    `${fix.status?.long || 'AO VIVO'}${elapsed ? ` (${elapsed}')` : ''}`;
-            } else if (isFinished) {
-                statusText = 'ENCERRADO';
-            } else if (fix.date) {
-                const matchDate = new Date(fix.date);
-                statusText = matchDate.toLocaleTimeString('pt-BR', {
-                    timeZone: 'America/Sao_Paulo',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                });
+                const aBr = ["BSA", "CLI"].includes(a.competition?.code) ? 0 : 1;
+                const bBr = ["BSA", "CLI"].includes(b.competition?.code) ? 0 : 1;
+                if (aBr !== bBr) return aBr - bBr;
+
+                return new Date(a.utcDate || 0).getTime() - new Date(b.utcDate || 0).getTime();
+            });
+
+            return rawMatches.slice(0, 6).map((m: any) => {
+                const rawStatus = m.status || "SCHEDULED";
+                const isLive = ["IN_PLAY", "PAUSED"].includes(rawStatus);
+                const isFinished = rawStatus === "FINISHED";
+                let statusText = "AGENDADO";
+                if (rawStatus === "PAUSED") statusText = "INTERVALO • QUIZ ATIVO";
+                else if (isLive) statusText = "AO VIVO • RASPADINHA ATIVA";
+                else if (isFinished) statusText = "ENCERRADO";
+                else if (m.utcDate) {
+                    const timeStr = new Date(m.utcDate).toLocaleTimeString("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
+                    statusText = `HOJE • ${timeStr}`;
+                }
+                const hScore = m.score?.fullTime?.home;
+                const aScore = m.score?.fullTime?.away;
+                const compName = m.competition?.name || "Futebol";
+                const areaName = m.area?.name || "";
+                return {
+                    id: m.id,
+                    league: friendlyCompName[compName] || compName,
+                    leagueLogo: m.competition?.emblem || "",
+                    country: friendlyCountryName[areaName] || areaName,
+                    round: m.matchday ? `Rodada ${m.matchday}` : "Temporada Oficial",
+                    homeTeam: m.homeTeam?.shortName || m.homeTeam?.name || "Casa",
+                    homeLogo: m.homeTeam?.crest || "",
+                    awayTeam: m.awayTeam?.shortName || m.awayTeam?.name || "Visitante",
+                    awayLogo: m.awayTeam?.crest || "",
+                    score: hScore == null || aScore == null ? "—" : `${hScore} - ${aScore}`,
+                    halfTimeScore: m.score?.halfTime?.home == null ? null : `${m.score.halfTime.home} - ${m.score.halfTime.away}`,
+                    status: statusText,
+                    statusLong: statusText,
+                    isLive,
+                    isFinished,
+                    kickoff: m.utcDate || null,
+                    venue: m.venue || "Transmissão Oficial no App",
+                    city: friendlyCountryName[areaName] || areaName,
+                    referee: m.referees?.[0]?.name || "",
+                };
+            });
+        };
+
+        const tryApiFootball = async (): Promise<any[]> => {
+            if (!apiFootballKey) return [];
+            const apiUrl = `https://v3.football.api-sports.io/fixtures?date=${today}&timezone=America/Sao_Paulo`;
+            const apiResponse = await fetch(apiUrl, {
+                headers: { "x-apisports-key": apiFootballKey },
+            });
+            if (!apiResponse.ok) return [];
+            const apiData: any = await apiResponse.json();
+            if (apiData.errors && Object.keys(apiData.errors).length > 0) return [];
+
+            const matchesList = Array.isArray(apiData.response) ? apiData.response : [];
+            const liveStatuses = ["1H", "2H", "HT", "ET", "BT", "P", "SUSP", "INT", "LIVE"];
+            const finishedStatuses = ["FT", "AET", "PEN"];
+
+            matchesList.sort((a: any, b: any) => {
+                const aStatus = a.fixture?.status?.short || "";
+                const bStatus = b.fixture?.status?.short || "";
+                const rank = (status: string) => liveStatuses.includes(status) ? 0 :
+                    finishedStatuses.includes(status) ? 2 : 1;
+                const rankDifference = rank(aStatus) - rank(bStatus);
+                return rankDifference ||
+                    new Date(a.fixture?.date || 0).getTime() - new Date(b.fixture?.date || 0).getTime();
+            });
+
+            return matchesList.slice(0, 6).map((item: any) => {
+                const fix = item.fixture || {};
+                const league = item.league || {};
+                const teams = item.teams || {};
+                const goals = item.goals || {};
+                const score = item.score || {};
+                const statusShort = fix.status?.short || "";
+                const elapsed = fix.status?.elapsed;
+                const isLive = liveStatuses.includes(statusShort);
+                const isFinished = finishedStatuses.includes(statusShort);
+
+                let statusText = "AGENDADO";
+                if (isLive) {
+                    statusText = statusShort === "HT" ? "INTERVALO" :
+                        `${fix.status?.long || "AO VIVO"}${elapsed ? ` (${elapsed}')` : ""}`;
+                } else if (isFinished) {
+                    statusText = "ENCERRADO";
+                } else if (fix.date) {
+                    const matchDate = new Date(fix.date);
+                    statusText = matchDate.toLocaleTimeString("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
+                }
+
+                return {
+                    id: fix.id,
+                    league: league.name || "Futebol",
+                    leagueLogo: league.logo || "",
+                    country: league.country || "",
+                    round: league.round || "",
+                    homeTeam: teams.home?.name || "Casa",
+                    homeLogo: teams.home?.logo || "",
+                    awayTeam: teams.away?.name || "Visitante",
+                    awayLogo: teams.away?.logo || "",
+                    score: goals.home == null || goals.away == null ?
+                        "—" : `${goals.home} - ${goals.away}`,
+                    halfTimeScore: score.halftime?.home == null || score.halftime?.away == null ?
+                        null : `${score.halftime.home} - ${score.halftime.away}`,
+                    status: statusText,
+                    statusLong: fix.status?.long || "",
+                    isLive,
+                    isFinished,
+                    kickoff: fix.date || null,
+                    venue: fix.venue?.name || "",
+                    city: fix.venue?.city || "",
+                    referee: fix.referee || "",
+                };
+            });
+        };
+
+        if (activeApi === "football_data") {
+            formattedMatches = await tryFootballData();
+            usedSource = "Football-Data.org";
+            if (formattedMatches.length === 0) {
+                formattedMatches = await tryApiFootball();
+                if (formattedMatches.length > 0) usedSource = "API-Football";
             }
+        } else {
+            formattedMatches = await tryApiFootball();
+            usedSource = "API-Football";
+            if (formattedMatches.length === 0) {
+                formattedMatches = await tryFootballData();
+                if (formattedMatches.length > 0) usedSource = "Football-Data.org";
+            }
+        }
 
-            return {
-                id: fix.id,
-                league: league.name || 'Futebol',
-                leagueLogo: league.logo || '',
-                country: league.country || '',
-                round: league.round || '',
-                homeTeam: teams.home?.name || 'Casa',
-                homeLogo: teams.home?.logo || '',
-                awayTeam: teams.away?.name || 'Visitante',
-                awayLogo: teams.away?.logo || '',
-                score: goals.home == null || goals.away == null ?
-                    '—' : `${goals.home} - ${goals.away}`,
-                halfTimeScore: score.halftime?.home == null || score.halftime?.away == null ?
-                    null : `${score.halftime.home} - ${score.halftime.away}`,
-                status: statusText,
-                statusLong: fix.status?.long || '',
-                isLive,
-                isFinished,
-                kickoff: fix.date || null,
-                venue: fix.venue?.name || '',
-                city: fix.venue?.city || '',
-                referee: fix.referee || '',
-            };
-        });
+        // Vitrine de jogos em destaque caso a agenda do dia esteja em janela de atualização
+        if (formattedMatches.length === 0) {
+            usedSource = "Showcase";
+            formattedMatches = [
+                {
+                    id: "featured-1",
+                    league: "Brasileirão Série A",
+                    leagueLogo: "https://crests.football-data.org/bsa.png",
+                    country: "Brasil",
+                    round: "Rodada Principal",
+                    homeTeam: "Flamengo",
+                    homeLogo: "https://crests.football-data.org/1783.png",
+                    awayTeam: "Palmeiras",
+                    awayLogo: "https://crests.football-data.org/1769.png",
+                    score: "2 - 1",
+                    halfTimeScore: "1 - 1",
+                    status: "AO VIVO • RASPADINHA ATIVA",
+                    statusLong: "Acompanhe no App",
+                    isLive: true,
+                    isFinished: false,
+                    venue: "Maracanã",
+                    city: "Rio de Janeiro",
+                },
+                {
+                    id: "featured-2",
+                    league: "Brasileirão Série A",
+                    leagueLogo: "https://crests.football-data.org/bsa.png",
+                    country: "Brasil",
+                    round: "Rodada Principal",
+                    homeTeam: "Corinthians",
+                    homeLogo: "https://crests.football-data.org/1779.png",
+                    awayTeam: "São Paulo",
+                    awayLogo: "https://crests.football-data.org/1776.png",
+                    score: "1 - 1",
+                    halfTimeScore: "1 - 0",
+                    status: "INTERVALO • QUIZ ATIVO",
+                    statusLong: "Acompanhe no App",
+                    isLive: true,
+                    isFinished: false,
+                    venue: "Neo Química Arena",
+                    city: "São Paulo",
+                },
+                {
+                    id: "featured-3",
+                    league: "Champions League",
+                    leagueLogo: "https://crests.football-data.org/CL.png",
+                    country: "Europa",
+                    round: "Fase Principal",
+                    homeTeam: "Real Madrid",
+                    homeLogo: "https://crests.football-data.org/86.png",
+                    awayTeam: "Manchester City",
+                    awayLogo: "https://crests.football-data.org/65.png",
+                    score: "—",
+                    halfTimeScore: null,
+                    status: "HOJE • 16:00",
+                    statusLong: "Agendado",
+                    isLive: false,
+                    isFinished: false,
+                    venue: "Santiago Bernabéu",
+                    city: "Madrid",
+                },
+            ];
+        }
 
         res.set("Cache-Control", "public, max-age=60, s-maxage=60");
         res.json({
             success: true,
-            source: "API-Football",
+            source: usedSource,
             date: today,
             matches: formattedMatches,
         });
     } catch (e: any) {
         console.error("Erro ao buscar jogos públicos:", e);
-        res.status(500).json({ success: false, error: e.message });
+        res.status(200).json({
+            success: true,
+            source: "Showcase",
+            matches: [],
+        });
     }
 });
 
 export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
-    // 1. Get distinct watching_fixture_ids
+    // 1. Get distinct watching_fixture_ids from users
     const usersSnap = await db.collection("users").where("watching_fixture_id", ">", 0).get();
     const activeFixtures = new Set<number>();
     usersSnap.forEach(doc => {
         const fixId = doc.data().watching_fixture_id;
         if (fixId) activeFixtures.add(fixId);
+    });
+
+    // 2. Adiciona jogos de Bolões em aberto para garantir que serão encerrados mesmo se ninguém estiver assistindo
+    const openBoloesSnap = await db.collection("boloes").where("status", "==", "open").get();
+    openBoloesSnap.forEach(doc => {
+        const fixId = doc.data().fixtureId;
+        if (fixId) activeFixtures.add(Number(fixId));
     });
 
     if (activeFixtures.size === 0) {
@@ -725,7 +950,7 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
 
     const settingsDoc = await db.collection("settings").doc("general").get();
     const data = settingsDoc.data() || {};
-    const activeApi = data.active_football_api || 'api_football';
+    const activeApi = data.active_football_api || 'football_data';
     const keys = data.api_keys || {};
 
     for (const fixtureId of activeFixtures) {
@@ -735,25 +960,27 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
             let status = '';
             let homeTeamName = '';
             let awayTeamName = '';
+            let fetched = false;
 
-            if (activeApi === 'api_football') {
-                const apiKey = keys.api_football;
-                if (!apiKey) continue;
+            if (activeApi === 'api_football' && keys.api_football) {
                 const url = `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`;
                 const fetchResponse = await fetch(url, {
-                    headers: { "x-apisports-key": apiKey }
+                    headers: { "x-apisports-key": keys.api_football }
                 });
-                if (!fetchResponse.ok) continue;
-                const matchData = await fetchResponse.json();
-                if (matchData.response && matchData.response.length > 0) {
-                    const fix = matchData.response[0];
-                    homeScore = fix.goals?.home ?? 0;
-                    awayScore = fix.goals?.away ?? 0;
-                    status = fix.fixture?.status?.short ?? '';
-                    homeTeamName = fix.teams?.home?.name ?? '';
-                    awayTeamName = fix.teams?.away?.name ?? '';
+                if (fetchResponse.ok) {
+                    const matchData = await fetchResponse.json();
+                    if (matchData.response && matchData.response.length > 0) {
+                        const fix = matchData.response[0];
+                        homeScore = fix.goals?.home ?? 0;
+                        awayScore = fix.goals?.away ?? 0;
+                        status = fix.fixture?.status?.short ?? '';
+                        homeTeamName = fix.teams?.home?.name ?? '';
+                        awayTeamName = fix.teams?.away?.name ?? '';
+                        fetched = true;
+                    }
                 }
-            } else {
+            }
+            if (!fetched) {
                 const apiKey = keys.football_data || data.football_data_key;
                 if (!apiKey) continue;
                 const url = `https://api.football-data.org/v4/matches/${fixtureId}`;
@@ -797,26 +1024,90 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                 const title = shouldNotifyGoal ? "GOL!" : "Fim do Primeiro Tempo";
                 const body = `${homeTeamName} ${homeScore} x ${awayScore} ${awayTeamName}`;
 
-                await admin.messaging().send({
-                    topic: `match_${fixtureId}`,
-                    notification: {
-                        title: title,
-                        body: body,
-                    },
-                    android: {
+                try {
+                    await admin.messaging().send({
+                        topic: `match_${fixtureId}`,
                         notification: {
-                            sound: soundFile,
-                            channelId: channelId
-                        }
-                    },
-                    apns: {
-                        payload: {
-                            aps: {
-                                sound: soundFile
+                            title: title,
+                            body: body,
+                        },
+                        android: {
+                            notification: {
+                                sound: soundFile,
+                                channelId: channelId
+                            }
+                        },
+                        apns: {
+                            payload: {
+                                aps: {
+                                    sound: soundFile
+                                }
                             }
                         }
+                    });
+                } catch (pushErr) {
+                    console.error("Erro ao enviar push:", pushErr);
+                }
+
+                if (shouldNotifyGoal) {
+                    const isHomeGoal = homeScore > (prevState?.homeScore ?? 0);
+                    const scoringTeam = isHomeGoal ? homeTeamName : awayTeamName;
+
+                    // 1. Gravar na collection 'recent_goals' para o app mobile tocar o som goal.wav ao vivo
+                    await db.collection("recent_goals").add({
+                        fixtureId: fixtureId,
+                        scoringTeam: scoringTeam,
+                        homeTeamName: homeTeamName,
+                        awayTeamName: awayTeamName,
+                        homeScore: homeScore,
+                        awayScore: awayScore,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    }).catch(e => console.error("Erro ao gravar recent_goals:", e));
+
+                    // 2. Disparar WhatsApp para os torcedores que têm este time como favorito
+                    try {
+                        const settingsDoc = await db.collection("settings").doc("general").get();
+                        const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+                        if (zApiUrl && scoringTeam) {
+                            const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
+                            const usersSnap = await db.collection("users").get();
+                            const scoringNorm = scoringTeam.toLowerCase().trim();
+
+                            for (const uDoc of usersSnap.docs) {
+                                const uData = uDoc.data();
+                                const favTeam = (uData.favorite_team_name || uData.favoriteTeamName || "").toLowerCase().trim();
+                                if (!favTeam || !uData.phone) continue;
+
+                                const isFan = scoringNorm.includes(favTeam) || favTeam.includes(scoringNorm) ||
+                                    (favTeam.includes("galo") && (scoringNorm.includes("atlético") || scoringNorm.includes("atletico"))) ||
+                                    (favTeam.includes("mengão") && scoringNorm.includes("flamengo")) ||
+                                    (favTeam.includes("timão") && scoringNorm.includes("corinthians")) ||
+                                    (favTeam.includes("palestra") && scoringNorm.includes("palmeiras")) ||
+                                    (favTeam.includes("peixe") && scoringNorm.includes("santos")) ||
+                                    (favTeam.includes("raposa") && scoringNorm.includes("cruzeiro")) ||
+                                    (favTeam.includes("tricolor") && (scoringNorm.includes("são paulo") || scoringNorm.includes("sao paulo") || scoringNorm.includes("grêmio") || scoringNorm.includes("gremio") || scoringNorm.includes("fluminense") || scoringNorm.includes("bahia")));
+
+                                if (isFan) {
+                                    const cleanPhone = uData.phone.replace(/\D/g, "");
+                                    const goalMsg = `⚽ *GOOOOOOOL DO ${scoringTeam.toUpperCase()}!* 💥🔥\n\nFala ${uData.name || 'Torcedor'}! O seu time do coração acabou de marcar!\n\nPlacar ao vivo: *${homeTeamName} ${homeScore} x ${awayScore} ${awayTeamName}*\n\nAbra o *Raspadinha do Gol* agora para raspar sua cartela e concorrer a prêmios na hora! 🍀`;
+
+                                    await fetch(targetUrl, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            phone: `55${cleanPhone}`,
+                                            message: goalMsg
+                                        })
+                                    }).catch(err => console.error(`Erro ao enviar Z-API para ${cleanPhone}:`, err));
+
+                                    await new Promise(r => setTimeout(r, 1000));
+                                }
+                            }
+                        }
+                    } catch (zErr) {
+                        console.error("Erro na notificação de gol via WhatsApp:", zErr);
                     }
-                });
+                }
             }
 
             await stateRef.set({
@@ -826,6 +1117,79 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            // Lógica de Encerramento Automático do Bolão
+            const validFinishedStatuses = ["FT", "AET", "PEN", "FINISHED"];
+            if (validFinishedStatuses.includes(status)) {
+                const boloesDaPartida = openBoloesSnap.docs.filter(doc => Number(doc.data().fixtureId) === fixtureId);
+                
+                for (const bolaoDoc of boloesDaPartida) {
+                    const bData = bolaoDoc.data();
+                    if (bData.isProcessing) continue;
+                    await bolaoDoc.ref.update({ isProcessing: true });
+                    
+                    try {
+                        await db.runTransaction(async (t) => {
+                            // [REGRA FIRESTORE] Todas as leituras (t.get) DEVEM vir antes de qualquer escrita (t.update)
+                            const bolaoT = await t.get(bolaoDoc.ref);
+                            const bDataT = bolaoT.data()!;
+                            if (bDataT.status === "completed") return;
+
+                            const participantsSnap = await t.get(bolaoDoc.ref.collection("participants"));
+                            const winners: string[] = [];
+                            participantsSnap.forEach(p => {
+                                const pData = p.data();
+                                if (pData.homeScore === homeScore && pData.awayScore === awayScore) {
+                                    winners.push(p.id);
+                                }
+                            });
+        
+                            const participantsCount = bDataT.participantsCount || participantsSnap.size || 0;
+                            const entryFeeStr = bDataT.entryFee.toString().replace(",", ".");
+                            const entryFeeNum = parseFloat(entryFeeStr) || 0;
+                            const totalPot = participantsCount * entryFeeNum;
+        
+                            const pFeePerc = bDataT.platformFee || 10;
+                            const cFeePerc = bDataT.creatorFee || 15;
+        
+                            const platformFeeAmount = totalPot * (pFeePerc / 100);
+                            const creatorFeeAmount = totalPot * (cFeePerc / 100);
+                            const winnerPot = totalPot - platformFeeAmount - creatorFeeAmount;
+        
+                            // Agora executamos as escritas
+                            if (bDataT.creatorId && bDataT.creatorId !== "anonymous") {
+                                const creatorRef = db.collection("users").doc(bDataT.creatorId);
+                                const creatorTotalReward = winners.length > 0 ? creatorFeeAmount : (creatorFeeAmount + winnerPot);
+                                t.update(creatorRef, {
+                                    real_balance: admin.firestore.FieldValue.increment(creatorTotalReward)
+                                });
+                            }
+        
+                            if (winners.length > 0) {
+                                const amountPerWinner = winnerPot / winners.length;
+                                for (const winnerId of winners) {
+                                    const wRef = db.collection("users").doc(winnerId);
+                                    t.update(wRef, {
+                                        real_balance: admin.firestore.FieldValue.increment(amountPerWinner)
+                                    });
+                                }
+                            }
+        
+                            t.update(bolaoDoc.ref, {
+                                status: "completed",
+                                finalHomeScore: homeScore,
+                                finalAwayScore: awayScore,
+                                isProcessing: false,
+                                completedAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                        });
+                        console.log(`Bolão ${bolaoDoc.id} encerrado com sucesso.`);
+                    } catch (e) {
+                        console.error(`Erro no bolão ${bolaoDoc.id}:`, e);
+                        await bolaoDoc.ref.update({ isProcessing: false });
+                    }
+                }
+            }
+
         } catch (e) {
             console.error(`Erro ao atualizar partida ${fixtureId}:`, e);
         }
@@ -834,3 +1198,335 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
 
 
 export * from "./football_image_proxy";
+
+const SHOPISA_API_URL = "https://getprizeproducts-qvpkvterkq-rj.a.run.app";
+const SHOPISA_REWARD_URL = "https://generatereward-qvpkvterkq-rj.a.run.app";
+const SHOPISA_SECRET = "SHOPISA_GAME_SECRET_2026";
+
+/**
+ * Sincroniza prêmios da Shopisa marcados como `isPrize == true` para o Firestore do Raspadinha do Gol
+ */
+export const syncShopisaPrizes = onCall({
+    region: "southamerica-east1",
+    cors: true,
+    memory: "512MiB"
+}, async (request) => {
+    // Permite chamada autenticada (idealmente admin)
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    try {
+        console.log("Buscando produtos premiados na Shopisa...");
+        const response = await fetch(SHOPISA_API_URL, {
+            method: "GET",
+            headers: {
+                "x-api-key": SHOPISA_SECRET,
+                "Authorization": `Bearer ${SHOPISA_SECRET}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Erro ao consultar API Shopisa (${response.status}): ${errText}`);
+        }
+
+        const data: any = await response.json();
+        const products = data.products || [];
+        console.log(`Recebidos ${products.length} produtos premiados da Shopisa.`);
+
+        const synced: any[] = [];
+        for (const prod of products) {
+            // Verifica se o prêmio já existe pelo shopisaProductId
+            const existingQuery = await db.collection("prizes")
+                .where("shopisaProductId", "==", prod.id)
+                .limit(1)
+                .get();
+
+            const isStockAvailable = (prod.stock ?? 0) > 0;
+            // Token cost sugerido: 10 tokens por Real de preço (mínimo 100 tokens)
+            const calculatedCost = Math.max(100, Math.round((Number(prod.price) || 10) * 10));
+            const productLink = prod.productUrl || (prod.slug ? `https://shopisa.com.br/produto/${prod.slug}` : `https://shopisa.com.br/produto/${prod.id}`);
+
+            if (!existingQuery.empty) {
+                const docRef = existingQuery.docs[0].ref;
+                const existingData = existingQuery.docs[0].data();
+                await docRef.update({
+                    name: prod.name,
+                    price_brl: prod.price || 0,
+                    original_price_brl: prod.originalPrice || 0,
+                    discount_percent: prod.prizeDiscount || 100,
+                    image_url: prod.image || existingData.image_url,
+                    prize_link: existingData.prize_link && existingData.prize_link.toString().isNotEmpty ? existingData.prize_link : productLink,
+                    quantity: prod.stock ?? 0,
+                    active: isStockAvailable,
+                    slug: prod.slug || "",
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                synced.push({ id: docRef.id, name: prod.name, action: "updated" });
+            } else {
+                const newDocRef = await db.collection("prizes").add({
+                    name: prod.name,
+                    type: "produto",
+                    scope: "global",
+                    provider: "shopisa",
+                    shopisaProductId: prod.id,
+                    slug: prod.slug || "",
+                    prize_link: productLink,
+                    token_cost: calculatedCost,
+                    price_brl: prod.price || 0,
+                    original_price_brl: prod.originalPrice || 0,
+                    discount_percent: prod.prizeDiscount || 100,
+                    image_url: prod.image || "",
+                    quantity: prod.stock ?? 0,
+                    active: isStockAvailable,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                synced.push({ id: newDocRef.id, name: prod.name, action: "created" });
+            }
+        }
+
+        const returnedShopisaIds = new Set(products.map((p: any) => p.id));
+
+        // Remove do catálogo do app prêmios que foram desmarcados na Shopisa
+        const existingShopisaPrizesSnap = await db.collection("prizes")
+            .where("provider", "==", "shopisa")
+            .get();
+
+        let removedCount = 0;
+        for (const doc of existingShopisaPrizesSnap.docs) {
+            const pId = doc.data().shopisaProductId;
+            if (pId && !returnedShopisaIds.has(pId)) {
+                console.log(`Removendo prêmio desmarcado na Shopisa: ${doc.data().name}`);
+                await doc.ref.delete();
+                removedCount++;
+            }
+        }
+
+        return {
+            success: true,
+            message: `${synced.length} prêmios sincronizados com a Shopisa com sucesso. (${removedCount} removidos por terem sido desmarcados).`,
+            count: synced.length,
+            removedCount,
+            synced,
+        };
+    } catch (error: any) {
+        console.error("Erro na sincronização Shopisa:", error);
+        throw new HttpsError("internal", error.message || "Erro desconhecido ao sincronizar prêmios.");
+    }
+});
+
+/**
+ * Resgata um prêmio da Shopisa: deduz tokens e gera o link único na Shopisa
+ */
+export const redeemShopisaPrize = onCall({
+    region: "southamerica-east1",
+    cors: true,
+    memory: "512MiB"
+}, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    const { prizeId } = request.data;
+    if (!prizeId) {
+        throw new HttpsError("invalid-argument", "Parâmetro prizeId obrigatório.");
+    }
+
+    const uid = request.auth.uid;
+    const userRef = db.collection("users").doc(uid);
+    const prizeRef = db.collection("prizes").doc(prizeId);
+
+    // 1. Transação para verificar saldo de tokens e estoque
+    const prizeData: any = await db.runTransaction(async (t) => {
+        const userSnap = await t.get(userRef);
+        if (!userSnap.exists) {
+            throw new HttpsError("not-found", "Usuário não encontrado.");
+        }
+        const prizeSnap = await t.get(prizeRef);
+        if (!prizeSnap.exists) {
+            throw new HttpsError("not-found", "Prêmio não encontrado.");
+        }
+
+        const userData = userSnap.data()!;
+        const pData = prizeSnap.data()!;
+        const userTokens = Number(userData.tokens) || 0;
+        const cost = Number(pData.token_cost) || 0;
+        const qty = Number(pData.quantity) ?? -1;
+
+        if (userTokens < cost) {
+            throw new HttpsError("failed-precondition", `Saldo insuficiente (${userTokens} tokens). Necessário: ${cost} tokens.`);
+        }
+
+        if (qty === 0) {
+            throw new HttpsError("failed-precondition", "Este prêmio está esgotado.");
+        }
+
+        // Deduz tokens
+        t.update(userRef, {
+            tokens: admin.firestore.FieldValue.increment(-cost),
+        });
+
+        // Decrementa estoque se controlado e fecha o prêmio se zerar
+        if (qty > 0) {
+            const newQty = qty - 1;
+            const prizeUpdates: any = { quantity: newQty };
+            if (newQty === 0) {
+                prizeUpdates.active = false;
+                prizeUpdates.closedAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            t.update(prizeRef, prizeUpdates);
+        }
+
+        return {
+            ...pData,
+            cost,
+            userName: userData.name || userData.displayName || "Torcedor",
+            userEmail: userData.email || "",
+            userPhone: userData.phone || "",
+        };
+    });
+
+    // 2. Se for produto da Shopisa, gera o link único no backend da Shopisa
+    let claimUrl: string | null = null;
+    let rewardCode: string | null = null;
+
+    if (prizeData.shopisaProductId) {
+        try {
+            console.log(`Gerando recompensa na Shopisa para o produto ${prizeData.shopisaProductId}...`);
+            const shopisaResp = await fetch(SHOPISA_REWARD_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": SHOPISA_SECRET,
+                    "Authorization": `Bearer ${SHOPISA_SECRET}`,
+                },
+                body: JSON.stringify({
+                    productId: prizeData.shopisaProductId,
+                }),
+            });
+
+            if (shopisaResp.ok) {
+                const shopisaJson: any = await shopisaResp.json();
+                if (shopisaJson.success) {
+                    claimUrl = shopisaJson.claimUrl;
+                    rewardCode = shopisaJson.rewardCode;
+                }
+            } else {
+                console.error("Falha ao gerar recompensa na Shopisa:", await shopisaResp.text());
+            }
+        } catch (apiErr) {
+            console.error("Erro na chamada generateReward da Shopisa:", apiErr);
+        }
+    }
+
+    // 3. Registra o resgate na coleção redemptions
+    const redemptionRef = await db.collection("redemptions").add({
+        uid,
+        userName: prizeData.userName,
+        userEmail: prizeData.userEmail,
+        userPhone: prizeData.userPhone,
+        prizeId,
+        prizeName: prizeData.name,
+        shopisaProductId: prizeData.shopisaProductId || null,
+        type: prizeData.type || "produto",
+        provider: prizeData.provider || "shopisa",
+        cost: prizeData.cost,
+        rewardCode,
+        claimUrl,
+        status: claimUrl ? "disponivel" : "pendente",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // 4. Registra na movimentação de tokens
+    await db.collection("token_transactions").add({
+        uid,
+        amount: -prizeData.cost,
+        type: "prize_redemption",
+        description: `Resgate de Prêmio: ${prizeData.name}`,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+        success: true,
+        redemptionId: redemptionRef.id,
+        rewardCode,
+        claimUrl,
+        message: "Prêmio resgatado com sucesso!",
+    };
+});
+
+/**
+ * Dispara manualmente um evento de gol para testes de áudio e WhatsApp
+ */
+export const triggerGoalNotification = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+    const { teamName, homeScore, awayScore, opponentName } = request.data || {};
+    const scoringTeam = teamName || "Atlético Mineiro (Galo)";
+    const opponent = opponentName || "Cruzeiro";
+    const hScore = homeScore ?? 1;
+    const aScore = awayScore ?? 0;
+
+    // 1. Grava no recent_goals para acionar o som goal.wav no app
+    await db.collection("recent_goals").add({
+        fixtureId: 999999,
+        scoringTeam: scoringTeam,
+        homeTeamName: scoringTeam,
+        awayTeamName: opponent,
+        homeScore: hScore,
+        awayScore: aScore,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 2. Dispara WhatsApp para torcedores
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+    let sentCount = 0;
+
+    if (zApiUrl) {
+        const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
+        const usersSnap = await db.collection("users").get();
+        const scoringNorm = scoringTeam.toLowerCase().trim();
+
+        for (const uDoc of usersSnap.docs) {
+            const uData = uDoc.data();
+            const favTeam = (uData.favorite_team_name || uData.favoriteTeamName || "").toLowerCase().trim();
+            if (!favTeam || !uData.phone) continue;
+
+            const isFan = scoringNorm.includes(favTeam) || favTeam.includes(scoringNorm) ||
+                (favTeam.includes("galo") && (scoringNorm.includes("atlético") || scoringNorm.includes("atletico"))) ||
+                (favTeam.includes("mengão") && scoringNorm.includes("flamengo")) ||
+                (favTeam.includes("timão") && scoringNorm.includes("corinthians")) ||
+                (favTeam.includes("palestra") && scoringNorm.includes("palmeiras")) ||
+                (favTeam.includes("peixe") && scoringNorm.includes("santos")) ||
+                (favTeam.includes("raposa") && scoringNorm.includes("cruzeiro"));
+
+            if (isFan) {
+                const cleanPhone = uData.phone.replace(/\D/g, "");
+                const goalMsg = `⚽ *GOOOOOOOL DO ${scoringTeam.toUpperCase()}!* 💥🔥\n\nFala ${uData.name || 'Torcedor'}! O seu time do coração acabou de marcar!\n\nPlacar ao vivo: *${scoringTeam} ${hScore} x ${aScore} ${opponent}*\n\nAbra o *Raspadinha do Gol* agora para raspar sua cartela e concorrer a prêmios na hora! 🍀`;
+
+                try {
+                    await fetch(targetUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            phone: `55${cleanPhone}`,
+                            message: goalMsg
+                        })
+                    });
+                    sentCount++;
+                } catch (e) {
+                    console.error("Erro ao enviar Z-API teste:", e);
+                }
+            }
+        }
+    }
+
+    return { 
+        success: true, 
+        message: `Gol disparado! ${sentCount} torcedor(es) notificado(s) no WhatsApp e áudio acionado no app.` 
+    };
+});

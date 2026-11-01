@@ -82,7 +82,7 @@ class TokenHistoryScreen extends ConsumerWidget {
                           : null,
                       icon: Icon(Icons.star, color: canPlay ? AppTheme.primaryGreen : Colors.grey),
                       label: Text(
-                        canPlay ? 'Jogar Raspadinha ($cost)' : 'Faltam Tokens ($cost)',
+                        canPlay ? 'Jogar Raspadinha ($cost)' : 'Saldo Insuficiente ($cost)',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -171,6 +171,20 @@ class TokenHistoryScreen extends ConsumerWidget {
                       iconData = Icons.cancel;
                       iconColor = Colors.red;
                       amountColor = Colors.grey;
+                    } else if (type == 'rewarded_ad') {
+                      iconData = Icons.play_circle_fill;
+                      iconColor = AppTheme.accentGold;
+                      amountColor = Colors.green;
+                      sign = '+';
+                    } else if (type == 'scratch_reward') {
+                      iconData = Icons.emoji_events;
+                      iconColor = AppTheme.accentGold;
+                      amountColor = Colors.green;
+                      sign = '+';
+                    } else if (type == 'scratch_purchase') {
+                      iconData = Icons.style;
+                      iconColor = Colors.deepOrange;
+                      amountColor = Colors.red;
                     } else if (type == 'prize_redemption' || type == 'pix_withdrawal') {
                       iconData = Icons.shopping_cart;
                       iconColor = Colors.orange;

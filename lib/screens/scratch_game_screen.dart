@@ -82,20 +82,31 @@ class _ScratchGameScreenState extends ConsumerState<ScratchGameScreen>
 
       final data = result.data;
       if (data['success'] == true) {
-        setState(() {
-          _gridBalls = List<bool>.from(data['gridBalls']);
-          _winCount = data['winCount'];
-          _resultMessage = data['message'];
-          _prizeLink = data['prizeLink'] ?? data['prize_link'];
-          _isLoading = false;
-        });
-        ref.invalidate(appUserFutureProvider);
+        final wonTokens = (data['wonTokens'] as num?)?.toInt() ?? 0;
+        final currentUser = ref.read(currentUserProvider);
+        if (currentUser != null) {
+          final deduction = widget.useTokens ? _ticketCost : 0;
+          ref.read(currentUserProvider.notifier).state = currentUser.copyWith(
+            tokens: (currentUser.tokens - deduction + wonTokens).clamp(0, 999999999),
+          );
+          ref.invalidate(appUserFutureProvider(currentUser.id));
+        }
+
+        if (mounted) {
+          setState(() {
+            _gridBalls = List<bool>.from(data['gridBalls']);
+            _winCount = data['winCount'];
+            _resultMessage = data['message'];
+            _prizeLink = data['prizeLink'] ?? data['prize_link'];
+            _isLoading = false;
+          });
+        }
       }
     } on FirebaseFunctionsException catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       _showErrorDialog(e.message ?? 'Erro ao jogar.');
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       _showErrorDialog('Erro de conexão com o servidor.');
     }
   }
