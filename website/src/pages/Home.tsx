@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { PrizesSlider } from "../components/PrizesSlider";
 import { DemoScratchcard } from "../components/DemoScratchcard";
 import { SponsorsSection } from "../components/SponsorsSection";
@@ -24,83 +24,12 @@ const heroImages = [
   },
 ];
 
-interface LiveMatchItem {
-  id: number | string;
-  league: string;
-  leagueLogo?: string;
-  country?: string;
-  round?: string;
-  homeTeam: string;
-  homeLogo?: string;
-  awayTeam: string;
-  awayLogo?: string;
-  score: string;
-  halfTimeScore?: string | null;
-  status: string;
-  statusLong?: string;
-  isLive?: boolean;
-  isFinished?: boolean;
-  kickoff?: string | null;
-  venue?: string;
-  city?: string;
-  referee?: string;
-}
-
-const SHOWCASE_MATCHES: LiveMatchItem[] = [
-  {
-    id: "showcase-1",
-    league: "Brasileirão Série A",
-    leagueLogo: "https://crests.football-data.org/764.png",
-    country: "Brasil",
-    round: "Rodada Principal",
-    homeTeam: "Flamengo",
-    homeLogo: "https://crests.football-data.org/1783.png",
-    awayTeam: "Palmeiras",
-    awayLogo: "https://crests.football-data.org/1769.png",
-    score: "2 - 1",
-    halfTimeScore: "1 - 1",
-    status: "RASPADINHA LIBERADA",
-    isLive: true,
-    venue: "Maracanã",
-    city: "Rio de Janeiro",
-  },
-  {
-    id: "showcase-2",
-    league: "Brasileirão Série A",
-    leagueLogo: "https://crests.football-data.org/764.png",
-    country: "Brasil",
-    round: "Rodada Principal",
-    homeTeam: "Corinthians",
-    homeLogo: "https://crests.football-data.org/1779.png",
-    awayTeam: "São Paulo",
-    awayLogo: "https://crests.football-data.org/1776.png",
-    score: "1 - 1",
-    halfTimeScore: "1 - 0",
-    status: "QUIZ AO VIVO",
-    isLive: true,
-    venue: "Neo Química Arena",
-    city: "São Paulo",
-  },
-  {
-    id: "showcase-3",
-    league: "Champions League",
-    leagueLogo: "https://crests.football-data.org/CL.png",
-    country: "Europa",
-    round: "Fase Principal",
-    homeTeam: "Real Madrid",
-    homeLogo: "https://crests.football-data.org/86.png",
-    awayTeam: "Manchester City",
-    awayLogo: "https://crests.football-data.org/65.png",
-    score: "—",
-    halfTimeScore: null,
-    status: "HOJE • 16:00",
-    isLive: false,
-    venue: "Santiago Bernabéu",
-    city: "Madrid",
-  },
-];
-
 const HOME_FAQS = [
+  {
+    q: "O que a Raspadinha do Gol oferece para os torcedores?",
+    a: "O aplicativo oferece uma experiência 100% gratuita em 4 pilares: 1) Quizzes dinâmicos com IA para testar seus conhecimentos e faturar Tokens do Gol; 2) Raspadinhas instantâneas liberadas a cada gol marcado nos jogos oficiais valendo prêmios na hora; 3) Bolão do Gol para disputar palpites de placar exato com amigos ou bares com apuração automática; 4) Loja oficial onde seus Tokens são trocados por camisas oficiais de clubes, bolas e brindes entregues na sua casa!",
+    badge: "⚽ O que o App Oferece",
+  },
   {
     q: "Qual o papel real dos Tokens no aplicativo?",
     a: "Os Tokens do Gol são o sistema de pontos e fidelidade do torcedor — NÃO são apostas nem dinheiro real. Você ganha Tokens gratuitamente acertando quizzes de IA durante os jogos, assistindo a vídeos e vibrando nos gols. Seus Tokens servem exclusivamente para trocar por Prêmios Físicos Reais (camisas oficiais, tênis, bolas, eletrônicos) na Loja de Prêmios e desbloquear raspadinhas extras!",
@@ -118,75 +47,13 @@ const HOME_FAQS = [
   },
   {
     q: "O aplicativo é realmente 100% grátis e sem apostas?",
-    a: "Sim! O Raspadinha do Gol NÃO é uma casa de apostas e não opera odds. Você nunca precisa depositar dinheiro para participar dos quizzes ao vivo, raspar cartelas nos gols ou resgatar seus prêmios patrocinados.",
-    badge: "⚽ Sem Apostas",
-  },
-  {
-    q: "Quais campeonatos são cobertos em tempo real?",
-    a: "Cobrimos em tempo real o Brasileirão Série A e B, Copa do Brasil, Libertadores, Sul-Americana, Champions League, Premier League, La Liga, Serie A Italiana e jogos da Seleção Brasileira.",
-    badge: "🌎 Campeonatos",
+    a: "Sim! O Raspadinha do Gol NÃO é uma casa de apostas e não opera odds nem exige depósitos. Você nunca arrisca seu dinheiro para participar dos quizzes ao vivo, raspar cartelas nos gols ou resgatar seus prêmios patrocinados.",
+    badge: "🛡️ Sem Apostas",
   },
 ];
 
-function TeamCrest({ name, logo }: { name: string; logo?: string }) {
-  const [imgError, setImgError] = useState(false);
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-
-  if (!logo || imgError) {
-    return (
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-950 border border-amber-400/40 flex items-center justify-center font-black text-sm text-amber-300 mb-2 shadow-md">
-        {initials || "⚽"}
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-12 h-12 rounded-2xl bg-gray-50 p-1.5 flex items-center justify-center mb-2 shadow-sm border border-gray-200">
-      <img
-        src={logo}
-        alt={`Escudo do ${name}`}
-        loading="lazy"
-        onError={() => setImgError(true)}
-        className="w-9 h-9 object-contain"
-      />
-    </div>
-  );
-}
-
-function LeagueBadge({ league, logo }: { league: string; logo?: string }) {
-  const [imgError, setImgError] = useState(false);
-
-  return (
-    <span className="uppercase tracking-wider truncate max-w-[190px] flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
-      {logo && !imgError ? (
-        <span className="w-5 h-5 rounded bg-gray-100 p-0.5 flex items-center justify-center shrink-0 border border-gray-200">
-          <img
-            src={logo}
-            alt={`Logo ${league}`}
-            onError={() => setImgError(true)}
-            className="w-4 h-4 object-contain"
-          />
-        </span>
-      ) : (
-        <span>🏆</span>
-      )}
-      <span className="truncate">{league}</span>
-    </span>
-  );
-}
-
 export function Home() {
   const [currentImage, setCurrentImage] = useState(0);
-  const [matches, setMatches] = useState<LiveMatchItem[]>(SHOWCASE_MATCHES);
-  const [matchesState, setMatchesState] = useState<"loading" | "success">("loading");
-  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false);
-  const [matchFilter, setMatchFilter] = useState<"brazil" | "live">("brazil");
-  const [selectedBolaoMatch, setSelectedBolaoMatch] = useState<string>("Flamengo x Palmeiras");
 
   // Interactive Bolão Simulator states
   const [bolaoMode, setBolaoMode] = useState<"friends" | "bar">("friends");
@@ -200,52 +67,6 @@ export function Home() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
-
-  const fetchPublicMatches = useCallback(async (signal?: AbortSignal, manual = false) => {
-    if (manual) setIsRefreshingMatches(true);
-    try {
-      const matchesUrl =
-        "https://southamerica-east1-raspadinhadogol.cloudfunctions.net/getPublicMatches";
-      const res = await fetch(matchesUrl, { signal });
-      if (!res.ok) throw new Error("Fallback para vitrine");
-      const data = await res.json();
-      if (data.success && Array.isArray(data.matches) && data.matches.length > 0) {
-        setMatches(data.matches);
-        const first = data.matches[0];
-        if (first?.homeTeam && first?.awayTeam) {
-          setSelectedBolaoMatch(`${first.homeTeam} x ${first.awayTeam}`);
-        }
-      } else {
-        setMatches(SHOWCASE_MATCHES);
-      }
-    } catch (error: any) {
-      if (error?.name !== "AbortError") {
-        setMatches((prev) => (prev.length > 0 ? prev : SHOWCASE_MATCHES));
-      }
-    } finally {
-      setMatchesState("success");
-      if (manual) setIsRefreshingMatches(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchPublicMatches(controller.signal, false);
-    return () => controller.abort();
-  }, [fetchPublicMatches]);
-
-  const filteredMatches = matches.filter((m) => {
-    if (matchFilter === "live") {
-      return Boolean(m.isLive);
-    }
-    if (matchFilter === "brazil") {
-      const text = `${m.league} ${m.country}`.toLowerCase();
-      return text.includes("brasil") || text.includes("copa") || text.includes("libertadores");
-    }
-    return true;
-  });
-
-  const displayedMatches = filteredMatches.length > 0 ? filteredMatches : matches;
 
   // Bolão Simulator math
   const totalPot = entryFee * participantsCount;
@@ -338,154 +159,137 @@ export function Home() {
       {/* 2. SPONSORS BAR */}
       <SponsorsSection />
 
-      {/* 3. JOGOS DE HOJE & PARTIDAS AO VIVO (INTERACTIVE & RESILIENT) */}
-      <section id="jogos-hoje" className="py-20 px-4 max-w-6xl mx-auto">
-        <div className="text-center mb-10">
-          <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-xs font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider inline-flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            Cobertura em Tempo Real no Aplicativo
+      {/* 3. O QUE O APLICATIVO OFERECE (CLAREZA TOTAL) */}
+      <section id="o-que-oferecemos" className="py-20 px-4 max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-wider inline-flex items-center gap-2">
+            <span>📱</span> Plataforma Completa para Torcedores
           </span>
-          <h2 className="text-3xl md:text-4xl font-black text-white mt-3">
-            Jogos de Hoje & Partidas Ao Vivo
+          <h2 className="text-3xl md:text-5xl font-black text-white mt-4 tracking-tight">
+            O que Você Encontra na{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-400">
+              Raspadinha do Gol?
+            </span>
           </h2>
-          <p className="text-emerald-100/75 max-w-2xl mx-auto mt-2 text-base">
-            Enquanto a bola rola nos gramados, nosso sistema libera raspadinhas a cada gol, quizzes com IA e apura automaticamente os vencedores do Bolão!
+          <p className="text-emerald-100/80 max-w-2xl mx-auto mt-3 text-base md:text-lg leading-relaxed">
+            Esqueça apostas arriscadas e perda de dinheiro! O Raspadinha do Gol é um aplicativo 100% gratuito onde seu conhecimento de futebol e os gols da rodada rendem prêmios reais entregues na sua casa.
           </p>
+        </div>
 
-          {/* Filter Pills & Refresh Button */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-            <button
-              type="button"
-              onClick={() => setMatchFilter("brazil")}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                matchFilter === "brazil"
-                  ? "bg-amber-400 text-[#03150b] border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]"
-                  : "bg-[#072917] text-emerald-200 border-emerald-700/60 hover:border-emerald-400/60"
-              }`}
-            >
-              🇧🇷 Brasileirão & Copas
-            </button>
-            <button
-              type="button"
-              onClick={() => setMatchFilter("live")}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                matchFilter === "live"
-                  ? "bg-amber-400 text-[#03150b] border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]"
-                  : "bg-[#072917] text-emerald-200 border-emerald-700/60 hover:border-emerald-400/60"
-              }`}
-            >
-              🔴 Ao Vivo / Destaque
-            </button>
-            <button
-              type="button"
-              onClick={() => fetchPublicMatches(undefined, true)}
-              disabled={isRefreshingMatches}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-800/50 hover:bg-emerald-700/60 text-emerald-200 border border-emerald-500/40 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <span className={isRefreshingMatches ? "animate-spin inline-block" : ""}>🔄</span>
-              {isRefreshingMatches ? "Atualizando..." : "Atualizar Placares"}
-            </button>
+        {/* 4 Pilares Principais do Aplicativo */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Pilar 1: Quizzes Diários com IA */}
+          <div className="bg-[#062916] border border-emerald-700/50 hover:border-amber-400/60 p-7 rounded-3xl transition-all hover:scale-[1.02] shadow-xl flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-400 flex items-center justify-center text-2xl mb-6 shadow-inner group-hover:bg-amber-400 group-hover:text-black transition-all">
+                🧠
+              </div>
+              <span className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-2">
+                Inteligência Artificial
+              </span>
+              <h3 className="text-xl font-black text-white mb-3">
+                Quizzes Esportivos Diários
+              </h3>
+              <p className="text-emerald-100/75 text-sm leading-relaxed">
+                Desafie sua mente com perguntas dinâmicas geradas por IA sobre a história do futebol, escalações históricas, clássicos e copas. Acerte e acumule Tokens do Gol gratuitos todos os dias.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-emerald-300 font-bold">
+              <span>Sem sorteios</span>
+              <span className="text-amber-400">✦ Conhecimento puro</span>
+            </div>
+          </div>
+
+          {/* Pilar 2: Raspadinha nos Gols */}
+          <div className="bg-[#062916] border border-emerald-700/50 hover:border-emerald-400/60 p-7 rounded-3xl transition-all hover:scale-[1.02] shadow-xl flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 flex items-center justify-center text-2xl mb-6 shadow-inner group-hover:bg-emerald-400 group-hover:text-black transition-all">
+                ⚽
+              </div>
+              <span className="text-xs font-black text-emerald-400 uppercase tracking-widest block mb-2">
+                A Cada Gol Marcado
+              </span>
+              <h3 className="text-xl font-black text-white mb-3">
+                Raspadinha Instantânea
+              </h3>
+              <p className="text-emerald-100/75 text-sm leading-relaxed">
+                Quando seu time balança as redes nos jogos oficiais, o app libera cartelas virtuais para você raspar. Encontre 3 bolas douradas para faturar camisas oficiais, bolas e brindes exclusivos na hora!
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-emerald-300 font-bold">
+              <span>Instantâneo</span>
+              <span className="text-emerald-300">✦ Emoção no apito</span>
+            </div>
+          </div>
+
+          {/* Pilar 3: Bolão do Gol */}
+          <div className="bg-[#062916] border border-emerald-700/50 hover:border-amber-400/60 p-7 rounded-3xl transition-all hover:scale-[1.02] shadow-xl flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 rounded-2xl bg-yellow-400/15 border border-yellow-400/30 text-yellow-300 flex items-center justify-center text-2xl mb-6 shadow-inner group-hover:bg-yellow-400 group-hover:text-black transition-all">
+                🏆
+              </div>
+              <span className="text-xs font-black text-yellow-300 uppercase tracking-widest block mb-2">
+                Amigos & Bares
+              </span>
+              <h3 className="text-xl font-black text-white mb-3">
+                Bolão do Gol Automático
+              </h3>
+              <p className="text-emerald-100/75 text-sm leading-relaxed">
+                Chega de planilhas manuais e confusão no grupo do WhatsApp! Crie o bolão de qualquer jogo em segundos, convide a galera e deixe o app calcular quem cravou o placar exato com transparência total.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-yellow-300 font-bold">
+              <span>Apuração ao vivo</span>
+              <span className="text-amber-400">✦ 85% para quem cravar</span>
+            </div>
+          </div>
+
+          {/* Pilar 4: Loja de Prêmios Físicos Reais */}
+          <div className="bg-[#062916] border border-emerald-700/50 hover:border-amber-400/60 p-7 rounded-3xl transition-all hover:scale-[1.02] shadow-xl flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-300 flex items-center justify-center text-2xl mb-6 shadow-inner group-hover:bg-amber-400 group-hover:text-black transition-all">
+                🎁
+              </div>
+              <span className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-2">
+                Entrega em Casa
+              </span>
+              <h3 className="text-xl font-black text-white mb-3">
+                Prêmios Físicos Reais
+              </h3>
+              <p className="text-emerald-100/75 text-sm leading-relaxed">
+                O papel real dos Tokens do Gol é serem trocados por produtos oficiais! Camisas oficiais de clubes do Brasileirão, bolas, chuteiras e produtos de marcas parceiras enviados com rastreamento para o seu endereço.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-xs text-emerald-300 font-bold">
+              <span>Frete com rastreio</span>
+              <span className="text-amber-400">✦ Produtos Oficiais</span>
+            </div>
           </div>
         </div>
 
-        {matchesState === "loading" ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Carregando jogos de hoje">
-            {[0, 1, 2].map((item) => (
-              <div key={item} className="h-80 rounded-3xl bg-[#072917]/80 border border-emerald-800/60 animate-pulse" />
-            ))}
+        {/* Banner de Esclarecimento & Transparência: Sem Apostas / Sem Confusão */}
+        <div className="mt-12 bg-gradient-to-r from-[#03150b] via-[#072d18] to-[#03150b] border border-emerald-600/40 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-14 h-14 shrink-0 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-3xl">
+              🛡️
+            </div>
+            <div>
+              <h4 className="text-lg font-black text-white">
+                100% Gratuito, Seguro & Sem Apostas Esportivas
+              </h4>
+              <p className="text-xs sm:text-sm text-emerald-100/75 mt-1 max-w-xl">
+                O aplicativo <strong>NÃO</strong> é casa de apostas, não tem odds nem depósitos para jogos de azar. Você não gasta nada para se divertir e conquistar prêmios de verdade patrocinados pelos nossos parceiros!
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayedMatches.map((match, idx) => {
-              const matchTitle = `${match.homeTeam} x ${match.awayTeam}`;
-              return (
-                <div
-                  key={match.id || idx}
-                  className="bg-white text-gray-900 border border-gray-100 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:shadow-2xl transition-all flex flex-col justify-between group"
-                >
-                  {/* Top Bar: League & Status */}
-                  <div className="flex justify-between items-center text-xs font-bold mb-4 border-b border-gray-100 pb-3 gap-2">
-                    <LeagueBadge league={match.league} logo={match.leagueLogo} />
-                    <span
-                      className={`font-black px-2.5 py-1 rounded-full text-[11px] flex items-center gap-1.5 shrink-0 ${
-                        match.isLive
-                          ? "bg-red-50 text-red-600 border border-red-200 animate-pulse"
-                          : "bg-amber-50 text-amber-800 border border-amber-200"
-                      }`}
-                    >
-                      {match.isLive && <span className="w-2 h-2 rounded-full bg-red-500" />}
-                      {match.status}
-                    </span>
-                  </div>
 
-                  {/* Teams & Scoreboard */}
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 my-3">
-                    <div className="flex min-w-0 flex-col items-center text-center">
-                      <TeamCrest name={match.homeTeam} logo={match.homeLogo} />
-                      <span className="text-sm font-black text-gray-950 line-clamp-2 leading-tight">
-                        {match.homeTeam}
-                      </span>
-                    </div>
-
-                    <div className="text-center flex flex-col items-center">
-                      <span className="inline-flex min-w-[4.8rem] items-center justify-center whitespace-nowrap text-2xl font-black text-amber-400 bg-gray-950 px-3.5 py-2 rounded-2xl shadow-md">
-                        {match.score}
-                      </span>
-                      {match.halfTimeScore && (
-                        <span className="text-[10px] text-gray-500 font-semibold mt-1">
-                          1ºT: {match.halfTimeScore}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex min-w-0 flex-col items-center text-center">
-                      <TeamCrest name={match.awayTeam} logo={match.awayLogo} />
-                      <span className="text-sm font-black text-gray-950 line-clamp-2 leading-tight">
-                        {match.awayTeam}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Match Metadata */}
-                  <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div>
-                      <span className="block text-gray-400 uppercase font-bold text-[10px]">Competição</span>
-                      <span className="text-gray-700 font-semibold truncate block">
-                        {[match.country, match.round].filter(Boolean).join(" • ") || "Temporada Oficial"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 uppercase font-bold text-[10px]">Local / Status</span>
-                      <span className="text-gray-700 font-semibold truncate block">
-                        {[match.venue, match.city].filter(Boolean).join(", ") || match.statusLong || "Cobertura Oficial"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action inside each Match Card */}
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-center">
-                    <a
-                      href="#bolao"
-                      onClick={() => setSelectedBolaoMatch(matchTitle)}
-                      className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-gray-950 font-black text-xs py-3 px-4 rounded-xl uppercase tracking-wide text-center transition-all flex items-center justify-center gap-1.5 shadow-md"
-                    >
-                      🏆 Criar Bolão do Jogo
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="mt-10 flex items-center justify-center">
           <a
             href="https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#03150b] font-black text-sm px-8 py-4 rounded-xl shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all uppercase tracking-wide"
+            className="shrink-0 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#03150b] font-black text-sm px-6 py-3.5 rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 transition-all text-center"
           >
-            📲 Baixar App Grátis na Play Store
+            📲 Baixar App Grátis
           </a>
         </div>
       </section>
@@ -562,8 +366,8 @@ export function Home() {
                   <span className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
                     🧮 Simulador de Pote & Premiação
                   </span>
-                  <span className="text-xs text-gray-600 font-bold truncate max-w-[180px] bg-gray-100 px-2.5 py-1 rounded-full">
-                    ⚽ {selectedBolaoMatch}
+                  <span className="text-xs text-gray-600 font-bold truncate max-w-[200px] bg-gray-100 px-2.5 py-1 rounded-full">
+                    ⚽ Qualquer Jogo da Rodada
                   </span>
                 </div>
 

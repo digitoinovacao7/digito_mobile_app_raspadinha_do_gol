@@ -36,7 +36,7 @@ export function Layout() {
           </Link>
           <nav className="hidden md:flex gap-5 font-semibold items-center drop-shadow-md">
             <Link to="/" onClick={() => window.scrollTo(0, 0)} className="hover:text-accent transition-colors">Início</Link>
-            <a href="/#jogos-hoje" className="hover:text-accent transition-colors">Jogos de Hoje</a>
+            <a href="/#o-que-oferecemos" className="hover:text-accent transition-colors">O que Oferecemos</a>
             <a href="/#bolao" className="text-amber-300 hover:text-accent transition-colors flex items-center gap-1.5">
               <span>🏆</span> Bolão do Gol
             </a>
@@ -76,7 +76,7 @@ export function Layout() {
         {isMobileMenuOpen && (
           <div className="md:hidden bg-[#052313]/98 backdrop-blur-md border-t border-emerald-800/60 absolute top-full left-0 w-full flex flex-col p-4 shadow-xl text-white">
             <Link to="/" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-emerald-800/50">Início</Link>
-            <a href="/#jogos-hoje" onClick={() => setIsMobileMenuOpen(false)} className="py-3 text-lg font-semibold hover:text-accent border-b border-emerald-800/50">Jogos de Hoje</a>
+            <a href="/#o-que-oferecemos" onClick={() => setIsMobileMenuOpen(false)} className="py-3 text-lg font-semibold hover:text-accent border-b border-emerald-800/50">O que Oferecemos</a>
             <a href="/#bolao" onClick={() => setIsMobileMenuOpen(false)} className="py-3 text-lg font-semibold text-amber-300 hover:text-accent border-b border-emerald-800/50">🏆 Bolão do Gol (Galera & Bares)</a>
             <Link to="/como-funciona" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-emerald-800/50">Como Funciona</Link>
             <Link to="/faq" onClick={() => { setIsMobileMenuOpen(false); window.scrollTo(0, 0); }} className="py-3 text-lg font-semibold hover:text-accent border-b border-emerald-800/50">Dúvidas (FAQ)</Link>
