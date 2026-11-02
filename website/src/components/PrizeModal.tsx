@@ -18,9 +18,6 @@ export function PrizeModal() {
   const [prize, setPrize] = useState<PrizeData | null>(null);
 
   useEffect(() => {
-    // Verificar se já exibiu nesta sessão
-    const alreadyShown = sessionStorage.getItem('prize_modal_shown_web');
-    if (alreadyShown) return;
 
     async function loadPrize() {
       try {
@@ -57,8 +54,7 @@ export function PrizeModal() {
       // Pequeno delay para a página carregar suavemente
       const timer = setTimeout(() => {
         setIsOpen(true);
-        sessionStorage.setItem('prize_modal_shown_web', 'true');
-      }, 1000);
+      }, 800);
       return () => clearTimeout(timer);
     }
 
