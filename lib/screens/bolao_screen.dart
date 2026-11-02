@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/game_provider.dart';
+import '../services/db_service.dart';
 
 class BolaoScreen extends ConsumerStatefulWidget {
   const BolaoScreen({super.key});
@@ -20,15 +22,21 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _firestore = FirebaseFirestore.instance;
+  final _dbService = DbService();
 
   // Form Controllers
   final _nameCtrl = TextEditingController();
   final _entryFeeCtrl = TextEditingController(text: '10,00');
-  int _creatorFee = 5;
-  final int _platformFee = 10;
+  final _organizerPixKeyCtrl = TextEditingController();
+  final _organizerPixNameCtrl = TextEditingController();
+  int _creatorFee = 0;
+  final int _platformFee = 0;
   final _matchTeamsCtrl = TextEditingController();
   final _searchCtrl = TextEditingController();
   String _category = 'amigos'; // 'amigos' ou 'bar'
+  String _activationMethod = 'pix'; // 'pix' ou 'tokens'
+  static const double _bolaoActivationFeeReal = 4.90;
+  static const int _bolaoActivationFeeTokens = 2500;
   bool _isCreating = false;
   DateTime? _matchDateTime;
   int _deadlineMinutes = 30;
@@ -114,9 +122,301 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     _tabController.dispose();
     _nameCtrl.dispose();
     _entryFeeCtrl.dispose();
+    _organizerPixKeyCtrl.dispose();
+    _organizerPixNameCtrl.dispose();
     _matchTeamsCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _showActivationPixModal({
+    required BuildContext parentContext,
+    required String bolaoName,
+    required Map<String, dynamic> bolaoData,
+  }) async {
+    showModalBottomSheet(
+      context: parentContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return FutureBuilder<Map<String, dynamic>>(
+            future: _dbService.createBolaoActivationPix(
+              bolaoName: bolaoName,
+              amount: _bolaoActivationFeeReal,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Container(
+                  height: 300,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0B2214),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: AppTheme.accentGold),
+                        SizedBox(height: 16),
+                        Text(
+                          'Gerando Pix de Ativação no Mercado Pago...',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0B2214),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.amberAccent, size: 48),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Aviso de Ativação',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Não foi possível conectar à API do Mercado Pago (${snapshot.error}). Deseja ativar a sala mesmo assim?',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentGold,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          final docRef = await _firestore.collection('boloes').add({
+                            ...bolaoData,
+                            'activationFeePaid': true,
+                            'activationMethod': 'fallback_pix',
+                          });
+                          if (parentContext.mounted) {
+                            _shareBolao(
+                              bolaoId: docRef.id,
+                              name: bolaoName,
+                              entryFee: bolaoData['entryFee'],
+                              prize: bolaoData['prize'],
+                              organizerPixKey: bolaoData['organizerPixKey'],
+                              organizerPixName: bolaoData['organizerPixName'],
+                            );
+                          }
+                        },
+                        child: const Text('ATIVAR SALA DO BOLÃO', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final pixData = snapshot.data!;
+              final qrCode = pixData['qrCode'] as String? ?? '';
+              final qrCodeBase64 = pixData['qrCodeBase64'] as String?;
+              final paymentId = pixData['paymentId'];
+              final activationId = pixData['activationId'] as String? ?? '';
+              bool isChecking = false;
+
+              return StatefulBuilder(
+                builder: (context, setInnerState) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0B2214),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      border: Border(top: BorderSide(color: AppTheme.accentGold, width: 2)),
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.pix, color: Colors.tealAccent, size: 26),
+                              SizedBox(width: 8),
+                              Text(
+                                'Taxa de Ativação da Sala',
+                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Valor: R\$ 4,90 (Mercado Pago)',
+                            style: TextStyle(color: AppTheme.accentGold, fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Pague o Pix abaixo para ativar sua sala oficial com ranking em tempo real e apuração automática:',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          const SizedBox(height: 16),
+
+                          if (qrCodeBase64 != null && qrCodeBase64.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Image.memory(
+                                base64Decode(qrCodeBase64),
+                                width: 170,
+                                height: 170,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+
+                          if (qrCode.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.black45,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Text('Código Pix Copia e Cola:', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                  const SizedBox(height: 6),
+                                  SelectableText(
+                                    qrCode,
+                                    maxLines: 2,
+                                    style: const TextStyle(color: AppTheme.accentGold, fontSize: 10.5, fontFamily: 'monospace'),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppTheme.accentGold,
+                                        side: const BorderSide(color: AppTheme.accentGold),
+                                      ),
+                                      onPressed: () {
+                                        Clipboard.setData(ClipboardData(text: qrCode));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            backgroundColor: AppTheme.primaryGreen,
+                                            content: Text('Código Pix Copia e Cola copiado!'),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.copy, size: 16),
+                                      label: const Text('COPIAR CÓDIGO PIX'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryGreen,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: isChecking
+                                  ? null
+                                  : () async {
+                                      setInnerState(() => isChecking = true);
+                                      try {
+                                        if (paymentId != null) {
+                                          await _dbService.checkBolaoActivationPixStatus(
+                                            paymentId: paymentId is int ? paymentId : int.tryParse(paymentId.toString()) ?? 0,
+                                            activationId: activationId,
+                                          );
+                                        }
+
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        final docRef = await _firestore.collection('boloes').add({
+                                          ...bolaoData,
+                                          'activationFeePaid': true,
+                                          'activationPaymentId': paymentId,
+                                          'activationMethod': 'pix',
+                                        });
+
+                                        if (parentContext.mounted) {
+                                          _shareBolao(
+                                            bolaoId: docRef.id,
+                                            name: bolaoName,
+                                            entryFee: bolaoData['entryFee'],
+                                            prize: bolaoData['prize'],
+                                            organizerPixKey: bolaoData['organizerPixKey'],
+                                            organizerPixName: bolaoData['organizerPixName'],
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        final docRef = await _firestore.collection('boloes').add({
+                                          ...bolaoData,
+                                          'activationFeePaid': true,
+                                          'activationMethod': 'pix',
+                                        });
+                                        if (parentContext.mounted) {
+                                          _shareBolao(
+                                            bolaoId: docRef.id,
+                                            name: bolaoName,
+                                            entryFee: bolaoData['entryFee'],
+                                            prize: bolaoData['prize'],
+                                            organizerPixKey: bolaoData['organizerPixKey'],
+                                            organizerPixName: bolaoData['organizerPixName'],
+                                          );
+                                        }
+                                      } finally {
+                                        setInnerState(() => isChecking = false);
+                                      }
+                                    },
+                              child: isChecking
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text(
+                                      'JÁ PAGUEI! ATIVAR SALA DO BOLÃO ✅',
+                                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   void _showCreateBolaoModal() {
@@ -350,7 +650,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Sua Comissão (Organizador/Bar)', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                              const Text('Sua Comissão de Anfitrião (Organizador/Bar)', style: TextStyle(color: Colors.white70, fontSize: 13)),
                               DropdownButton<int>(
                                 value: _creatorFee,
                                 dropdownColor: const Color(0xFF1E3626),
@@ -369,17 +669,6 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                 },
                               ),
                             ],
-                          ),
-                          const Divider(color: Colors.white12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Taxa de Liquidação do App', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                                Text('$_platformFee%', style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
                           ),
                           const Divider(color: Colors.white12),
                           Padding(
@@ -410,9 +699,9 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '• Pote Total: R\$ ${_formatBrl(simPot10)}\n'
+                                    '• Pote Total Arrecadado: R\$ ${_formatBrl(simPot10)}\n'
                                     '• Vencedor recebe no Pix: R\$ ${_formatBrl(simWinner10)}\n'
-                                    '• Sua comissão: R\$ ${_formatBrl(simCreator10)}',
+                                    '• Sua comissão de anfitrião: R\$ ${_formatBrl(simCreator10)}',
                                     style: const TextStyle(color: Colors.white, fontSize: 11.5, height: 1.4),
                                   ),
                                 ],
@@ -423,6 +712,189 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                       ),
                     ),
                     const SizedBox(height: 14),
+
+                    // Chave Pix do Organizador para receber as cotas
+                    if (!isFreeBolao) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black38,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.6)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.pix, color: Colors.tealAccent, size: 22),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '🔑 Sua Chave Pix (Recebimento das Cotas)',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Os participantes transferem as cotas direto para o seu Pix. Ao fim do jogo, você transfere o prêmio para quem cravou o placar!',
+                              style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.3),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _organizerPixKeyCtrl,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Sua Chave Pix (CPF, Celular, E-mail ou Aleatória)',
+                                labelStyle: const TextStyle(color: Colors.white70, fontSize: 12),
+                                prefixIcon: const Icon(Icons.vpn_key, color: AppTheme.accentGold, size: 18),
+                                filled: true,
+                                fillColor: Colors.black45,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _organizerPixNameCtrl,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Nome Completo do Titular da Conta',
+                                labelStyle: const TextStyle(color: Colors.white70, fontSize: 12),
+                                prefixIcon: const Icon(Icons.person, color: AppTheme.accentGold, size: 18),
+                                filled: true,
+                                fillColor: Colors.black45,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Taxa Única de Ativação da Sala
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF132E1D),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.4)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.bolt, color: AppTheme.accentGold, size: 22),
+                                SizedBox(width: 8),
+                                Text(
+                                  '⚡ Taxa Única de Ativação da Sala',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Automação completa da partida: placar ao vivo oficial, validação de palpites e apuração instantânea dos vencedores.',
+                              style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.3),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setModalState(() => _activationMethod = 'pix'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: _activationMethod == 'pix' ? AppTheme.primaryGreen : Colors.black38,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _activationMethod == 'pix' ? AppTheme.accentGold : Colors.white12,
+                                          width: _activationMethod == 'pix' ? 2 : 1,
+                                        ),
+                                      ),
+                                      child: const Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.pix, color: Colors.tealAccent, size: 16),
+                                              SizedBox(width: 4),
+                                              Text('R\$ 4,90 (Pix)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ],
+                                          ),
+                                          SizedBox(height: 3),
+                                          Text('Mercado Pago', style: TextStyle(color: Colors.white60, fontSize: 10)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setModalState(() => _activationMethod = 'tokens'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: _activationMethod == 'tokens' ? AppTheme.primaryGreen : Colors.black38,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _activationMethod == 'tokens' ? AppTheme.accentGold : Colors.white12,
+                                          width: _activationMethod == 'tokens' ? 2 : 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.stars, color: AppTheme.accentGold, size: 16),
+                                              SizedBox(width: 4),
+                                              Text('2.500 Tokens', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Saldo: ${ref.watch(currentUserProvider)?.tokens ?? 0}',
+                                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white10,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.sentiment_very_satisfied, color: Colors.greenAccent, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '🎉 Bolão Grátis! Ativação 100% gratuita para brincar com os amigos.',
+                                style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // Jogo (Times) -> Seleção via API ou Manual
                     const Text(
@@ -654,38 +1126,135 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                   );
                                   return;
                                 }
+
+                                if (!isFreeBolao) {
+                                  if (_organizerPixKeyCtrl.text.trim().isEmpty || _organizerPixNameCtrl.text.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        backgroundColor: Colors.amberAccent,
+                                        content: Text('Informe sua Chave Pix e o Nome do Titular para os participantes enviarem as cotas!'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                }
+
+                                final user = ref.read(currentUserProvider);
+                                final prizeLabel = isFreeBolao
+                                    ? 'Bolão Recreativo / Troféu da Galera'
+                                    : '$winnerPct% do Pote no Pix';
+
+                                final bolaoData = {
+                                  'name': _nameCtrl.text.trim(),
+                                  'category': _category,
+                                  'entryFee': _entryFeeCtrl.text.trim(),
+                                  'prize': prizeLabel,
+                                  'platformFee': 0,
+                                  'creatorFee': _creatorFee,
+                                  'winnerPrize': winnerPct,
+                                  'organizerPixKey': isFreeBolao ? null : _organizerPixKeyCtrl.text.trim(),
+                                  'organizerPixName': isFreeBolao ? null : _organizerPixNameCtrl.text.trim(),
+                                  'matchTeams': _matchTeamsCtrl.text.trim().isEmpty
+                                      ? null
+                                      : _matchTeamsCtrl.text.trim(),
+                                  'matchDateTime': _matchDateTime != null
+                                      ? Timestamp.fromDate(_matchDateTime!)
+                                      : null,
+                                  'deadlineDateTime': _matchDateTime != null
+                                      ? Timestamp.fromDate(
+                                          _matchDateTime!.subtract(Duration(minutes: _deadlineMinutes)),
+                                        )
+                                      : null,
+                                  'fixtureId': _selectedFixtureId,
+                                  'leagueId': _selectedLeagueId,
+                                  'creatorId': user?.id ?? 'anonymous',
+                                  'creatorName': user?.name ?? 'Torcedor',
+                                  'participantsCount': 0,
+                                  'status': 'open',
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                };
+
+                                if (!isFreeBolao && _activationMethod == 'tokens') {
+                                  final userTokens = user?.tokens ?? 0;
+                                  if (userTokens < _bolaoActivationFeeTokens) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: Colors.redAccent,
+                                        content: Text('Saldo de Tokens insuficiente! Você tem $userTokens tokens (necessário $_bolaoActivationFeeTokens). Ative no Pix (R\$ 4,90) ou ganhe mais tokens nos quizzes.'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  setModalState(() => _isCreating = true);
+                                  try {
+                                    await _dbService.activateBolaoWithTokens();
+                                    final docRef = await _firestore.collection('boloes').add({
+                                      ...bolaoData,
+                                      'activationFeePaid': true,
+                                      'activationMethod': 'tokens',
+                                      'activationTokens': _bolaoActivationFeeTokens,
+                                    });
+
+                                    final bolaoName = _nameCtrl.text.trim();
+                                    final entryFee = _entryFeeCtrl.text.trim();
+                                    final pixKey = _organizerPixKeyCtrl.text.trim();
+                                    final pixName = _organizerPixNameCtrl.text.trim();
+                                    _nameCtrl.clear();
+                                    _matchTeamsCtrl.clear();
+                                    _matchDateTime = null;
+
+                                    if (context.mounted) {
+                                      Navigator.pop(ctx);
+                                      _shareBolao(
+                                        bolaoId: docRef.id,
+                                        name: bolaoName,
+                                        entryFee: entryFee,
+                                        prize: prizeLabel,
+                                        organizerPixKey: pixKey,
+                                        organizerPixName: pixName,
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Erro ao ativar Bolão com Tokens: $e')),
+                                      );
+                                    }
+                                  } finally {
+                                    setModalState(() => _isCreating = false);
+                                  }
+                                  return;
+                                }
+
+                                if (!isFreeBolao && _activationMethod == 'pix') {
+                                  final bolaoName = _nameCtrl.text.trim();
+                                  final pixKey = _organizerPixKeyCtrl.text.trim();
+                                  final pixName = _organizerPixNameCtrl.text.trim();
+                                  _nameCtrl.clear();
+                                  _matchTeamsCtrl.clear();
+                                  _matchDateTime = null;
+
+                                  Navigator.pop(ctx);
+                                  _showActivationPixModal(
+                                    parentContext: context,
+                                    bolaoName: bolaoName,
+                                    bolaoData: {
+                                      ...bolaoData,
+                                      'organizerPixKey': pixKey,
+                                      'organizerPixName': pixName,
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                // Bolão Grátis
                                 setModalState(() => _isCreating = true);
                                 try {
-                                  final user = ref.read(currentUserProvider);
-                                  final prizeLabel = isFreeBolao
-                                      ? 'Bolão Recreativo / Troféu da Galera'
-                                      : '$winnerPct% do Pote no Pix';
                                   final docRef = await _firestore.collection('boloes').add({
-                                    'name': _nameCtrl.text.trim(),
-                                    'category': _category,
-                                    'entryFee': _entryFeeCtrl.text.trim(),
-                                    'prize': prizeLabel,
-                                    'platformFee': _platformFee,
-                                    'creatorFee': _creatorFee,
-                                    'winnerPrize': winnerPct,
-                                    'matchTeams': _matchTeamsCtrl.text.trim().isEmpty
-                                        ? null
-                                        : _matchTeamsCtrl.text.trim(),
-                                    'matchDateTime': _matchDateTime != null
-                                        ? Timestamp.fromDate(_matchDateTime!)
-                                        : null,
-                                    'deadlineDateTime': _matchDateTime != null
-                                        ? Timestamp.fromDate(
-                                            _matchDateTime!.subtract(Duration(minutes: _deadlineMinutes)),
-                                          )
-                                        : null,
-                                    'fixtureId': _selectedFixtureId,
-                                    'leagueId': _selectedLeagueId,
-                                    'creatorId': user?.id ?? 'anonymous',
-                                    'creatorName': user?.name ?? 'Torcedor',
-                                    'participantsCount': 0,
-                                    'status': 'open',
-                                    'createdAt': FieldValue.serverTimestamp(),
+                                    ...bolaoData,
+                                    'activationFeePaid': true,
+                                    'activationMethod': 'free',
                                   });
 
                                   final bolaoName = _nameCtrl.text.trim();
@@ -715,9 +1284,13 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                               },
                         child: _isCreating
                             ? const CircularProgressIndicator(color: Colors.black)
-                            : const Text(
-                                'CRIAR E ENVIAR CONVITE NO WHATSAPP 📲',
-                                style: TextStyle(
+                            : Text(
+                                isFreeBolao
+                                    ? 'CRIAR BOLÃO GRÁTIS 📲'
+                                    : (_activationMethod == 'tokens'
+                                        ? 'ATIVAR COM 2.500 TOKENS 🪙'
+                                        : 'ATIVAR SALA NO PIX (R\$ 4,90) ⚡'),
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 14,
                                 ),
@@ -743,6 +1316,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     required String entryFee,
     required String prize,
     required int participants,
+    String? organizerPixKey,
+    String? organizerPixName,
     String? matchTeams,
     DateTime? deadlineDateTime,
     bool isEditing = false,
@@ -1046,34 +1621,84 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                     if (!isEditing && !isFree) ...[
                       const SizedBox(height: 16),
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.black45,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.5)),
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppTheme.accentGold, width: 1.5),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.pix, color: Colors.tealAccent, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Entrada Garantida via Pix',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                const Icon(Icons.pix, color: Colors.tealAccent, size: 22),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Pagamento da Cota via Pix',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
                                 ),
-                                Spacer(),
-                                Text(
-                                  'LIQUIDAÇÃO AUTOMÁTICA',
-                                  style: TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 9.5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.tealAccent.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('DIRETO AO ANFITRIÃO', style: TextStyle(color: Colors.tealAccent, fontSize: 9.5, fontWeight: FontWeight.w900)),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Text(
-                              'Valor: R\$ $entryFee • Acumula no pote do bolão e é pago automaticamente na carteira Pix de quem cravar o placar.',
-                              style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              'Valor da cota: R\$ $entryFee\nEnvie via Pix diretamente para o organizador:',
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            const SizedBox(height: 10),
+                            if (organizerPixKey != null && organizerPixKey.isNotEmpty) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black45,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Chave Pix: $organizerPixKey', style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 12.5)),
+                                          if (organizerPixName != null && organizerPixName.isNotEmpty)
+                                            Text('Titular: $organizerPixName', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.copy, color: AppTheme.accentGold, size: 20),
+                                      tooltip: 'Copiar Chave Pix',
+                                      onPressed: () {
+                                        Clipboard.setData(ClipboardData(text: organizerPixKey));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            backgroundColor: AppTheme.primaryGreen,
+                                            content: Text('Chave Pix do organizador copiada!'),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              Text('Organizador: $creator', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            ],
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Ao enviar o Pix para o organizador, confirme seu palpite abaixo. O organizador confere o comprovante e o app faz a classificação e apuração oficial!',
+                              style: TextStyle(color: Colors.white54, fontSize: 10.5),
                             ),
                           ],
                         ),
@@ -1482,6 +2107,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                       entryFee: data['entryFee'] ?? '10,00',
                       prize: data['prize'] ?? 'Prêmio no Pix',
                       participants: data['participantsCount'] ?? 0,
+                      organizerPixKey: data['organizerPixKey'] as String?,
+                      organizerPixName: data['organizerPixName'] as String?,
                       matchTeams: data['matchTeams'] as String?,
                       matchDateTime: matchDt?.toDate(),
                       deadlineDateTime: deadlineDt?.toDate(),
@@ -1616,15 +2243,25 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     required String name,
     required String entryFee,
     required String prize,
+    String? organizerPixKey,
+    String? organizerPixName,
   }) async {
     final shortCode = bolaoId.length > 6 ? bolaoId.substring(0, 6).toUpperCase() : bolaoId.toUpperCase();
     final playStoreUrl = 'https://play.google.com/store/apps/details?id=br.com.digitoinovacao.raspadinha_do_gol';
     final webAppUrl = 'https://app-raspadinhadogol.web.app/#/bolao?id=$bolaoId';
     final isFree = _parseEntryFee(entryFee) <= 0;
+
+    String pixSection = '';
+    if (!isFree && organizerPixKey != null && organizerPixKey.isNotEmpty) {
+      pixSection = '💳 *Chave Pix do Organizador:* $organizerPixKey ${organizerPixName != null ? "($organizerPixName)" : ""}\n'
+          '📲 Envie sua cota de R\$ $entryFee direto ao organizador via Pix para confirmar seu palpite!\n\n';
+    }
+
     final shareMessage =
         '⚽ *Você foi convidado para o Bolão do Gol: "$name"!* ⚽\n\n'
         '🏆 *Prêmio:* $prize\n'
         '💰 *Entrada:* ${isFree ? "GRÁTIS" : "R\$ $entryFee (Pix)"}\n\n'
+        '$pixSection'
         '👇 *COMO PARTICIPAR:*\n'
         '1️⃣ *Baixe o App na Play Store:*\n'
         '🔗 $playStoreUrl\n\n'
@@ -1667,6 +2304,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     required String prize,
     required int participants,
     required bool isUserParticipating,
+    String? organizerPixKey,
+    String? organizerPixName,
     int? myHomeScore,
     int? myAwayScore,
     required String status,
@@ -1735,6 +2374,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                     name: name,
                     entryFee: entryFee,
                     prize: prize,
+                    organizerPixKey: organizerPixKey,
+                    organizerPixName: organizerPixName,
                   ),
                   icon: const Icon(Icons.share, color: AppTheme.accentGold),
                   tooltip: 'Compartilhar no WhatsApp',
@@ -1781,7 +2422,49 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+
+            // Chave Pix do Organizador para consultas
+            if (entryVal > 0 && organizerPixKey != null && organizerPixKey.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pix, color: Colors.tealAccent, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Chave Pix do Anfitrião: $organizerPixKey', style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 12)),
+                          if (organizerPixName != null && organizerPixName.isNotEmpty)
+                            Text('Titular: $organizerPixName', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, color: AppTheme.accentGold, size: 18),
+                      tooltip: 'Copiar Chave Pix',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: organizerPixKey));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: AppTheme.primaryGreen,
+                            content: Text('Chave Pix copiada com sucesso!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Status se o usuário atual participa ou não
             if (isUserParticipating)
@@ -1819,6 +2502,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                             entryFee: entryFee,
                             prize: prize,
                             participants: participants,
+                            organizerPixKey: organizerPixKey,
+                            organizerPixName: organizerPixName,
                             matchTeams: matchTeams,
                             deadlineDateTime: deadlineDateTime,
                             isEditing: true,
@@ -1835,17 +2520,23 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
             else if (status == 'completed')
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade800,
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.green.shade900,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.greenAccent),
                 ),
                 child: Column(
                   children: [
-                    const Text('BOLÃO ENCERRADO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text('🏆 BOLÃO ENCERRADO!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('Placar Final Oficial: $finalHomeScore x $finalAwayScore', style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 6),
+                    Text(
+                      'O organizador ${organizerPixName ?? creator} deve realizar a transferência Pix do prêmio aos vencedores que cravaram o placar abaixo!',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 11.5),
+                    ),
                   ],
                 ),
               )
@@ -1868,6 +2559,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                       entryFee: entryFee,
                       prize: prize,
                       participants: participants,
+                      organizerPixKey: organizerPixKey,
+                      organizerPixName: organizerPixName,
                       matchTeams: matchTeams,
                       deadlineDateTime: deadlineDateTime,
                     );
@@ -2063,6 +2756,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     required String entryFee,
     required String prize,
     required int participants,
+    String? organizerPixKey,
+    String? organizerPixName,
     String? matchTeams,
     DateTime? matchDateTime,
     DateTime? deadlineDateTime,
@@ -2351,6 +3046,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                     entryFee: entryFee,
                     prize: prize,
                     participants: participants,
+                    organizerPixKey: organizerPixKey,
+                    organizerPixName: organizerPixName,
                     isUserParticipating: isParticipating,
                     myHomeScore: myHomeScore,
                     myAwayScore: myAwayScore,
@@ -2418,6 +3115,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                               entryFee: entryFee,
                               prize: prize,
                               participants: participants,
+                              organizerPixKey: organizerPixKey,
+                              organizerPixName: organizerPixName,
                               matchTeams: matchTeams,
                               deadlineDateTime: deadlineDateTime,
                               isEditing: true,
@@ -2507,6 +3206,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                       name: name,
                       entryFee: entryFee,
                       prize: prize,
+                      organizerPixKey: organizerPixKey,
+                      organizerPixName: organizerPixName,
                     ),
                     icon: const Icon(Icons.share, size: 18),
                     tooltip: 'Compartilhar',
@@ -2534,6 +3235,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                 entryFee: entryFee,
                                 prize: prize,
                                 participants: participants,
+                                organizerPixKey: organizerPixKey,
+                                organizerPixName: organizerPixName,
                                 isUserParticipating: true,
                                 myHomeScore: myHomeScore,
                                 myAwayScore: myAwayScore,
@@ -2565,6 +3268,8 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                 entryFee: entryFee,
                                 prize: prize,
                                 participants: participants,
+                                organizerPixKey: organizerPixKey,
+                                organizerPixName: organizerPixName,
                                 matchTeams: matchTeams,
                                 deadlineDateTime: deadlineDateTime,
                               ),

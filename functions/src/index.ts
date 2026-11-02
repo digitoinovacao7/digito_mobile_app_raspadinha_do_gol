@@ -1,6 +1,7 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
+import axios from "axios";
 import { generateGeminiContent } from "./gemini";
 
 admin.initializeApp();
@@ -1155,29 +1156,18 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                             const creatorFeeAmount = totalPot * (cFeePerc / 100);
                             const winnerPot = totalPot - platformFeeAmount - creatorFeeAmount;
         
-                            // Agora executamos as escritas
-                            if (bDataT.creatorId && bDataT.creatorId !== "anonymous") {
-                                const creatorRef = db.collection("users").doc(bDataT.creatorId);
-                                const creatorTotalReward = winners.length > 0 ? creatorFeeAmount : (creatorFeeAmount + winnerPot);
-                                t.update(creatorRef, {
-                                    real_balance: admin.firestore.FieldValue.increment(creatorTotalReward)
-                                });
-                            }
-        
-                            if (winners.length > 0) {
-                                const amountPerWinner = winnerPot / winners.length;
-                                for (const winnerId of winners) {
-                                    const wRef = db.collection("users").doc(winnerId);
-                                    t.update(wRef, {
-                                        real_balance: admin.firestore.FieldValue.increment(amountPerWinner)
-                                    });
-                                }
-                            }
-        
+                            // Agora executamos as escritas do encerramento do bolão
+                            // O app não custodia dinheiro: os participantes pagam direto ao organizador via Pix,
+                            // e o organizador repassa o prêmio diretamente aos vencedores.
                             t.update(bolaoDoc.ref, {
                                 status: "completed",
                                 finalHomeScore: homeScore,
                                 finalAwayScore: awayScore,
+                                winners: winners,
+                                winnerCount: winners.length,
+                                winnerPot: winnerPot,
+                                creatorCommissionAmount: creatorFeeAmount,
+                                platformFeeAmount: platformFeeAmount,
                                 isProcessing: false,
                                 completedAt: admin.firestore.FieldValue.serverTimestamp()
                             });
@@ -1529,4 +1519,154 @@ export const triggerGoalNotification = onCall(async (request) => {
         success: true, 
         message: `Gol disparado! ${sentCount} torcedor(es) notificado(s) no WhatsApp e áudio acionado no app.` 
     };
+});
+
+/**
+ * Cria cobrança PIX no Mercado Pago para Taxa de Ativação do Bolão (R$ 4,90)
+ */
+export const createBolaoActivationPix = onCall({ region: "southamerica-east1" }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+    const { bolaoName = "Sala Personalizada", amount = 4.90 } = request.data || {};
+
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    const data = settingsDoc.data() || {};
+    const mpAccessToken = data?.api_keys?.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
+
+    if (!mpAccessToken) {
+        throw new HttpsError("failed-precondition", "Mercado Pago não configurado no painel de administração.");
+    }
+
+    const userDoc = await db.collection("users").doc(uid).get();
+    const userData = userDoc.data() || {};
+    const userEmail = userData.email || request.auth?.token?.email || "torcedor@raspadinhadogol.com.br";
+    const userName = userData.name || "Torcedor do Gol";
+
+    const nameParts = userName.trim().split(" ");
+    const firstName = nameParts[0] || "Torcedor";
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "do Gol";
+
+    const idempotencyKey = `bolao_act_${uid}_${Date.now()}`;
+    const mpResponse = await axios.post(
+        "https://api.mercadopago.com/v1/payments",
+        {
+            transaction_amount: Number(amount) || 4.90,
+            description: `Ativação Bolão do Gol: ${bolaoName}`,
+            payment_method_id: "pix",
+            payer: {
+                email: userEmail,
+                first_name: firstName,
+                last_name: lastName
+            }
+        },
+        {
+            headers: {
+                "Authorization": `Bearer ${mpAccessToken.trim()}`,
+                "X-Idempotency-Key": idempotencyKey,
+                "Content-Type": "application/json"
+            }
+        }
+    );
+
+    const paymentData = mpResponse.data;
+    const paymentId = paymentData.id;
+    const qrCode = paymentData.point_of_interaction?.transaction_data?.qr_code;
+    const qrCodeBase64 = paymentData.point_of_interaction?.transaction_data?.qr_code_base64;
+
+    const actRef = await db.collection("bolao_activations").add({
+        uid,
+        paymentId,
+        bolaoName,
+        amount: Number(amount) || 4.90,
+        status: paymentData.status || "pending",
+        qrCode,
+        qrCodeBase64,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return {
+        activationId: actRef.id,
+        paymentId,
+        qrCode,
+        qrCodeBase64,
+        amount: Number(amount) || 4.90,
+        status: paymentData.status || "pending"
+    };
+});
+
+/**
+ * Consulta status do PIX de Ativação do Bolão no Mercado Pago
+ */
+export const checkBolaoActivationPixStatus = onCall({ region: "southamerica-east1" }, async (request) => {
+    const { paymentId, activationId } = request.data || {};
+    if (!paymentId) {
+        throw new HttpsError("invalid-argument", "Payment ID é obrigatório.");
+    }
+    const settingsDoc = await db.collection("settings").doc("general").get();
+    const data = settingsDoc.data() || {};
+    const mpAccessToken = data?.api_keys?.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
+
+    if (!mpAccessToken) {
+        throw new HttpsError("failed-precondition", "Mercado Pago não configurado.");
+    }
+
+    const mpResponse = await axios.get(
+        `https://api.mercadopago.com/v1/payments/${paymentId}`,
+        {
+            headers: {
+                "Authorization": `Bearer ${mpAccessToken.trim()}`
+            }
+        }
+    );
+
+    const status = mpResponse.data.status;
+    const isApproved = status === "approved";
+
+    if (activationId && isApproved) {
+        await db.collection("bolao_activations").doc(activationId).update({
+            status: "approved",
+            approvedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    return {
+        status,
+        isApproved
+    };
+});
+
+/**
+ * Ativa a sala do Bolão debitando 2.500 Tokens do Gol do saldo do usuário
+ */
+export const activateBolaoWithTokens = onCall({ region: "southamerica-east1" }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+    const TOKENS_COST = 2500;
+    const userRef = db.collection("users").doc(uid);
+
+    await db.runTransaction(async (t) => {
+        const uDoc = await t.get(userRef);
+        if (!uDoc.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
+        const currentTokens = uDoc.data()?.tokens || 0;
+        if (currentTokens < TOKENS_COST) {
+            throw new HttpsError("failed-precondition", `Saldo insuficiente de tokens. Você precisa de ${TOKENS_COST} tokens (possui ${currentTokens}).`);
+        }
+        t.update(userRef, {
+            tokens: admin.firestore.FieldValue.increment(-TOKENS_COST)
+        });
+        const txRef = db.collection("token_transactions").doc();
+        t.set(txRef, {
+            uid,
+            amount: -TOKENS_COST,
+            type: "bolao_activation_fee",
+            description: "Taxa de Ativação de Sala do Bolão",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+    });
+
+    return { success: true, tokensDeducted: TOKENS_COST };
 });

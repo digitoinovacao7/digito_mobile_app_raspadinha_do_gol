@@ -42,7 +42,7 @@ const HOME_FAQS = [
   },
   {
     q: "Como funciona o Bolão do Gol para Galera e Bares?",
-    a: "Você escolhe qualquer jogo do dia, define se o bolão é grátis ou com cota (ex: R$ 10) e compartilha o link no WhatsApp. Quem cravar o placar exato leva até 85% do pote da premiação! Bares e organizadores ganham comissão automática de 5% a 10% sobre o pote total.",
+    a: "Você escolhe qualquer partida oficial, define se o bolão é grátis ou com cota (ex: R$ 10) e informa sua Chave Pix. Os participantes transferem a cota direto para o seu Pix e o app gerencia palpites, placar ao vivo e cálculo do vencedor automaticamente. Taxa única de ativação da sala para o organizador: apenas R$ 4,90 (ou 2.500 Tokens do Gol)!",
     badge: "🏆 Bolão do Gol",
   },
   {
@@ -324,17 +324,18 @@ export function Home() {
                   <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-3 py-1 rounded-full uppercase">
                     👥 Modo Amigos & Grupos
                   </span>
-                  <span className="text-emerald-600 font-black text-sm">Comissão: 5%</span>
+                  <span className="text-emerald-600 font-black text-sm">Prêmio Direto no Pix</span>
                 </div>
                 <h3 className="text-2xl font-black text-gray-950 mb-2">
                   Bolão da Resenha, Churrasco ou Trabalho
                 </h3>
                 <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                  Crie um bolão <strong className="text-gray-900">Grátis</strong> (valendo a zoeira) ou com cota em reais. Cada amigo escolhe seu placar exato antes do apito inicial. Quem cravar o placar divide <strong className="text-emerald-700 font-black">85% do pote da premiação</strong> e você ainda ganha <strong className="text-emerald-700 font-black">5% de comissão</strong> por organizar!
+                  Crie um bolão <strong className="text-gray-900">Grátis</strong> ou com cota em reais. Cada amigo transfere a cota diretamente para a sua <strong className="text-emerald-700 font-black">Chave Pix</strong> e registra o placar exato no app. O app apura o resultado ao vivo e você repassa o prêmio a quem cravar!
                 </p>
                 <div className="flex flex-wrap gap-2 text-xs text-gray-700 font-semibold">
-                  <span className="bg-gray-50 border border-gray-200 px-3 py-1 rounded-lg">✅ Convite direto no WhatsApp</span>
-                  <span className="bg-gray-50 border border-gray-200 px-3 py-1 rounded-lg">✅ Placar ao vivo automático</span>
+                  <span className="bg-gray-50 border border-gray-200 px-3 py-1 rounded-lg">✅ Cotas direto no seu Pix</span>
+                  <span className="bg-gray-50 border border-gray-200 px-3 py-1 rounded-lg">✅ Convite rápido no WhatsApp</span>
+                  <span className="bg-gray-50 border border-gray-200 px-3 py-1 rounded-lg">⚡ Ativação: R$ 4,90 ou Tokens</span>
                 </div>
               </div>
 
@@ -344,17 +345,18 @@ export function Home() {
                   <span className="bg-amber-50 text-amber-800 border border-amber-300 text-xs font-black px-3 py-1 rounded-full uppercase">
                     🍺 Modo Bares, Espetinhos & Eventos
                   </span>
-                  <span className="text-amber-600 font-black text-sm">Comissão do Bar: 10%</span>
+                  <span className="text-amber-600 font-black text-sm">Comissão de Anfitrião</span>
                 </div>
                 <h3 className="text-2xl font-black text-gray-950 mb-2">
                   Lote seu Bar em Dia de Jogo e Lucre Mais!
                 </h3>
                 <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                  Transforme a transmissão do futebol no seu bar! Crie o <strong className="text-gray-900">Bolão Oficial da Casa</strong>, divulgue o código para as mesas e mantenha os clientes consumindo até o apito final. Os clientes que cravarem levam <strong className="text-amber-700 font-black">80% do pote</strong> e o seu bar fatura <strong className="text-emerald-700 font-black">10% de comissão garantida</strong>!
+                  Transforme a transmissão do futebol no seu bar! Crie o <strong className="text-gray-900">Bolão Oficial da Casa</strong>, divulgue o código para as mesas e receba as cotas no seu Pix. Os clientes que cravarem levam o prêmio e o seu bar retém sua comissão de anfitrião!
                 </p>
                 <div className="flex flex-wrap gap-2 text-xs text-gray-700 font-semibold">
-                  <span className="bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg">🍻 Aumenta o ticket médio das mesas</span>
-                  <span className="bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg">🏆 Destaque na aba "Bares" do App</span>
+                  <span className="bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg">🍻 Aumenta o consumo das mesas</span>
+                  <span className="bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg">🏆 Placar e ranking oficial ao vivo</span>
+                  <span className="bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg">⚡ Ativação: R$ 4,90 ou Tokens</span>
                 </div>
               </div>
             </div>

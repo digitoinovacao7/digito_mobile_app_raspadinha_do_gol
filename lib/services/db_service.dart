@@ -197,4 +197,37 @@ class DbService {
       throw Exception(data['message'] ?? 'Erro ao validar OTP');
     }
   }
+
+  Future<Map<String, dynamic>> createBolaoActivationPix({
+    required String bolaoName,
+    double amount = 4.90,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('createBolaoActivationPix');
+    final result = await callable.call({
+      'bolaoName': bolaoName,
+      'amount': amount,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> checkBolaoActivationPixStatus({
+    required int paymentId,
+    required String activationId,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('checkBolaoActivationPixStatus');
+    final result = await callable.call({
+      'paymentId': paymentId,
+      'activationId': activationId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> activateBolaoWithTokens() async {
+    final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('activateBolaoWithTokens');
+    final result = await callable.call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
 }
