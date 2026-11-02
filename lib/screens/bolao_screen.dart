@@ -352,18 +352,42 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                   : () async {
                                       setInnerState(() => isChecking = true);
                                       try {
-                                        if (paymentId != null) {
-                                          await _dbService.checkBolaoActivationPixStatus(
-                                            paymentId: paymentId is int ? paymentId : int.tryParse(paymentId.toString()) ?? 0,
-                                            activationId: activationId,
-                                          );
+                                        final pid = paymentId is int
+                                            ? paymentId
+                                            : int.tryParse(paymentId?.toString() ?? '0') ?? 0;
+
+                                        final statusResult = await _dbService.checkBolaoActivationPixStatus(
+                                          paymentId: pid,
+                                          activationId: activationId,
+                                        );
+
+                                        final isApproved = statusResult['isApproved'] == true;
+                                        final currentStatus = statusResult['status']?.toString() ?? 'pending';
+
+                                        if (!isApproved) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                backgroundColor: Colors.amber[800],
+                                                duration: const Duration(seconds: 4),
+                                                content: Text(
+                                                  currentStatus == 'pending' || currentStatus == 'in_process'
+                                                      ? '⏳ Pagamento ainda não foi identificado pelo Mercado Pago. Aguarde alguns segundos após pagar e tente novamente.'
+                                                      : '❌ Pagamento não aprovado (Status: $currentStatus). Verifique no seu banco.',
+                                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return;
                                         }
 
+                                        // Pagamento 100% aprovado!
                                         if (ctx.mounted) Navigator.pop(ctx);
                                         final docRef = await _firestore.collection('boloes').add({
                                           ...bolaoData,
                                           'activationFeePaid': true,
-                                          'activationPaymentId': paymentId,
+                                          'activationPaymentId': pid,
                                           'activationMethod': 'pix',
                                         });
 
@@ -378,30 +402,28 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                           );
                                         }
                                       } catch (e) {
-                                        if (ctx.mounted) Navigator.pop(ctx);
-                                        final docRef = await _firestore.collection('boloes').add({
-                                          ...bolaoData,
-                                          'activationFeePaid': true,
-                                          'activationMethod': 'pix',
-                                        });
-                                        if (parentContext.mounted) {
-                                          _shareBolao(
-                                            bolaoId: docRef.id,
-                                            name: bolaoName,
-                                            entryFee: bolaoData['entryFee'],
-                                            prize: bolaoData['prize'],
-                                            organizerPixKey: bolaoData['organizerPixKey'],
-                                            organizerPixName: bolaoData['organizerPixName'],
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              backgroundColor: Colors.redAccent,
+                                              content: Text('Erro ao consultar Mercado Pago: $e'),
+                                            ),
                                           );
                                         }
                                       } finally {
-                                        setInnerState(() => isChecking = false);
+                                        if (ctx.mounted) {
+                                          setInnerState(() => isChecking = false);
+                                        }
                                       }
                                     },
                               child: isChecking
-                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                    )
                                   : const Text(
-                                      'JÁ PAGUEI! ATIVAR SALA DO BOLÃO ✅',
+                                      'JÁ PAGUEI! VERIFICAR E ATIVAR ✅',
                                       style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                                     ),
                             ),
@@ -420,6 +442,18 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
   }
 
   void _showCreateBolaoModal() {
+    final currentUser = ref.read(currentUserProvider);
+    if (_organizerPixNameCtrl.text.trim().isEmpty &&
+        currentUser != null &&
+        currentUser.name.isNotEmpty) {
+      _organizerPixNameCtrl.text = currentUser.name;
+    }
+
+    int currentStep = 0; // 0 = Jogo & Nome, 1 = Valor & Pix
+    bool isManualMatch = _activeLeagues.isEmpty;
+    bool isCustomFee = !['0,00', '5,00', '10,00', '20,00', '50,00']
+        .contains(_entryFeeCtrl.text.trim());
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -432,6 +466,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
           final simPot10 = entryVal * 10;
           final simWinner10 = simPot10 * (winnerPct / 100);
           final simCreator10 = simPot10 * (_creatorFee / 100);
+          final userTokens = ref.watch(currentUserProvider)?.tokens ?? 0;
 
           return Padding(
             padding: EdgeInsets.only(
@@ -439,7 +474,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
             ),
             child: Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.9,
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFF0B2214),
@@ -448,12 +483,13 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                   top: BorderSide(color: AppTheme.accentGold, width: 2),
                 ),
               ),
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Handle bar
                     Center(
                       child: Container(
                         width: 40,
@@ -464,840 +500,1393 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Row(
-                      children: [
-                        Icon(Icons.emoji_events, color: AppTheme.accentGold, size: 28),
-                        SizedBox(width: 10),
-                        Text(
-                          'Criar Novo Bolão do Gol ⚽',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Crie uma disputa de palpites entre amigos ou para movimentar o seu bar/restaurante.',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Categoria: Amigos ou Bar
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setModalState(() => _category = 'amigos'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: _category == 'amigos'
-                                    ? AppTheme.primaryGreen
-                                    : Colors.white10,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _category == 'amigos'
-                                      ? AppTheme.accentGold
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(Icons.groups, color: Colors.white),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Galera & Amigos',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setModalState(() => _category = 'bar'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: _category == 'bar'
-                                    ? AppTheme.primaryGreen
-                                    : Colors.white10,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _category == 'bar'
-                                      ? AppTheme.accentGold
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(Icons.sports_bar, color: Colors.white),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Bar / Estabelecimento',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Nome
-                    TextField(
-                      controller: _nameCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Nome do Bolão',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        hintText: _category == 'amigos'
-                            ? 'ex: Bolão dos Parças da Quarta'
-                            : 'ex: Bolão do Bar do Zé - Brasileirão',
-                        hintStyle: const TextStyle(color: Colors.white30),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 14),
 
-                    // Valor Rápido (Chips) + Campo Valor da Entrada
-                    const Text(
-                      '💰 Valor da Entrada por Participante',
-                      style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: ['0,00', '5,00', '10,00', '20,00', '50,00'].map((preset) {
-                        final isSelected = _entryFeeCtrl.text.trim() == preset;
-                        return ChoiceChip(
-                          label: Text(preset == '0,00' ? 'Grátis' : 'R\$ $preset'),
-                          selected: isSelected,
-                          selectedColor: AppTheme.accentGold,
-                          backgroundColor: Colors.black38,
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                    // Header + Fechar
+                    Row(
+                      children: [
+                        const Icon(Icons.emoji_events,
+                            color: AppTheme.accentGold, size: 24),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Criar Bolão do Gol ⚽',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          onSelected: (_) {
-                            setModalState(() {
-                              _entryFeeCtrl.text = preset;
-                            });
-                          },
-                        );
-                      }).toList(),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close,
+                              color: Colors.white54, size: 20),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _entryFeeCtrl,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setModalState(() {}),
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Ou digite outro valor (Pix)',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        prefixText: 'R\$ ',
-                        prefixStyle: const TextStyle(color: AppTheme.accentGold),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
 
-                    // Divisão do Prêmio + Simulador de Pote
+                    // Stepper Pill Indicator (Passo 1 vs Passo 2)
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.black26,
+                        color: Colors.black38,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
+                        border: Border.all(color: Colors.white10),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          const Text(
-                            '🏆 Divisão do Prêmio (Pote Total)',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => currentStep = 0),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 9),
+                                decoration: BoxDecoration(
+                                  color: currentStep == 0
+                                      ? AppTheme.primaryGreen
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                    color: currentStep == 0
+                                        ? AppTheme.accentGold
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      currentStep > 0
+                                          ? Icons.check_circle
+                                          : Icons.sports_soccer,
+                                      size: 15,
+                                      color: currentStep == 0
+                                          ? AppTheme.accentGold
+                                          : Colors.greenAccent,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '1. Jogo & Sala',
+                                      style: TextStyle(
+                                        color: currentStep == 0
+                                            ? Colors.white
+                                            : Colors.white70,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Sua Comissão de Anfitrião (Organizador/Bar)', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              DropdownButton<int>(
-                                value: _creatorFee,
-                                dropdownColor: const Color(0xFF1E3626),
-                                style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold),
-                                underline: const SizedBox(),
-                                items: [0, 5, 10, 15, 20].map((fee) {
-                                  return DropdownMenuItem<int>(
-                                    value: fee,
-                                    child: Text('$fee%'),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                if (_matchTeamsCtrl.text.trim().isEmpty &&
+                                    _nameCtrl.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Escolha a partida ou dê um nome ao Bolão primeiro!'),
+                                    ),
                                   );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setModalState(() => _creatorFee = val);
-                                  }
-                                },
+                                  return;
+                                }
+                                if (_nameCtrl.text.trim().isEmpty &&
+                                    _matchTeamsCtrl.text.trim().isNotEmpty) {
+                                  _nameCtrl.text =
+                                      'Bolão ${_matchTeamsCtrl.text.trim()}';
+                                }
+                                setModalState(() => currentStep = 1);
+                              },
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 9),
+                                decoration: BoxDecoration(
+                                  color: currentStep == 1
+                                      ? AppTheme.primaryGreen
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                    color: currentStep == 1
+                                        ? AppTheme.accentGold
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.pix,
+                                      size: 15,
+                                      color: currentStep == 1
+                                          ? AppTheme.accentGold
+                                          : Colors.white54,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '2. Valor & Pix',
+                                      style: TextStyle(
+                                        color: currentStep == 1
+                                            ? Colors.white
+                                            : Colors.white54,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
-                          const Divider(color: Colors.white12),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Prêmio de quem Cravar o Placar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text('$winnerPct%', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
                             ),
                           ),
-                          if (!isFreeBolao) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryGreen.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.4)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    '📊 Simulação com 10 Participantes:',
-                                    style: TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold, fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '• Pote Total Arrecadado: R\$ ${_formatBrl(simPot10)}\n'
-                                    '• Vencedor recebe no Pix: R\$ ${_formatBrl(simWinner10)}\n'
-                                    '• Sua comissão de anfitrião: R\$ ${_formatBrl(simCreator10)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11.5, height: 1.4),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 18),
 
-                    // Chave Pix do Organizador para receber as cotas
-                    if (!isFreeBolao) ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.black38,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.6)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.pix, color: Colors.tealAccent, size: 22),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '🔑 Sua Chave Pix (Recebimento das Cotas)',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
-                                  ),
+                    // ==========================================
+                    // PASSO 1: PARTIDA, NOME E FORMATO
+                    // ==========================================
+                    if (currentStep == 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '⚽ Qual é a partida do Bolão?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_activeLeagues.isNotEmpty)
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              onPressed: () {
+                                setModalState(() {
+                                  isManualMatch = !isManualMatch;
+                                  if (isManualMatch) {
+                                    _selectedFixtureId = null;
+                                  }
+                                });
+                              },
+                              icon: Icon(
+                                isManualMatch
+                                    ? Icons.flash_on
+                                    : Icons.edit_note,
+                                color: AppTheme.accentGold,
+                                size: 16,
+                              ),
+                              label: Text(
+                                isManualMatch
+                                    ? 'Usar jogos de hoje'
+                                    : 'Outro jogo / data',
+                                style: const TextStyle(
+                                  color: AppTheme.accentGold,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Os participantes transferem as cotas direto para o seu Pix. Ao fim do jogo, você transfere o prêmio para quem cravou o placar!',
-                              style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.3),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _organizerPixKeyCtrl,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                labelText: 'Sua Chave Pix (CPF, Celular, E-mail ou Aleatória)',
-                                labelStyle: const TextStyle(color: Colors.white70, fontSize: 12),
-                                prefixIcon: const Icon(Icons.vpn_key, color: AppTheme.accentGold, size: 18),
-                                filled: true,
-                                fillColor: Colors.black45,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: _organizerPixNameCtrl,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                labelText: 'Nome Completo do Titular da Conta',
-                                labelStyle: const TextStyle(color: Colors.white70, fontSize: 12),
-                                prefixIcon: const Icon(Icons.person, color: AppTheme.accentGold, size: 18),
-                                filled: true,
-                                fillColor: Colors.black45,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 6),
 
-                      // Taxa Única de Ativação da Sala
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF132E1D),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.4)),
+                      if (!isManualMatch && _activeLeagues.isNotEmpty) ...[
+                        DropdownButtonFormField<int>(
+                          decoration: InputDecoration(
+                            labelText: '1º Escolha o Campeonato',
+                            labelStyle: const TextStyle(
+                                color: Colors.white70, fontSize: 13),
+                            prefixIcon: const Icon(Icons.public,
+                                color: AppTheme.accentGold, size: 18),
+                            filled: true,
+                            fillColor: Colors.black26,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          dropdownColor: const Color(0xFF1E3626),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13.5),
+                          initialValue: _selectedLeagueId,
+                          items: _activeLeagues.map((l) {
+                            return DropdownMenuItem<int>(
+                              value: l.id,
+                              child: Text(l.name),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                _selectedLeagueId = val;
+                                _selectedFixtureId = null;
+                              });
+                              _fetchMatchesForBolao(val, setModalState);
+                            }
+                          },
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.bolt, color: AppTheme.accentGold, size: 22),
-                                SizedBox(width: 8),
-                                Text(
-                                  '⚡ Taxa Única de Ativação da Sala',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Automação completa da partida: placar ao vivo oficial, validação de palpites e apuração instantânea dos vencedores.',
-                              style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.3),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => setModalState(() => _activationMethod = 'pix'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        const SizedBox(height: 10),
+                        if (_selectedLeagueId != null)
+                          _isFetchingMatches
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                        color: AppTheme.accentGold),
+                                  ),
+                                )
+                              : _fetchedMatches.isEmpty
+                                  ? Container(
+                                      padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: _activationMethod == 'pix' ? AppTheme.primaryGreen : Colors.black38,
+                                        color: Colors.amber.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                          color: _activationMethod == 'pix' ? AppTheme.accentGold : Colors.white12,
-                                          width: _activationMethod == 'pix' ? 2 : 1,
-                                        ),
+                                            color: Colors.amberAccent
+                                                .withValues(alpha: 0.3)),
                                       ),
-                                      child: const Column(
+                                      child: Row(
                                         children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.pix, color: Colors.tealAccent, size: 16),
-                                              SizedBox(width: 4),
-                                              Text('R\$ 4,90 (Pix)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                                            ],
+                                          const Icon(Icons.info_outline,
+                                              color: Colors.amberAccent,
+                                              size: 18),
+                                          const SizedBox(width: 8),
+                                          const Expanded(
+                                            child: Text(
+                                              'Sem jogos hoje nesta liga.',
+                                              style: TextStyle(
+                                                  color: Colors.amberAccent,
+                                                  fontSize: 12),
+                                            ),
                                           ),
-                                          SizedBox(height: 3),
-                                          Text('Mercado Pago', style: TextStyle(color: Colors.white60, fontSize: 10)),
+                                          TextButton(
+                                            onPressed: () => setModalState(
+                                                () => isManualMatch = true),
+                                            child: const Text(
+                                              'Digitar Jogo',
+                                              style: TextStyle(
+                                                  color: AppTheme.accentGold,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
                                         ],
                                       ),
+                                    )
+                                  : DropdownButtonFormField<int>(
+                                      decoration: InputDecoration(
+                                        labelText: '2º Escolha a Partida Oficial',
+                                        labelStyle: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 13),
+                                        prefixIcon: const Icon(
+                                            Icons.sports_soccer,
+                                            color: Colors.greenAccent,
+                                            size: 18),
+                                        filled: true,
+                                        fillColor: Colors.black26,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 14, vertical: 12),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                      dropdownColor: const Color(0xFF1E3626),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13.5),
+                                      initialValue: _selectedFixtureId,
+                                      isExpanded: true,
+                                      items: _fetchedMatches.map((m) {
+                                        return DropdownMenuItem<int>(
+                                          value: m['fixture']['id'],
+                                          child: Text(
+                                            '${_matchTime(m)} • ${m['teams']['home']['name']} x ${m['teams']['away']['name']}',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setModalState(() {
+                                          _selectedFixtureId = val;
+                                          final match = _fetchedMatches
+                                              .firstWhere(
+                                                  (m) =>
+                                                      m['fixture']['id'] == val,
+                                                  orElse: () => null);
+                                          if (match != null) {
+                                            final confrontation =
+                                                '${match['teams']['home']['name']} x ${match['teams']['away']['name']}';
+                                            _matchTeamsCtrl.text =
+                                                confrontation;
+                                            if (_nameCtrl.text.trim().isEmpty ||
+                                                _nameCtrl.text
+                                                    .trim()
+                                                    .startsWith('Bolão ')) {
+                                              _nameCtrl.text =
+                                                  'Bolão $confrontation';
+                                            }
+                                            final rawDate = match['fixture']
+                                                    ?['date']
+                                                ?.toString();
+                                            if (rawDate != null) {
+                                              _matchDateTime =
+                                                  DateTime.tryParse(rawDate)
+                                                      ?.toLocal();
+                                            }
+                                          }
+                                        });
+                                      },
                                     ),
-                                  ),
-                                ),
+                      ] else ...[
+                        // Modo Manual (Confronto + Data/Hora)
+                        TextField(
+                          controller: _matchTeamsCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (v) {
+                            if (_nameCtrl.text.trim().isEmpty &&
+                                v.trim().length > 5) {
+                              // Deixa o usuário digitar tranquilo
+                            }
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Times da Partida (Ex: Flamengo x Palmeiras)',
+                            labelStyle: const TextStyle(
+                                color: Colors.white70, fontSize: 12.5),
+                            prefixIcon: const Icon(Icons.sports_soccer,
+                                color: AppTheme.accentGold, size: 18),
+                            filled: true,
+                            fillColor: Colors.black26,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            final now = DateTime.now();
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: _matchDateTime ?? now,
+                              firstDate: now.subtract(const Duration(days: 1)),
+                              lastDate: now.add(const Duration(days: 60)),
+                            );
+                            if (pickedDate != null && context.mounted) {
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                    _matchDateTime ??
+                                        now.add(const Duration(hours: 2))),
+                              );
+                              if (pickedTime != null) {
+                                setModalState(() {
+                                  _matchDateTime = DateTime(
+                                    pickedDate.year,
+                                    pickedDate.month,
+                                    pickedDate.day,
+                                    pickedTime.hour,
+                                    pickedTime.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 13),
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today,
+                                    color: AppTheme.accentGold, size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => setModalState(() => _activationMethod = 'tokens'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                                      decoration: BoxDecoration(
-                                        color: _activationMethod == 'tokens' ? AppTheme.primaryGreen : Colors.black38,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: _activationMethod == 'tokens' ? AppTheme.accentGold : Colors.white12,
-                                          width: _activationMethod == 'tokens' ? 2 : 1,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          const Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.stars, color: AppTheme.accentGold, size: 16),
-                                              SizedBox(width: 4),
-                                              Text('2.500 Tokens', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            'Saldo: ${ref.watch(currentUserProvider)?.tokens ?? 0}',
-                                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
-                                      ),
+                                  child: Text(
+                                    _matchDateTime != null
+                                        ? 'Data: ${_matchDateTime!.day.toString().padLeft(2, '0')}/${_matchDateTime!.month.toString().padLeft(2, '0')} às ${_matchDateTime!.hour.toString().padLeft(2, '0')}:${_matchDateTime!.minute.toString().padLeft(2, '0')}'
+                                        : 'Definir data e horário do jogo',
+                                    style: TextStyle(
+                                      color: _matchDateTime != null
+                                          ? Colors.white
+                                          : Colors.white70,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
+                                const Icon(Icons.edit_calendar,
+                                    color: AppTheme.accentGold, size: 18),
                               ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white10,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.sentiment_very_satisfied, color: Colors.greenAccent, size: 20),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '🎉 Bolão Grátis! Ativação 100% gratuita para brincar com os amigos.',
-                                style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
+                      ],
 
-                    // Jogo (Times) -> Seleção via API ou Manual
-                    const Text(
-                      '⚽ Escolha a Partida do Bolão',
-                      style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_activeLeagues.isNotEmpty) ...[
-                      DropdownButtonFormField<int>(
+                      // Resumo da partida selecionada via API
+                      if (!isManualMatch &&
+                          _selectedFixtureId != null &&
+                          _matchTeamsCtrl.text.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: Colors.greenAccent.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.verified,
+                                  color: Colors.greenAccent, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${_matchTeamsCtrl.text} • ${_matchDateTime != null ? "${_matchDateTime!.hour.toString().padLeft(2, '0')}:${_matchDateTime!.minute.toString().padLeft(2, '0')}" : "Hoje"} (Apuração Automática)',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // Nome do Bolão
+                      const Text(
+                        '🏷️ Nome e Estilo da Sala',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _nameCtrl,
+                        style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          labelText: 'Filtrar por Campeonato (Jogos de Hoje)',
-                          labelStyle: const TextStyle(color: Colors.white70),
+                          labelText: 'Nome do Bolão',
+                          labelStyle: const TextStyle(
+                              color: Colors.white70, fontSize: 13),
+                          hintText: _category == 'amigos'
+                              ? 'ex: Bolão dos Parças'
+                              : 'ex: Bolão do Bar do Zé',
+                          hintStyle: const TextStyle(color: Colors.white30),
+                          prefixIcon: const Icon(Icons.emoji_events_outlined,
+                              color: AppTheme.accentGold, size: 18),
                           filled: true,
                           fillColor: Colors.black26,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        dropdownColor: const Color(0xFF1E3626),
-                        style: const TextStyle(color: Colors.white),
-                        initialValue: _selectedLeagueId,
-                        items: _activeLeagues.map((l) {
-                          return DropdownMenuItem<int>(
-                            value: l.id,
-                            child: Text(l.name),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setModalState(() {
-                              _selectedLeagueId = val;
-                              _selectedFixtureId = null;
-                            });
-                            _fetchMatchesForBolao(val, setModalState);
-                          }
-                        },
                       ),
                       const SizedBox(height: 10),
-                    ],
-                    if (_selectedLeagueId != null) ...[
-                      _isFetchingMatches
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Center(child: CircularProgressIndicator(color: AppTheme.accentGold)),
-                            )
-                          : _fetchedMatches.isEmpty
-                              ? const Padding(
-                                  padding: EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'Nenhum jogo automático hoje neste campeonato. Você pode digitar o confronto abaixo!',
-                                    style: TextStyle(color: Colors.amberAccent, fontSize: 12),
+
+                      // Categoria Compacta: Amigos vs Bar
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setModalState(() => _category = 'amigos'),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _category == 'amigos'
+                                      ? AppTheme.primaryGreen
+                                      : Colors.black26,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _category == 'amigos'
+                                        ? AppTheme.accentGold
+                                        : Colors.white10,
                                   ),
-                                )
-                              : DropdownButtonFormField<int>(
-                                  decoration: InputDecoration(
-                                    labelText: 'Selecione a Partida Oficial',
-                                    labelStyle: const TextStyle(color: Colors.white70),
-                                    filled: true,
-                                    fillColor: Colors.black26,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  dropdownColor: const Color(0xFF1E3626),
-                                  style: const TextStyle(color: Colors.white),
-                                  initialValue: _selectedFixtureId,
-                                  isExpanded: true,
-                                  items: _fetchedMatches.map((m) {
-                                    return DropdownMenuItem<int>(
-                                      value: m['fixture']['id'],
-                                      child: Text(
-                                        '${_matchTime(m)} • ${m['teams']['home']['name']} x ${m['teams']['away']['name']}',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    setModalState(() {
-                                      _selectedFixtureId = val;
-                                      final match = _fetchedMatches.firstWhere((m) => m['fixture']['id'] == val, orElse: () => null);
-                                      if (match != null) {
-                                        _matchTeamsCtrl.text = '${match['teams']['home']['name']} x ${match['teams']['away']['name']}';
-                                        final rawDate = match['fixture']?['date']?.toString();
-                                        if (rawDate != null) {
-                                          _matchDateTime = DateTime.tryParse(rawDate)?.toLocal();
-                                        }
-                                      }
-                                    });
-                                  },
                                 ),
-                      const SizedBox(height: 10),
-                    ],
-
-                    // Confronto Manual / Editável
-                    TextField(
-                      controller: _matchTeamsCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Confronto (Times da Partida)',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        hintText: 'Ex: Flamengo x Palmeiras',
-                        hintStyle: const TextStyle(color: Colors.white30),
-                        prefixIcon: const Icon(Icons.sports_soccer, color: AppTheme.accentGold),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Data e Hora do Jogo (Clicável para escolher caso seja jogo futuro/personalizado)
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () async {
-                        final now = DateTime.now();
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: _matchDateTime ?? now,
-                          firstDate: now.subtract(const Duration(days: 1)),
-                          lastDate: now.add(const Duration(days: 60)),
-                        );
-                        if (pickedDate != null && context.mounted) {
-                          final pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.fromDateTime(_matchDateTime ?? now.add(const Duration(hours: 2))),
-                          );
-                          if (pickedTime != null) {
-                            setModalState(() {
-                              _matchDateTime = DateTime(
-                                pickedDate.year,
-                                pickedDate.month,
-                                pickedDate.day,
-                                pickedTime.hour,
-                                pickedTime.minute,
-                              );
-                            });
-                          }
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today, color: AppTheme.accentGold, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _matchDateTime != null
-                                    ? '📅 Jogo: ${_matchDateTime!.day.toString().padLeft(2, '0')}/${_matchDateTime!.month.toString().padLeft(2, '0')}/${_matchDateTime!.year} às ${_matchDateTime!.hour.toString().padLeft(2, '0')}:${_matchDateTime!.minute.toString().padLeft(2, '0')}'
-                                    : 'Toque para definir a data e horário da partida',
-                                style: TextStyle(
-                                  color: _matchDateTime != null ? Colors.white : Colors.white70,
-                                  fontSize: 13.5,
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.groups,
+                                        color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Entre Amigos',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                            const Icon(Icons.edit_calendar, color: AppTheme.accentGold, size: 18),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Prazo de Encerramento do Bolão (Dropdown de Minutos)
-                    const Text(
-                      'Prazo para entrar no Bolão (antes do jogo)',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      dropdownColor: const Color(0xFF1E3626),
-                      style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold),
-                      initialValue: _deadlineMinutes,
-                      items: const [
-                        DropdownMenuItem(value: 15, child: Text('15 minutos antes do jogo')),
-                        DropdownMenuItem(value: 30, child: Text('30 minutos antes do jogo')),
-                        DropdownMenuItem(value: 60, child: Text('1 hora antes do jogo')),
-                        DropdownMenuItem(value: 120, child: Text('2 horas antes do jogo')),
-                        DropdownMenuItem(value: 1440, child: Text('24 horas antes do jogo')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setModalState(() {
-                            _deadlineMinutes = val;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Botão Criar
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accentGold,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                        onPressed: _isCreating
-                            ? null
-                            : () async {
-                                if (_nameCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Por favor, informe o nome do Bolão.'),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setModalState(() => _category = 'bar'),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _category == 'bar'
+                                      ? AppTheme.primaryGreen
+                                      : Colors.black26,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _category == 'bar'
+                                        ? AppTheme.accentGold
+                                        : Colors.white10,
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.sports_bar,
+                                        color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Bar / Resenha',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
-                                  );
-                                  return;
-                                }
-
-                                if (!isFreeBolao) {
-                                  if (_organizerPixKeyCtrl.text.trim().isEmpty || _organizerPixNameCtrl.text.trim().isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        backgroundColor: Colors.amberAccent,
-                                        content: Text('Informe sua Chave Pix e o Nome do Titular para os participantes enviarem as cotas!'),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                }
-
-                                final user = ref.read(currentUserProvider);
-                                final prizeLabel = isFreeBolao
-                                    ? 'Bolão Recreativo / Troféu da Galera'
-                                    : '$winnerPct% do Pote no Pix';
-
-                                final bolaoData = {
-                                  'name': _nameCtrl.text.trim(),
-                                  'category': _category,
-                                  'entryFee': _entryFeeCtrl.text.trim(),
-                                  'prize': prizeLabel,
-                                  'platformFee': 0,
-                                  'creatorFee': _creatorFee,
-                                  'winnerPrize': winnerPct,
-                                  'organizerPixKey': isFreeBolao ? null : _organizerPixKeyCtrl.text.trim(),
-                                  'organizerPixName': isFreeBolao ? null : _organizerPixNameCtrl.text.trim(),
-                                  'matchTeams': _matchTeamsCtrl.text.trim().isEmpty
-                                      ? null
-                                      : _matchTeamsCtrl.text.trim(),
-                                  'matchDateTime': _matchDateTime != null
-                                      ? Timestamp.fromDate(_matchDateTime!)
-                                      : null,
-                                  'deadlineDateTime': _matchDateTime != null
-                                      ? Timestamp.fromDate(
-                                          _matchDateTime!.subtract(Duration(minutes: _deadlineMinutes)),
-                                        )
-                                      : null,
-                                  'fixtureId': _selectedFixtureId,
-                                  'leagueId': _selectedLeagueId,
-                                  'creatorId': user?.id ?? 'anonymous',
-                                  'creatorName': user?.name ?? 'Torcedor',
-                                  'participantsCount': 0,
-                                  'status': 'open',
-                                  'createdAt': FieldValue.serverTimestamp(),
-                                };
-
-                                if (!isFreeBolao && _activationMethod == 'tokens') {
-                                  final userTokens = user?.tokens ?? 0;
-                                  if (userTokens < _bolaoActivationFeeTokens) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        backgroundColor: Colors.redAccent,
-                                        content: Text('Saldo de Tokens insuficiente! Você tem $userTokens tokens (necessário $_bolaoActivationFeeTokens). Ative no Pix (R\$ 4,90) ou ganhe mais tokens nos quizzes.'),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  setModalState(() => _isCreating = true);
-                                  try {
-                                    await _dbService.activateBolaoWithTokens();
-                                    final docRef = await _firestore.collection('boloes').add({
-                                      ...bolaoData,
-                                      'activationFeePaid': true,
-                                      'activationMethod': 'tokens',
-                                      'activationTokens': _bolaoActivationFeeTokens,
-                                    });
-
-                                    final bolaoName = _nameCtrl.text.trim();
-                                    final entryFee = _entryFeeCtrl.text.trim();
-                                    final pixKey = _organizerPixKeyCtrl.text.trim();
-                                    final pixName = _organizerPixNameCtrl.text.trim();
-                                    _nameCtrl.clear();
-                                    _matchTeamsCtrl.clear();
-                                    _matchDateTime = null;
-
-                                    if (context.mounted) {
-                                      Navigator.pop(ctx);
-                                      _shareBolao(
-                                        bolaoId: docRef.id,
-                                        name: bolaoName,
-                                        entryFee: entryFee,
-                                        prize: prizeLabel,
-                                        organizerPixKey: pixKey,
-                                        organizerPixName: pixName,
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Erro ao ativar Bolão com Tokens: $e')),
-                                      );
-                                    }
-                                  } finally {
-                                    setModalState(() => _isCreating = false);
-                                  }
-                                  return;
-                                }
-
-                                if (!isFreeBolao && _activationMethod == 'pix') {
-                                  final bolaoName = _nameCtrl.text.trim();
-                                  final pixKey = _organizerPixKeyCtrl.text.trim();
-                                  final pixName = _organizerPixNameCtrl.text.trim();
-                                  _nameCtrl.clear();
-                                  _matchTeamsCtrl.clear();
-                                  _matchDateTime = null;
-
-                                  Navigator.pop(ctx);
-                                  _showActivationPixModal(
-                                    parentContext: context,
-                                    bolaoName: bolaoName,
-                                    bolaoData: {
-                                      ...bolaoData,
-                                      'organizerPixKey': pixKey,
-                                      'organizerPixName': pixName,
-                                    },
-                                  );
-                                  return;
-                                }
-
-                                // Bolão Grátis
-                                setModalState(() => _isCreating = true);
-                                try {
-                                  final docRef = await _firestore.collection('boloes').add({
-                                    ...bolaoData,
-                                    'activationFeePaid': true,
-                                    'activationMethod': 'free',
-                                  });
-
-                                  final bolaoName = _nameCtrl.text.trim();
-                                  final entryFee = _entryFeeCtrl.text.trim();
-                                  _nameCtrl.clear();
-                                  _matchTeamsCtrl.clear();
-                                  _matchDateTime = null;
-
-                                  if (context.mounted) {
-                                    Navigator.pop(ctx);
-                                    _shareBolao(
-                                      bolaoId: docRef.id,
-                                      name: bolaoName,
-                                      entryFee: entryFee,
-                                      prize: prizeLabel,
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Erro ao criar Bolão: $e')),
-                                    );
-                                  }
-                                } finally {
-                                  setModalState(() => _isCreating = false);
-                                }
-                              },
-                        child: _isCreating
-                            ? const CircularProgressIndicator(color: Colors.black)
-                            : Text(
-                                isFreeBolao
-                                    ? 'CRIAR BOLÃO GRÁTIS 📲'
-                                    : (_activationMethod == 'tokens'
-                                        ? 'ATIVAR COM 2.500 TOKENS 🪙'
-                                        : 'ATIVAR SALA NO PIX (R\$ 4,90) ⚡'),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 14,
+                                  ],
                                 ),
                               ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+
+                      // Prazo de encerramento compacto em chips
+                      const Text(
+                        '⏰ Encerrar palpites antes do jogo:',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          {'min': 15, 'label': '15 min'},
+                          {'min': 30, 'label': '30 min'},
+                          {'min': 60, 'label': '1 hora'},
+                          {'min': 120, 'label': '2 horas'},
+                        ].map((item) {
+                          final minVal = item['min'] as int;
+                          final selected = _deadlineMinutes == minVal;
+                          return ChoiceChip(
+                            label: Text(item['label'] as String),
+                            selected: selected,
+                            selectedColor: AppTheme.primaryGreen,
+                            backgroundColor: Colors.black26,
+                            labelStyle: TextStyle(
+                              color:
+                                  selected ? AppTheme.accentGold : Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11.5,
+                            ),
+                            onSelected: (_) => setModalState(
+                                () => _deadlineMinutes = minVal),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Botão Ir para Passo 2
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentGold,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (_nameCtrl.text.trim().isEmpty &&
+                                _matchTeamsCtrl.text.trim().isNotEmpty) {
+                              _nameCtrl.text =
+                                  'Bolão ${_matchTeamsCtrl.text.trim()}';
+                            }
+                            if (_nameCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Escolha uma partida ou digite o nome do Bolão!'),
+                                ),
+                              );
+                              return;
+                            }
+                            setModalState(() => currentStep = 1);
+                          },
+                          icon: const Icon(Icons.arrow_forward, size: 18),
+                          label: const Text(
+                            'CONTINUAR: VALOR E PIX',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]
+
+                    // ==========================================
+                    // PASSO 2: VALOR DA COTA, PIX E ATIVAÇÃO
+                    // ==========================================
+                    else ...[
+                      // Mini resumo do jogo escolhido no topo do Passo 2
+                      GestureDetector(
+                        onTap: () => setModalState(() => currentStep = 0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.sports_soccer,
+                                  color: AppTheme.accentGold, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${_nameCtrl.text.trim()}${_matchTeamsCtrl.text.trim().isNotEmpty ? " (${_matchTeamsCtrl.text.trim()})" : ""}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Text(
+                                'Editar',
+                                style: TextStyle(
+                                  color: AppTheme.accentGold,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Valor da Cota por Participante
+                      const Text(
+                        '💰 Valor da Cota por Participante',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ...['0,00', '5,00', '10,00', '20,00', '50,00']
+                              .map((preset) {
+                            final isSelected = !isCustomFee &&
+                                _entryFeeCtrl.text.trim() == preset;
+                            return ChoiceChip(
+                              label: Text(
+                                  preset == '0,00' ? 'Grátis' : 'R\$ $preset'),
+                              selected: isSelected,
+                              selectedColor: AppTheme.accentGold,
+                              backgroundColor: Colors.black38,
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                              onSelected: (_) {
+                                setModalState(() {
+                                  isCustomFee = false;
+                                  _entryFeeCtrl.text = preset;
+                                });
+                              },
+                            );
+                          }),
+                          ChoiceChip(
+                            label: const Text('Outro valor'),
+                            selected: isCustomFee,
+                            selectedColor: AppTheme.accentGold,
+                            backgroundColor: Colors.black38,
+                            labelStyle: TextStyle(
+                              color: isCustomFee ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            onSelected: (_) {
+                              setModalState(() {
+                                isCustomFee = true;
+                                if (_entryFeeCtrl.text.trim() == '0,00') {
+                                  _entryFeeCtrl.text = '15,00';
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+
+                      if (isCustomFee) ...[
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _entryFeeCtrl,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setModalState(() {}),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Digite o valor da cota',
+                            labelStyle: const TextStyle(color: Colors.white70),
+                            prefixText: 'R\$ ',
+                            prefixStyle:
+                                const TextStyle(color: AppTheme.accentGold),
+                            filled: true,
+                            fillColor: Colors.black26,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+
+                      // Se for Bolão Pago (> R$ 0)
+                      if (!isFreeBolao) ...[
+                        // Card Unificado: Seu Pix + Sua Comissão
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.black38,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color:
+                                    AppTheme.accentGold.withValues(alpha: 0.5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.pix,
+                                      color: Colors.tealAccent, size: 18),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Seu Pix (Onde a galera paga a cota)',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Os amigos enviam o Pix direto pra você e você paga o vencedor ao fim do jogo.',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _organizerPixKeyCtrl,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13.5),
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'Sua Chave Pix (CPF, Celular, E-mail)',
+                                  labelStyle: const TextStyle(
+                                      color: Colors.white70, fontSize: 12),
+                                  prefixIcon: const Icon(Icons.vpn_key,
+                                      color: AppTheme.accentGold, size: 17),
+                                  filled: true,
+                                  fillColor: Colors.black45,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _organizerPixNameCtrl,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13.5),
+                                decoration: InputDecoration(
+                                  labelText: 'Nome do Titular da Conta',
+                                  labelStyle: const TextStyle(
+                                      color: Colors.white70, fontSize: 12),
+                                  prefixIcon: const Icon(Icons.person,
+                                      color: AppTheme.accentGold, size: 17),
+                                  filled: true,
+                                  fillColor: Colors.black45,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                              const Divider(color: Colors.white12, height: 20),
+
+                              // Comissão de Anfitrião + Simulação em 1 linha
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Sua Comissão de Organizador:',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 12.5),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black45,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.white24),
+                                    ),
+                                    child: DropdownButton<int>(
+                                      value: _creatorFee,
+                                      isDense: true,
+                                      dropdownColor: const Color(0xFF1E3626),
+                                      style: const TextStyle(
+                                        color: AppTheme.accentGold,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5,
+                                      ),
+                                      underline: const SizedBox(),
+                                      items: [0, 5, 10, 15, 20].map((fee) {
+                                        return DropdownMenuItem<int>(
+                                          value: fee,
+                                          child: Text(fee == 0
+                                              ? '0% (100% pro Vencedor)'
+                                              : '$fee% de comissão'),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setModalState(
+                                              () => _creatorFee = val);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryGreen
+                                      .withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '💡 Simulação (10 amigos): Pote R\$ ${_formatBrl(simPot10)} ➔ Vencedor R\$ ${_formatBrl(simWinner10)}${_creatorFee > 0 ? " • Você R\$ ${_formatBrl(simCreator10)}" : ""}',
+                                  style: const TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Escolha compacta de Ativação da Sala
+                        const Text(
+                          '⚡ Como deseja ativar a sala oficial?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setModalState(
+                                    () => _activationMethod = 'pix'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: _activationMethod == 'pix'
+                                        ? AppTheme.primaryGreen
+                                        : Colors.black38,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: _activationMethod == 'pix'
+                                          ? AppTheme.accentGold
+                                          : Colors.white12,
+                                      width: _activationMethod == 'pix' ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: const Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.pix,
+                                              color: Colors.tealAccent,
+                                              size: 15),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'R\$ 4,90 no Pix',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Taxa única da sala',
+                                        style: TextStyle(
+                                            color: Colors.white60, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setModalState(
+                                    () => _activationMethod = 'tokens'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: _activationMethod == 'tokens'
+                                        ? AppTheme.primaryGreen
+                                        : Colors.black38,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: _activationMethod == 'tokens'
+                                          ? AppTheme.accentGold
+                                          : Colors.white12,
+                                      width:
+                                          _activationMethod == 'tokens' ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.stars,
+                                              color: AppTheme.accentGold,
+                                              size: 15),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            '2.500 Tokens',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Seu saldo: $userTokens',
+                                        style: TextStyle(
+                                          color: userTokens >=
+                                                  _bolaoActivationFeeTokens
+                                              ? Colors.greenAccent
+                                              : Colors.amberAccent,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.celebration,
+                                  color: Colors.greenAccent, size: 22),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Bolão Grátis! Sem chave Pix e sem taxa de ativação — é só criar e compartilhar o link com a galera.',
+                                  style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      height: 1.3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+
+                      // Botões Voltar + Criar/Ativar
+                      Row(
+                        children: [
+                           OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              minimumSize: const Size(48, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () =>
+                                setModalState(() => currentStep = 0),
+                            child: const Icon(Icons.arrow_back, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accentGold,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _isCreating
+                                    ? null
+                                    : () async {
+                                        if (_nameCtrl.text.trim().isEmpty) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Por favor, informe o nome do Bolão.'),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        if (!isFreeBolao) {
+                                          if (_organizerPixKeyCtrl.text
+                                                  .trim()
+                                                  .isEmpty ||
+                                              _organizerPixNameCtrl.text
+                                                  .trim()
+                                                  .isEmpty) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                backgroundColor:
+                                                    Colors.amberAccent,
+                                                content: Text(
+                                                  'Preencha sua Chave Pix e Nome para receber as cotas!',
+                                                  style: TextStyle(
+                                                      color: Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                        }
+
+                                        final user =
+                                            ref.read(currentUserProvider);
+                                        final prizeLabel = isFreeBolao
+                                            ? 'Bolão Recreativo / Troféu da Galera'
+                                            : '$winnerPct% do Pote no Pix';
+
+                                        final bolaoData = {
+                                          'name': _nameCtrl.text.trim(),
+                                          'category': _category,
+                                          'entryFee': _entryFeeCtrl.text.trim(),
+                                          'prize': prizeLabel,
+                                          'platformFee': 0,
+                                          'creatorFee': _creatorFee,
+                                          'winnerPrize': winnerPct,
+                                          'organizerPixKey': isFreeBolao
+                                              ? null
+                                              : _organizerPixKeyCtrl.text.trim(),
+                                          'organizerPixName': isFreeBolao
+                                              ? null
+                                              : _organizerPixNameCtrl.text
+                                                  .trim(),
+                                          'matchTeams': _matchTeamsCtrl.text
+                                                  .trim()
+                                                  .isEmpty
+                                              ? null
+                                              : _matchTeamsCtrl.text.trim(),
+                                          'matchDateTime':
+                                              _matchDateTime != null
+                                                  ? Timestamp.fromDate(
+                                                      _matchDateTime!)
+                                                  : null,
+                                          'deadlineDateTime': _matchDateTime !=
+                                                  null
+                                              ? Timestamp.fromDate(
+                                                  _matchDateTime!.subtract(
+                                                      Duration(
+                                                          minutes:
+                                                              _deadlineMinutes)),
+                                                )
+                                              : null,
+                                          'fixtureId': _selectedFixtureId,
+                                          'leagueId': _selectedLeagueId,
+                                          'creatorId': user?.id ?? 'anonymous',
+                                          'creatorName':
+                                              user?.name ?? 'Torcedor',
+                                          'participantsCount': 0,
+                                          'status': 'open',
+                                          'createdAt':
+                                              FieldValue.serverTimestamp(),
+                                        };
+
+                                        if (!isFreeBolao &&
+                                            _activationMethod == 'tokens') {
+                                          if (userTokens <
+                                              _bolaoActivationFeeTokens) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                backgroundColor:
+                                                    Colors.redAccent,
+                                                content: Text(
+                                                    'Saldo insuficiente ($userTokens tokens). Escolha "R\$ 4,90 no Pix" ou ganhe mais tokens!'),
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          setModalState(
+                                              () => _isCreating = true);
+                                          try {
+                                            await _dbService
+                                                .activateBolaoWithTokens();
+                                            final docRef = await _firestore
+                                                .collection('boloes')
+                                                .add({
+                                              ...bolaoData,
+                                              'activationFeePaid': true,
+                                              'activationMethod': 'tokens',
+                                              'activationTokens':
+                                                  _bolaoActivationFeeTokens,
+                                            });
+
+                                            final bolaoName =
+                                                _nameCtrl.text.trim();
+                                            final entryFee =
+                                                _entryFeeCtrl.text.trim();
+                                            final pixKey = _organizerPixKeyCtrl
+                                                .text
+                                                .trim();
+                                            final pixName =
+                                                _organizerPixNameCtrl.text
+                                                    .trim();
+                                            _nameCtrl.clear();
+                                            _matchTeamsCtrl.clear();
+                                            _matchDateTime = null;
+
+                                            if (context.mounted) {
+                                              Navigator.pop(ctx);
+                                              _shareBolao(
+                                                bolaoId: docRef.id,
+                                                name: bolaoName,
+                                                entryFee: entryFee,
+                                                prize: prizeLabel,
+                                                organizerPixKey: pixKey,
+                                                organizerPixName: pixName,
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                    content: Text(
+                                                        'Erro ao ativar Bolão com Tokens: $e')),
+                                              );
+                                            }
+                                          } finally {
+                                            setModalState(
+                                                () => _isCreating = false);
+                                          }
+                                          return;
+                                        }
+
+                                        if (!isFreeBolao &&
+                                            _activationMethod == 'pix') {
+                                          final bolaoName =
+                                              _nameCtrl.text.trim();
+                                          final pixKey =
+                                              _organizerPixKeyCtrl.text.trim();
+                                          final pixName =
+                                              _organizerPixNameCtrl.text.trim();
+                                          _nameCtrl.clear();
+                                          _matchTeamsCtrl.clear();
+                                          _matchDateTime = null;
+
+                                          Navigator.pop(ctx);
+                                          _showActivationPixModal(
+                                            parentContext: context,
+                                            bolaoName: bolaoName,
+                                            bolaoData: {
+                                              ...bolaoData,
+                                              'organizerPixKey': pixKey,
+                                              'organizerPixName': pixName,
+                                            },
+                                          );
+                                          return;
+                                        }
+
+                                        // Bolão Grátis
+                                        setModalState(() => _isCreating = true);
+                                        try {
+                                          final docRef = await _firestore
+                                              .collection('boloes')
+                                              .add({
+                                            ...bolaoData,
+                                            'activationFeePaid': true,
+                                            'activationMethod': 'free',
+                                          });
+
+                                          final bolaoName =
+                                              _nameCtrl.text.trim();
+                                          final entryFee =
+                                              _entryFeeCtrl.text.trim();
+                                          _nameCtrl.clear();
+                                          _matchTeamsCtrl.clear();
+                                          _matchDateTime = null;
+
+                                          if (context.mounted) {
+                                            Navigator.pop(ctx);
+                                            _shareBolao(
+                                              bolaoId: docRef.id,
+                                              name: bolaoName,
+                                              entryFee: entryFee,
+                                              prize: prizeLabel,
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Erro ao criar Bolão: $e')),
+                                            );
+                                          }
+                                        } finally {
+                                          setModalState(
+                                              () => _isCreating = false);
+                                        }
+                                      },
+                                child: _isCreating
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                            color: Colors.black,
+                                            strokeWidth: 2.5),
+                                      )
+                                    : Text(
+                                        isFreeBolao
+                                            ? 'CRIAR BOLÃO GRÁTIS 📲'
+                                            : (_activationMethod == 'tokens'
+                                                ? 'ATIVAR COM 2.500 TOKENS 🪙'
+                                                : 'ATIVAR SALA (PIX R\$ 4,90) ⚡'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 13.5,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
