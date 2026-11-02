@@ -2320,6 +2320,9 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                   final existingParticipant = await participantRef.get();
                                   final isNewParticipant = !existingParticipant.exists;
 
+                                  final isFree = _parseEntryFee(entryFee) <= 0;
+                                  final initialPaymentStatus = isFree ? 'approved' : 'pending';
+
                                   if (isNewParticipant) {
                                     await _firestore.collection('boloes').doc(bolaoId).update({
                                       'participantsCount': FieldValue.increment(1),
@@ -2339,6 +2342,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                     'userName': user?.name ?? 'Torcedor',
                                     'homeScore': homeScore,
                                     'awayScore': awayScore,
+                                    'paymentStatus': initialPaymentStatus,
                                     if (isNewParticipant) 'joinedAt': FieldValue.serverTimestamp(),
                                     'updatedAt': FieldValue.serverTimestamp(),
                                   }, SetOptions(merge: true));
@@ -2349,9 +2353,9 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                       SnackBar(
                                         backgroundColor: AppTheme.primaryGreen,
                                         content: Text(
-                                          isNewParticipant
+                                          isFree
                                               ? '🎉 Palpite $homeScore x $awayScore confirmado no Bolão "$name"!'
-                                              : '✅ Palpite atualizado para $homeScore x $awayScore no Bolão "$name"!',
+                                              : '🎉 Palpite registrado! Envie o Pix para o anfitrião confirmar sua cota.',
                                         ),
                                       ),
                                     );
@@ -2889,6 +2893,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
     required String name,
     required String category,
     required String creator,
+    String? creatorId,
     required String entryFee,
     required String prize,
     required int participants,
@@ -3213,13 +3218,16 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                       final pName = pData['userName'] ?? 'Torcedor';
                       final home = pData['homeScore'] ?? 0;
                       final away = pData['awayScore'] ?? 0;
-                      final pUid = pData['userId'] ?? '';
+                      final pUid = pData['userId'] ?? docs[index].id;
                       final isMe = pUid == ref.read(currentUserProvider)?.id;
                       final isExactWinner = status == 'completed' &&
                           finalHomeScore != null &&
                           finalAwayScore != null &&
                           home == finalHomeScore &&
                           away == finalAwayScore;
+                      final paymentStatus = (pData['paymentStatus'] as String?) ?? (entryVal <= 0 ? 'approved' : 'pending');
+                      final isApproved = paymentStatus == 'approved';
+                      final isHost = creatorId != null && creatorId.isNotEmpty && creatorId == ref.read(currentUserProvider)?.id;
 
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -3295,32 +3303,139 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                         ),
                                     ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    isExactWinner ? 'Vencedor do Pote!' : 'Participante confirmado',
-                                    style: TextStyle(
-                                      color: isExactWinner ? Colors.greenAccent : Colors.white38,
-                                      fontSize: 10,
-                                    ),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: isApproved ? Colors.green.withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: isApproved ? Colors.greenAccent : Colors.amberAccent,
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          entryVal <= 0
+                                              ? 'Confirmado (Grátis)'
+                                              : (isApproved ? 'Pix Confirmado ✅' : 'Aguardando Pix ⏳'),
+                                          style: TextStyle(
+                                            color: isApproved ? Colors.greenAccent : Colors.amberAccent,
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black45,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.4)),
-                              ),
-                              child: Text(
-                                'Palpite: $home x $away',
-                                style: const TextStyle(
-                                  color: AppTheme.accentGold,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppTheme.accentGold.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    '$home x $away',
+                                    style: const TextStyle(
+                                      color: AppTheme.accentGold,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                // Controles exclusivos do Anfitrião do Bolão
+                                if (isHost && entryVal > 0 && status != 'completed') ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (!isApproved)
+                                        GestureDetector(
+                                          onTap: () async {
+                                            await _firestore
+                                                .collection('boloes')
+                                                .doc(bolaoId)
+                                                .collection('participants')
+                                                .doc(docs[index].id)
+                                                .update({'paymentStatus': 'approved'});
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  backgroundColor: AppTheme.primaryGreen,
+                                                  content: Text('Pix de $pName confirmado com sucesso!'),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.teal.shade800,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.check, color: Colors.white, size: 12),
+                                                SizedBox(width: 3),
+                                                Text('Confirmar', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 4),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final removeConfirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (dialogCtx) => AlertDialog(
+                                              title: const Text('Remover Participante?'),
+                                              content: Text('Deseja remover o palpite de "$pName" deste bolão?'),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+                                                TextButton(
+                                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                                  onPressed: () => Navigator.pop(dialogCtx, true),
+                                                  child: const Text('Remover'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+
+                                          if (removeConfirm == true) {
+                                            await _firestore
+                                                .collection('boloes')
+                                                .doc(bolaoId)
+                                                .collection('participants')
+                                                .doc(docs[index].id)
+                                                .delete();
+                                            await _firestore
+                                                .collection('boloes')
+                                                .doc(bolaoId)
+                                                .update({'participantsCount': FieldValue.increment(-1)});
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade900.withValues(alpha: 0.6),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Icon(Icons.close, color: Colors.white70, size: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -3632,6 +3747,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                     name: name,
                     category: category,
                     creator: creator,
+                    creatorId: creatorId,
                     entryFee: entryFee,
                     prize: prize,
                     participants: participants,
@@ -3821,6 +3937,7 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                 name: name,
                                 category: category,
                                 creator: creator,
+                                creatorId: creatorId,
                                 entryFee: entryFee,
                                 prize: prize,
                                 participants: participants,

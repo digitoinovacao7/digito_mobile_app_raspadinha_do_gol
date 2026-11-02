@@ -1136,18 +1136,25 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                             if (bDataT.status === "completed") return;
 
                             const participantsSnap = await t.get(bolaoDoc.ref.collection("participants"));
+                            const entryFeeStr = (bDataT.entryFee || "0").toString().replace(",", ".");
+                            const entryFeeNum = parseFloat(entryFeeStr) || 0;
+                            const isFreeBolao = entryFeeNum <= 0;
+
                             const winners: string[] = [];
-                            participantsSnap.forEach(p => {
+                            let confirmedCount = 0;
+
+                            participantsSnap.forEach((p: any) => {
                                 const pData = p.data();
-                                if (pData.homeScore === homeScore && pData.awayScore === awayScore) {
-                                    winners.push(p.id);
+                                const isPaymentOk = isFreeBolao || pData.paymentStatus === "approved";
+                                if (isPaymentOk) {
+                                    confirmedCount++;
+                                    if (pData.homeScore === homeScore && pData.awayScore === awayScore) {
+                                        winners.push(p.id);
+                                    }
                                 }
                             });
         
-                            const participantsCount = bDataT.participantsCount || participantsSnap.size || 0;
-                            const entryFeeStr = bDataT.entryFee.toString().replace(",", ".");
-                            const entryFeeNum = parseFloat(entryFeeStr) || 0;
-                            const totalPot = participantsCount * entryFeeNum;
+                            const totalPot = confirmedCount * entryFeeNum;
         
                             const pFeePerc = bDataT.platformFee || 10;
                             const cFeePerc = bDataT.creatorFee || 15;
