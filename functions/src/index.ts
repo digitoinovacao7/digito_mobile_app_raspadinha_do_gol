@@ -1173,6 +1173,77 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                             });
                         });
                         console.log(`Bolão ${bolaoDoc.id} encerrado com sucesso.`);
+
+                        // 3. Notificar o Anfitrião/Organizador via WhatsApp sobre os Vencedores
+                        try {
+                            const updatedBolaoSnap = await bolaoDoc.ref.get();
+                            const bDataCompleted = updatedBolaoSnap.data();
+                            const creatorId = bDataCompleted?.creatorId;
+
+                            if (creatorId && creatorId !== "anonymous") {
+                                const creatorDoc = await db.collection("users").doc(creatorId).get();
+                                const creatorData = creatorDoc.data();
+                                const creatorPhone = creatorData?.phone;
+
+                                if (creatorPhone) {
+                                    const settingsDoc = await db.collection("settings").doc("general").get();
+                                    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+
+                                    if (zApiUrl) {
+                                        const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
+                                        const cleanPhone = creatorPhone.replace(/\D/g, "");
+
+                                        // Busca nomes dos vencedores
+                                        const winnersList: string[] = [];
+                                        const winnersIds: string[] = bDataCompleted?.winners || [];
+                                        const winnerPotAmount = Number(bDataCompleted?.winnerPot) || 0;
+                                        const eachPrize = winnersIds.length > 0 ? (winnerPotAmount / winnersIds.length).toFixed(2).replace(".", ",") : "0,00";
+
+                                        if (winnersIds.length > 0) {
+                                            for (const wId of winnersIds) {
+                                                const pDoc = await bolaoDoc.ref.collection("participants").doc(wId).get();
+                                                const pName = pDoc.data()?.userName || "Participante";
+                                                winnersList.push(`• *${pName}* (Leva R$ ${eachPrize})`);
+                                            }
+                                        }
+
+                                        const bolaoTitle = bDataCompleted?.name || "Bolão do Gol";
+                                        const matchName = bDataCompleted?.matchTeams || `${homeTeamName} x ${awayTeamName}`;
+                                        const commissionStr = (Number(bDataCompleted?.creatorCommissionAmount) || 0).toFixed(2).replace(".", ",");
+                                        const winnerPotStr = winnerPotAmount.toFixed(2).replace(".", ",");
+
+                                        let winnersText = "";
+                                        if (winnersIds.length === 0) {
+                                            winnersText = "⚠️ *Ninguém cravou o placar exato!* O pote acumulou ou fica para o próximo bolão.";
+                                        } else {
+                                            winnersText = `🎯 *Quem Cravou o Placar (${winnersIds.length}):*\n${winnersList.join("\n")}`;
+                                        }
+
+                                        const message = `🏆 *SEU BOLÃO FOI FINALIZADO!* ⚽\n\n` +
+                                            `Olá, *${creatorData?.name || 'Organizador'}*! A partida acabou e o resultado do seu bolão está pronto!\n\n` +
+                                            `📋 *Bolão:* ${bolaoTitle}\n` +
+                                            `⚔️ *Partida:* ${matchName}\n` +
+                                            `🔢 *Placar Final Oficial:* ${homeScore} x ${awayScore}\n` +
+                                            `💰 *Pote dos Vencedores:* R$ ${winnerPotStr}\n` +
+                                            `🤝 *Sua Comissão:* R$ ${commissionStr}\n\n` +
+                                            `${winnersText}\n\n` +
+                                            `📲 Abra o aplicativo *Raspadinha do Gol* para conferir o ranking detalhado e fazer o repasse via Pix aos ganhadores! Parabéns pelo bolão! 👏🔥`;
+
+                                        await fetch(targetUrl, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                phone: `55${cleanPhone}`,
+                                                message: message
+                                            })
+                                        });
+                                        console.log(`WhatsApp de encerramento do bolão enviado com sucesso para ${cleanPhone}`);
+                                    }
+                                }
+                            }
+                        } catch (notifyErr) {
+                            console.error(`Erro ao notificar anfitrião do bolão ${bolaoDoc.id} no WhatsApp:`, notifyErr);
+                        }
                     } catch (e) {
                         console.error(`Erro no bolão ${bolaoDoc.id}:`, e);
                         await bolaoDoc.ref.update({ isProcessing: false });
