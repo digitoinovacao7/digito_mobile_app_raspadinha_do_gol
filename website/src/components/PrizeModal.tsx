@@ -29,25 +29,32 @@ export function PrizeModal() {
         const snap = await getDocs(q);
         if (!snap.empty) {
           const doc = snap.docs[0];
-          setPrize({ id: doc.id, ...(doc.data() as any) });
+          const data = doc.data() as any;
+          setPrize({
+            id: doc.id,
+            name: data.name || 'Tênis Shopisa Modelo Premium',
+            image_url: data.image_url || data.imageUrl,
+            leagueName: data.leagueName || data.league_name || 'Brasileirão Série A',
+            matchLabel: data.matchLabel || data.match_label,
+            token_cost: data.token_cost || 1299,
+          });
         } else {
-          // Fallback para exibir o prêmio de destaque
           setPrize({
             id: 'default-prize',
-            name: 'Camisa Oficial de Time ou Tênis Modelo Premium',
+            name: 'Tênis Shopisa Modelo Premium Feminino',
             image_url: 'https://firebasestorage.googleapis.com/v0/b/shop-isa-314113.firebasestorage.app/o/products%2FZRac5rRanI4x1c7iCP58%2F1786329822895-imported.jpg?alt=media&token=8be4663d-e083-43fb-9e84-01fd101c898e',
-            leagueName: 'Brasileirão & Copas',
-            token_cost: 1200,
+            leagueName: 'Brasileirão Série A',
+            token_cost: 1299,
           });
         }
       } catch (err) {
         console.error('Erro ao buscar prêmio para o modal:', err);
         setPrize({
           id: 'default-prize',
-          name: 'Camisa Oficial de Clube ou Tênis Premium',
+          name: 'Tênis Shopisa Modelo Premium Feminino',
           image_url: 'https://firebasestorage.googleapis.com/v0/b/shop-isa-314113.firebasestorage.app/o/products%2FZRac5rRanI4x1c7iCP58%2F1786329822895-imported.jpg?alt=media&token=8be4663d-e083-43fb-9e84-01fd101c898e',
-          leagueName: 'Brasileirão & Copas',
-          token_cost: 1200,
+          leagueName: 'Brasileirão Série A',
+          token_cost: 1299,
         });
       }
 
