@@ -588,49 +588,8 @@ export const validatePixOtpAndWithdraw = onCall(async (request) => {
 /**
  * Proxy para chamadas do Football-Data.org contornando CORS em ambientes Web
  */
-export const proxyFootballData = onCall(async (request) => {
-    // Busca a API key do painel (salva no Firestore)
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const data = settingsDoc.data() || {};
-    const footballDataKey = data?.api_keys?.football_data || data?.football_data_key || data?.football_data;
-    
-    if (!footballDataKey) {
-        const debugData = JSON.stringify(settingsDoc.data() || {});
-        throw new HttpsError("failed-precondition", "Chave da API Football-Data.org não configurada. Dados lidos: " + debugData);
-    }
-
-    const endpoint = request.data.endpoint; 
-    const queryParams = request.data.queryParams || {};
-
-    if (!endpoint) {
-        throw new HttpsError("invalid-argument", "O endpoint é obrigatório.");
-    }
-
-    // Monta a querystring
-    const queryString = new URLSearchParams(queryParams).toString();
-    const targetUrl = `https://api.football-data.org/v4/${endpoint}${queryString ? `?${queryString}` : ''}`;
-
-    try {
-        const fetchResponse = await fetch(targetUrl, {
-            method: "GET",
-            headers: {
-                "X-Auth-Token": footballDataKey,
-                "Content-Type": "application/json"
-            }
-        });
-
-        if (!fetchResponse.ok) {
-            const errorText = await fetchResponse.text();
-            console.error("Erro na API Football-Data.org:", targetUrl, fetchResponse.status, errorText);
-            throw new Error(`API retornou status ${fetchResponse.status}`);
-        }
-
-        const data = await fetchResponse.text();
-        return { success: true, data: data };
-    } catch (e: any) {
-        console.error("Falha ao consultar API Football-Data.org:", e);
-        throw new HttpsError("internal", `Erro interno no proxy: ${e.message}`);
-    }
+export const proxyFootballData = onCall(async (_request) => {
+    return { success: false, message: "Football-Data.org foi descontinuado. O sistema utiliza agora exclusivamente a API-Football." };
 });
 
 /**
@@ -644,9 +603,7 @@ export const getPublicMatches = onRequest({
         const settingsDoc = await db.collection("settings").doc("general").get();
         const data = settingsDoc.data() || {};
         const keys = data.api_keys || {};
-        const activeApi = data.active_football_api || "api_football";
         const apiFootballKey = keys.api_football || data.api_football_key || data.api_football;
-        const footballDataKey = keys.football_data || data.football_data_key || data.football_data;
 
         const now = new Date();
         const today = new Intl.DateTimeFormat("en-CA", {
@@ -655,106 +612,9 @@ export const getPublicMatches = onRequest({
             month: "2-digit",
             day: "2-digit",
         }).format(now);
-        const tomorrow = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Sao_Paulo",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        }).format(new Date(now.getTime() + 24 * 60 * 60 * 1000));
-
-        const friendlyCompName: Record<string, string> = {
-            "Campeonato Brasileiro Série A": "Brasileirão Série A",
-            "Copa Libertadores": "Copa Libertadores",
-            "Primera Division": "La Liga",
-            "Premier League": "Premier League",
-            "Serie A": "Serie A Italiana",
-            "Bundesliga": "Bundesliga",
-            "Ligue 1": "Ligue 1 (França)",
-            "UEFA Champions League": "Champions League",
-        };
-
-        const friendlyCountryName: Record<string, string> = {
-            "Brazil": "Brasil",
-            "England": "Inglaterra",
-            "Spain": "Espanha",
-            "Italy": "Itália",
-            "Germany": "Alemanha",
-            "France": "França",
-            "Portugal": "Portugal",
-            "Netherlands": "Holanda",
-            "Europe": "Europa",
-            "South America": "América do Sul",
-        };
 
         let formattedMatches: any[] = [];
-        let usedSource = "Football-Data.org";
-
-        const tryFootballData = async (): Promise<any[]> => {
-            if (!footballDataKey) return [];
-            const fdUrl = `https://api.football-data.org/v4/matches?dateFrom=${today}&dateTo=${tomorrow}`;
-            const fdRes = await fetch(fdUrl, {
-                headers: { "X-Auth-Token": footballDataKey, "Content-Type": "application/json" },
-            });
-            if (!fdRes.ok) return [];
-            const fdData: any = await fdRes.json();
-            const rawMatches = Array.isArray(fdData.matches) ? fdData.matches : [];
-
-            // Ordena: 1º Ao vivo, 2º Brasileirão/Libertadores, 3º Agendados hoje, 4º Encerrados
-            rawMatches.sort((a: any, b: any) => {
-                const aLive = ["IN_PLAY", "PAUSED"].includes(a.status) ? 0 : (a.status === "FINISHED" ? 2 : 1);
-                const bLive = ["IN_PLAY", "PAUSED"].includes(b.status) ? 0 : (b.status === "FINISHED" ? 2 : 1);
-                if (aLive !== bLive) return aLive - bLive;
-
-                const aBr = ["BSA", "CLI"].includes(a.competition?.code) ? 0 : 1;
-                const bBr = ["BSA", "CLI"].includes(b.competition?.code) ? 0 : 1;
-                if (aBr !== bBr) return aBr - bBr;
-
-                return new Date(a.utcDate || 0).getTime() - new Date(b.utcDate || 0).getTime();
-            });
-
-            return rawMatches.slice(0, 6).map((m: any) => {
-                const rawStatus = m.status || "SCHEDULED";
-                const isLive = ["IN_PLAY", "PAUSED"].includes(rawStatus);
-                const isFinished = rawStatus === "FINISHED";
-                let statusText = "AGENDADO";
-                if (rawStatus === "PAUSED") statusText = "INTERVALO • QUIZ ATIVO";
-                else if (isLive) statusText = "AO VIVO • RASPADINHA ATIVA";
-                else if (isFinished) statusText = "ENCERRADO";
-                else if (m.utcDate) {
-                    const timeStr = new Date(m.utcDate).toLocaleTimeString("pt-BR", {
-                        timeZone: "America/Sao_Paulo",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    });
-                    statusText = `HOJE • ${timeStr}`;
-                }
-                const hScore = m.score?.fullTime?.home;
-                const aScore = m.score?.fullTime?.away;
-                const compName = m.competition?.name || "Futebol";
-                const areaName = m.area?.name || "";
-                return {
-                    id: m.id,
-                    league: friendlyCompName[compName] || compName,
-                    leagueLogo: m.competition?.emblem || "",
-                    country: friendlyCountryName[areaName] || areaName,
-                    round: m.matchday ? `Rodada ${m.matchday}` : "Temporada Oficial",
-                    homeTeam: m.homeTeam?.shortName || m.homeTeam?.name || "Casa",
-                    homeLogo: m.homeTeam?.crest || "",
-                    awayTeam: m.awayTeam?.shortName || m.awayTeam?.name || "Visitante",
-                    awayLogo: m.awayTeam?.crest || "",
-                    score: hScore == null || aScore == null ? "—" : `${hScore} - ${aScore}`,
-                    halfTimeScore: m.score?.halfTime?.home == null ? null : `${m.score.halfTime.home} - ${m.score.halfTime.away}`,
-                    status: statusText,
-                    statusLong: statusText,
-                    isLive,
-                    isFinished,
-                    kickoff: m.utcDate || null,
-                    venue: m.venue || "Transmissão Oficial no App",
-                    city: friendlyCountryName[areaName] || areaName,
-                    referee: m.referees?.[0]?.name || "",
-                };
-            });
-        };
+        let usedSource = "API-Football";
 
         const tryApiFootball = async (): Promise<any[]> => {
             if (!apiFootballKey) return [];
@@ -832,21 +692,7 @@ export const getPublicMatches = onRequest({
             });
         };
 
-        if (activeApi === "football_data") {
-            formattedMatches = await tryFootballData();
-            usedSource = "Football-Data.org";
-            if (formattedMatches.length === 0) {
-                formattedMatches = await tryApiFootball();
-                if (formattedMatches.length > 0) usedSource = "API-Football";
-            }
-        } else {
-            formattedMatches = await tryApiFootball();
-            usedSource = "API-Football";
-            if (formattedMatches.length === 0) {
-                formattedMatches = await tryFootballData();
-                if (formattedMatches.length > 0) usedSource = "Football-Data.org";
-            }
-        }
+        formattedMatches = await tryApiFootball();
 
         // Vitrine de jogos em destaque caso a agenda do dia esteja em janela de atualização
         if (formattedMatches.length === 0) {
@@ -951,8 +797,12 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
 
     const settingsDoc = await db.collection("settings").doc("general").get();
     const data = settingsDoc.data() || {};
-    const activeApi = data.active_football_api || 'football_data';
     const keys = data.api_keys || {};
+    const apiFootballKey = keys.api_football || data.api_football_key || data.api_football;
+
+    if (!apiFootballKey) {
+        return;
+    }
 
     for (const fixtureId of activeFixtures) {
         try {
@@ -961,41 +811,22 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
             let status = '';
             let homeTeamName = '';
             let awayTeamName = '';
-            let fetched = false;
 
-            if (activeApi === 'api_football' && keys.api_football) {
-                const url = `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`;
-                const fetchResponse = await fetch(url, {
-                    headers: { "x-apisports-key": keys.api_football }
-                });
-                if (fetchResponse.ok) {
-                    const matchData = await fetchResponse.json();
-                    if (matchData.response && matchData.response.length > 0) {
-                        const fix = matchData.response[0];
-                        homeScore = fix.goals?.home ?? 0;
-                        awayScore = fix.goals?.away ?? 0;
-                        status = fix.fixture?.status?.short ?? '';
-                        homeTeamName = fix.teams?.home?.name ?? '';
-                        awayTeamName = fix.teams?.away?.name ?? '';
-                        fetched = true;
-                    }
-                }
-            }
-            if (!fetched) {
-                const apiKey = keys.football_data || data.football_data_key;
-                if (!apiKey) continue;
-                const url = `https://api.football-data.org/v4/matches/${fixtureId}`;
-                const fetchResponse = await fetch(url, {
-                    headers: { "X-Auth-Token": apiKey }
-                });
-                if (!fetchResponse.ok) continue;
-                const matchData = await fetchResponse.json();
-                homeScore = matchData.score?.fullTime?.home ?? 0;
-                awayScore = matchData.score?.fullTime?.away ?? 0;
-                status = matchData.status;
-                homeTeamName = matchData.homeTeam?.shortName ?? '';
-                awayTeamName = matchData.awayTeam?.shortName ?? '';
-            }
+            const url = `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`;
+            const fetchResponse = await fetch(url, {
+                headers: { "x-apisports-key": apiFootballKey }
+            });
+            if (!fetchResponse.ok) continue;
+
+            const matchData = await fetchResponse.json();
+            if (!matchData.response || matchData.response.length === 0) continue;
+
+            const fix = matchData.response[0];
+            homeScore = fix.goals?.home ?? 0;
+            awayScore = fix.goals?.away ?? 0;
+            status = fix.fixture?.status?.short ?? '';
+            homeTeamName = fix.teams?.home?.name ?? '';
+            awayTeamName = fix.teams?.away?.name ?? '';
 
             const stateRef = db.collection("matches_state").doc(fixtureId.toString());
             const stateDoc = await stateRef.get();
@@ -1012,10 +843,8 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                 }
                 
                 // HT logic
-                if (activeApi === 'api_football') {
-                    if (prevState.status !== 'HT' && status === 'HT') shouldNotifyWhistle = true;
-                } else {
-                    if (prevState.status !== 'PAUSED' && status === 'PAUSED') shouldNotifyWhistle = true;
+                if (prevState.status !== 'HT' && status === 'HT') {
+                    shouldNotifyWhistle = true;
                 }
             }
 

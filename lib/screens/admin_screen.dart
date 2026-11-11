@@ -19,8 +19,6 @@ class AdminScreen extends ConsumerStatefulWidget {
 
 class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _apiFootballController = TextEditingController();
-  final _footballDataController = TextEditingController();
-  String _activeFootballApi = 'api_football';
   final _mercadoPagoController = TextEditingController();
   final _zApiController = TextEditingController();
   final _geminiApiController = TextEditingController();
@@ -163,13 +161,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             data['api_football_key']?.toString() ??
             data['api_football']?.toString() ??
             '';
-        _footballDataController.text =
-            apiKeys['football_data']?.toString() ??
-            data['football_data_key']?.toString() ??
-            data['football_data']?.toString() ??
-            '';
-        _activeFootballApi =
-            data['active_football_api']?.toString() ?? 'api_football';
         _mercadoPagoController.text =
             apiKeys['mercado_pago']?.toString() ??
             data['mercado_pago_key']?.toString() ??
@@ -226,7 +217,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   void dispose() {
     _apiFootballController.dispose();
-    _footballDataController.dispose();
     _mercadoPagoController.dispose();
     _zApiController.dispose();
     _geminiApiController.dispose();
@@ -256,10 +246,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           .collection('settings')
           .doc('general')
           .set({
-            'active_football_api': _activeFootballApi,
+            'active_football_api': 'api_football',
             'api_keys': {
               'api_football': _apiFootballController.text,
-              'football_data': _footballDataController.text,
               'mercado_pago': _mercadoPagoController.text,
               'z_api': _zApiController.text,
               'gemini': _geminiApiController.text,
@@ -567,14 +556,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                 color: Colors.white.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.sports_soccer, size: 14, color: AppTheme.accentGold),
-                                  const SizedBox(width: 6),
+                                  Icon(Icons.sports_soccer, size: 14, color: AppTheme.accentGold),
+                                  SizedBox(width: 6),
                                   Text(
-                                    'API: ${_activeFootballApi == "football_data" ? "Football-Data.org" : "API-Football"}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    'API: API-Football (Exclusiva)',
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -796,113 +785,66 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     children: [
                       _buildSectionHeader(
                         Icons.api,
-                        'Provedor de Futebol ao Vivo',
+                        'Provedor de Futebol (API-Football)',
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: AppTheme.primaryGreen.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _activeFootballApi,
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: AppTheme.primaryGreen,
-                            ),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                            onChanged: (String? newValue) {
-                              if (newValue != null)
-                                setState(() => _activeFootballApi = newValue);
-                            },
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'api_football',
-                                child: Text(
-                                  'API-Football (Recomendado/Produção)',
-                                ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'football_data',
-                                child: Text(
-                                  'Football-Data.org (Testes/Gratuito)',
-                                ),
-                              ),
-                            ],
+                          border: Border.all(
+                            color: AppTheme.primaryGreen.withValues(alpha: 0.2),
                           ),
                         ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Provedor oficial: API-Football (cobre Copa do Brasil, Sul-Americana, Brasileirão Série A/B, Libertadores e ligas internacionais).',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textDark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
                       _buildSectionHeader(
                         Icons.vpn_key,
                         'Chaves de Integração',
                       ),
                       const SizedBox(height: 24),
-                      if (_activeFootballApi == 'api_football') ...[
-                        _buildTextField(
-                          controller: _apiFootballController,
-                          label: 'Chave API-Football',
-                          hint: 'Usada caso API-Football esteja ativa',
-                          helpText: 'Obtenha em dashboard.api-football.com.',
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: TextButton.icon(
-                            onPressed: () => launchUrl(
-                              Uri.parse('https://dashboard.api-football.com/'),
-                              mode: LaunchMode.externalApplication,
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text(
-                              'Obter Chave no Dashboard da API-Football',
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                              padding: EdgeInsets.zero,
-                              alignment: Alignment.centerLeft,
-                            ),
+                      _buildTextField(
+                        controller: _apiFootballController,
+                        label: 'Chave API-Football (x-apisports-key)',
+                        hint: 'Insira sua chave do API-Sports',
+                        helpText: 'Obtenha em dashboard.api-football.com.',
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: TextButton.icon(
+                          onPressed: () => launchUrl(
+                            Uri.parse('https://dashboard.api-football.com/'),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text(
+                            'Obter Chave no Dashboard da API-Football',
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.blue,
+                            padding: EdgeInsets.zero,
+                            alignment: Alignment.centerLeft,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (_activeFootballApi == 'football_data') ...[
-                        _buildTextField(
-                          controller: _footballDataController,
-                          label: 'Chave Football-Data.org',
-                          hint: 'Usada caso Football-Data esteja ativa',
-                          helpText: 'Obtenha em api.football-data.org.',
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: TextButton.icon(
-                            onPressed: () => launchUrl(
-                              Uri.parse('https://www.football-data.org/'),
-                              mode: LaunchMode.externalApplication,
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text(
-                              'Obter Chave no Football-Data.org',
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                              padding: EdgeInsets.zero,
-                              alignment: Alignment.centerLeft,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+                      ),
+                      const SizedBox(height: 16),
                       _buildTextField(
                         controller: _geminiApiController,
                         label: 'Chave Gemini (Google IA)',
