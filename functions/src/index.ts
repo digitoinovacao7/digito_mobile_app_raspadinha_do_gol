@@ -8,6 +8,43 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+/**
+ * Garante que o chamador está autenticado e possui role === 'admin'.
+ */
+async function requireAdmin(request: { auth?: { uid?: string } }): Promise<string> {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (userDoc.data()?.role !== "admin") {
+        throw new HttpsError("permission-denied", "Acesso restrito a administradores.");
+    }
+    return uid;
+}
+
+/**
+ * Carrega configurações públicas (settings/general) e segredos (private_settings/secrets)
+ * mantendo compatibilidade com chaves legadas caso ainda estejam em settings/general.
+ */
+async function getSettingsAndSecrets(): Promise<{
+    general: Record<string, any>;
+    secrets: Record<string, any>;
+    apiKeys: Record<string, any>;
+}> {
+    const [generalSnap, secretsSnap] = await Promise.all([
+        db.collection("settings").doc("general").get(),
+        db.collection("private_settings").doc("secrets").get(),
+    ]);
+    const general = generalSnap.data() || {};
+    const secrets = secretsSnap.data() || {};
+    const apiKeys = {
+        ...(general.api_keys || {}),
+        ...(secrets.api_keys || {}),
+    };
+    return { general, secrets, apiKeys };
+}
+
 
 
 /**
@@ -424,10 +461,9 @@ export const generateQuiz = onCall(async (request) => {
         throw new HttpsError("invalid-argument", "Contexto não fornecido.");
     }
 
-    // Busca a API key do painel (salva no Firestore em settings)
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const data = settingsDoc.data() || {};
-    const geminiKey = data?.api_keys?.gemini || data?.gemini_api_key || data?.gemini_key || data?.gemini;
+    // Busca a API key do painel (private_settings/secrets com fallback para settings/general)
+    const { general: data, secrets, apiKeys } = await getSettingsAndSecrets();
+    const geminiKey = apiKeys.gemini || secrets.gemini_api_key || data?.gemini_api_key || data?.gemini_key || data?.gemini;
     const dailyQuizLimit = Number(data?.economy?.daily_quiz_limit) || 3;
 
     // Verifica limite diário do usuário
@@ -521,8 +557,8 @@ export const requestPixOtp = onCall(async (request) => {
  * Roda todo dia às 10:00 da manhã.
  */
 export const retentionAlertDaily = onSchedule("0 10 * * *", async (event) => {
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+    const { apiKeys } = await getSettingsAndSecrets();
+    const zApiUrl = apiKeys.z_api;
     if (!zApiUrl) {
         console.warn("Z-API não configurada. Abortando alerta de retenção.");
         return;
@@ -600,9 +636,7 @@ export const getPublicMatches = onRequest({
     region: "southamerica-east1",
 }, async (_req, res) => {
     try {
-        const settingsDoc = await db.collection("settings").doc("general").get();
-        const data = settingsDoc.data() || {};
-        const keys = data.api_keys || {};
+        const { general: data, apiKeys: keys } = await getSettingsAndSecrets();
         const apiFootballKey = keys.api_football || data.api_football_key || data.api_football;
 
         const now = new Date();
@@ -795,10 +829,9 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
         return;
     }
 
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const data = settingsDoc.data() || {};
-    const keys = data.api_keys || {};
+    const { general: data, apiKeys: keys } = await getSettingsAndSecrets();
     const apiFootballKey = keys.api_football || data.api_football_key || data.api_football;
+    const zApiUrl = keys.z_api;
 
     if (!apiFootballKey) {
         return;
@@ -896,11 +929,9 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
 
                     // 2. Disparar WhatsApp para os torcedores que têm este time como favorito
                     try {
-                        const settingsDoc = await db.collection("settings").doc("general").get();
-                        const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
                         if (zApiUrl && scoringTeam) {
                             const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
-                            const usersSnap = await db.collection("users").get();
+                            const usersSnap = await db.collection("users").where("phone", ">", "").get();
                             const scoringNorm = scoringTeam.toLowerCase().trim();
 
                             for (const uDoc of usersSnap.docs) {
@@ -1021,11 +1052,8 @@ export const pollLiveMatches = onSchedule("* * * * *", async (event) => {
                                 const creatorData = creatorDoc.data();
                                 const creatorPhone = creatorData?.phone;
 
-                                if (creatorPhone) {
-                                    const settingsDoc = await db.collection("settings").doc("general").get();
-                                    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
-
-                                    if (zApiUrl) {
+                                if (creatorPhone && zApiUrl) {
+                                    {
                                         const targetUrl = zApiUrl.endsWith("/") ? `${zApiUrl}send-text` : `${zApiUrl}/send-text`;
                                         const cleanPhone = creatorPhone.replace(/\D/g, "");
 
@@ -1108,10 +1136,7 @@ export const syncShopisaPrizes = onCall({
     cors: true,
     memory: "512MiB"
 }, async (request) => {
-    // Permite chamada autenticada (idealmente admin)
-    if (!request.auth) {
-        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
-    }
+    await requireAdmin(request);
 
     try {
         console.log("Buscando produtos premiados na Shopisa...");
@@ -1358,9 +1383,7 @@ export const redeemShopisaPrize = onCall({
  * Dispara manualmente um evento de gol para testes de áudio e WhatsApp
  */
 export const triggerGoalNotification = onCall(async (request) => {
-    if (!request.auth) {
-        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
-    }
+    await requireAdmin(request);
     const { teamName, homeScore, awayScore, opponentName } = request.data || {};
     const scoringTeam = teamName || "Atlético Mineiro (Galo)";
     const opponent = opponentName || "Cruzeiro";
@@ -1379,8 +1402,8 @@ export const triggerGoalNotification = onCall(async (request) => {
     });
 
     // 2. Dispara WhatsApp para torcedores
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const zApiUrl = settingsDoc.data()?.api_keys?.z_api;
+    const { apiKeys } = await getSettingsAndSecrets();
+    const zApiUrl = apiKeys.z_api;
     let sentCount = 0;
 
     if (zApiUrl) {
@@ -1438,9 +1461,8 @@ export const createBolaoActivationPix = onCall({ region: "southamerica-east1" },
     }
     const { bolaoName = "Sala Personalizada", amount = 4.90 } = request.data || {};
 
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const data = settingsDoc.data() || {};
-    const mpAccessToken = data?.api_keys?.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
+    const { general: data, apiKeys } = await getSettingsAndSecrets();
+    const mpAccessToken = apiKeys.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
 
     if (!mpAccessToken) {
         throw new HttpsError("failed-precondition", "Mercado Pago não configurado no painel de administração.");
@@ -1511,9 +1533,8 @@ export const checkBolaoActivationPixStatus = onCall({ region: "southamerica-east
     if (!paymentId) {
         throw new HttpsError("invalid-argument", "Payment ID é obrigatório.");
     }
-    const settingsDoc = await db.collection("settings").doc("general").get();
-    const data = settingsDoc.data() || {};
-    const mpAccessToken = data?.api_keys?.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
+    const { general: data, apiKeys } = await getSettingsAndSecrets();
+    const mpAccessToken = apiKeys.mercado_pago || data?.mercado_pago || process.env.MERCADO_PAGO_TOKEN;
 
     if (!mpAccessToken) {
         throw new HttpsError("failed-precondition", "Mercado Pago não configurado.");
@@ -1576,4 +1597,230 @@ export const activateBolaoWithTokens = onCall({ region: "southamerica-east1" }, 
     });
 
     return { success: true, tokensDeducted: TOKENS_COST };
+});
+
+/**
+ * Proxy seguro e com cache no Firestore para consultas à API-Football.
+ * Protege a chave da API (lida apenas no servidor) e evita esgotamento de cota.
+ */
+export const getFootballFixtures = onCall({ region: "southamerica-east1" }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    const { date, from, to, leagueId, season, fixtureId } = request.data || {};
+    const params: Record<string, string> = { timezone: "America/Sao_Paulo" };
+
+    if (fixtureId != null) {
+        params.id = String(fixtureId);
+    } else {
+        if (leagueId != null) params.league = String(leagueId);
+        if (season != null) params.season = String(season);
+        if (from && to) {
+            params.from = String(from);
+            params.to = String(to);
+        } else if (date) {
+            params.date = String(date);
+        } else {
+            throw new HttpsError("invalid-argument", "Informe fixtureId, date ou intervalo from/to.");
+        }
+    }
+
+    const cacheKey = Object.entries(params)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${v}`)
+        .join("&")
+        .replace(/[^a-zA-Z0-9_=-]/g, "_");
+
+    const ttlMs = fixtureId != null ? 25 * 1000 : 180 * 1000;
+    const cacheRef = db.collection("football_cache").doc(cacheKey);
+    const cacheSnap = await cacheRef.get();
+
+    if (cacheSnap.exists) {
+        const cacheData = cacheSnap.data();
+        const updatedAtMs = cacheData?.updatedAtMs || 0;
+        if (Date.now() - updatedAtMs < ttlMs && Array.isArray(cacheData?.response)) {
+            return { success: true, response: cacheData.response, cached: true };
+        }
+    }
+
+    const { general, apiKeys } = await getSettingsAndSecrets();
+    const apiFootballKey = apiKeys.api_football || general.api_football_key || general.api_football;
+    if (!apiFootballKey) {
+        throw new HttpsError("failed-precondition", "Chave API-Football não configurada.");
+    }
+
+    const queryString = new URLSearchParams(params).toString();
+    const url = `https://v3.football.api-sports.io/fixtures?${queryString}`;
+
+    try {
+        const apiRes = await fetch(url, {
+            headers: { "x-apisports-key": apiFootballKey },
+        });
+        if (!apiRes.ok) {
+            throw new HttpsError("unavailable", `API-Football retornou status ${apiRes.status}`);
+        }
+        const json: any = await apiRes.json();
+        if (json.errors && Object.keys(json.errors).length > 0) {
+            const firstErr = Object.values(json.errors)[0];
+            throw new HttpsError("resource-exhausted", `Erro da API-Football: ${firstErr}`);
+        }
+        const list = Array.isArray(json.response) ? json.response : [];
+
+        // Salva no cache de forma assíncrona sem bloquear a resposta
+        cacheRef.set({
+            response: list,
+            updatedAtMs: Date.now(),
+        }).catch((err) => console.error("Erro ao salvar football_cache:", err));
+
+        return { success: true, response: list, cached: false };
+    } catch (e: any) {
+        if (e instanceof HttpsError) throw e;
+        console.error("Erro em getFootballFixtures:", e);
+        throw new HttpsError("internal", "Falha ao consultar jogos ao vivo.");
+    }
+});
+
+/**
+ * Concede recompensa de vídeo premiado com validação de cooldown e limite diário no servidor.
+ */
+export const claimAdReward = onCall({ region: "southamerica-east1" }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    const AD_REWARD_TOKENS = 250;
+    const COOLDOWN_MS = 30 * 1000;
+    const MAX_DAILY_ADS = 20;
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const userRef = db.collection("users").doc(uid);
+    const newTokens = await db.runTransaction(async (t) => {
+        const uSnap = await t.get(userRef);
+        if (!uSnap.exists) {
+            throw new HttpsError("not-found", "Usuário não encontrado.");
+        }
+        const uData = uSnap.data() || {};
+        const lastAdAtMs = uData.last_ad_reward_at_ms || 0;
+        if (Date.now() - lastAdAtMs < COOLDOWN_MS) {
+            throw new HttpsError("resource-exhausted", "Aguarde alguns segundos antes de resgatar outro vídeo.");
+        }
+        const dailyCount = uData.last_ad_reward_date === todayStr ? (uData.daily_ad_rewards || 0) : 0;
+        if (dailyCount >= MAX_DAILY_ADS) {
+            throw new HttpsError("resource-exhausted", "Limite diário de vídeos premiados atingido.");
+        }
+
+        const currentTokens = uData.tokens || 0;
+        const updated = currentTokens + AD_REWARD_TOKENS;
+
+        t.update(userRef, {
+            tokens: admin.firestore.FieldValue.increment(AD_REWARD_TOKENS),
+            last_ad_reward_at_ms: Date.now(),
+            last_ad_reward_date: todayStr,
+            daily_ad_rewards: dailyCount + 1,
+        });
+
+        const txRef = db.collection("token_transactions").doc();
+        t.set(txRef, {
+            uid,
+            amount: AD_REWARD_TOKENS,
+            type: "rewarded_ad",
+            description: "Vídeo Premiado",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return updated;
+    });
+
+    return { success: true, amount: AD_REWARD_TOKENS, tokens: newTokens };
+});
+
+/**
+ * Resgate seguro de prêmio físico/digital com validação de custo e estoque no servidor.
+ */
+export const redeemPrize = onCall({ region: "southamerica-east1" }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    const { prizeId, userName, userEmail, userPhone, phone, userCpf, address, prizeName: fallbackName } = request.data || {};
+    if (!prizeId) {
+        throw new HttpsError("invalid-argument", "ID do prêmio é obrigatório.");
+    }
+
+    const userRef = db.collection("users").doc(uid);
+    const prizeRef = db.collection("prizes").doc(String(prizeId));
+
+    await db.runTransaction(async (t) => {
+        const [uSnap, pSnap] = await Promise.all([t.get(userRef), t.get(prizeRef)]);
+        if (!uSnap.exists) {
+            throw new HttpsError("not-found", "Usuário não encontrado.");
+        }
+        if (!pSnap.exists) {
+            throw new HttpsError("not-found", "Prêmio não encontrado.");
+        }
+
+        const pData = pSnap.data() || {};
+        if (pData.active === false) {
+            throw new HttpsError("failed-precondition", "Este prêmio não está mais ativo.");
+        }
+
+        const cost = Number(pData.token_cost ?? pData.tokenCost ?? pData.cost ?? 0);
+        if (cost <= 0) {
+            throw new HttpsError("failed-precondition", "Custo do prêmio inválido.");
+        }
+
+        const currentTokens = Number(uSnap.data()?.tokens ?? 0);
+        if (currentTokens < cost) {
+            throw new HttpsError("failed-precondition", "Saldo insuficiente de tokens.");
+        }
+
+        const qty = pData.quantity != null ? Number(pData.quantity) : -1;
+        if (qty === 0) {
+            throw new HttpsError("failed-precondition", "Este prêmio já está esgotado.");
+        } else if (qty > 0) {
+            const newQty = qty - 1;
+            const prizeUpdates: Record<string, any> = { quantity: newQty };
+            if (newQty === 0) {
+                prizeUpdates.active = false;
+                prizeUpdates.closedAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            t.update(prizeRef, prizeUpdates);
+        }
+
+        t.update(userRef, {
+            tokens: admin.firestore.FieldValue.increment(-cost),
+        });
+
+        const resolvedName = pData.name || fallbackName || "Prêmio";
+        const redemptionRef = db.collection("redemptions").doc();
+        t.set(redemptionRef, {
+            uid,
+            prizeId: String(prizeId),
+            prizeName: resolvedName,
+            type: pData.type || "produto",
+            prizeLink: pData.prize_link || pData.prizeLink || null,
+            cost,
+            status: "pendente",
+            userName: userName || uSnap.data()?.name || "Torcedor",
+            userEmail: userEmail || uSnap.data()?.email || "",
+            userPhone: userPhone || phone || uSnap.data()?.phone || "",
+            userCpf: userCpf || uSnap.data()?.cpf || "",
+            address: address || "",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const txRef = db.collection("token_transactions").doc();
+        t.set(txRef, {
+            uid,
+            amount: -cost,
+            type: "prize_redemption",
+            description: `Resgate de Prêmio: ${resolvedName}`,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    });
+
+    return { success: true };
 });

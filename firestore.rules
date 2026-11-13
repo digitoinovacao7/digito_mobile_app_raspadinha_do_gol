@@ -25,11 +25,15 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid) &&
-        (!('role' in request.resource.data) || request.resource.data.role == 'user') || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(uid) &&
+        (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
+        (!('tokens' in request.resource.data) || request.resource.data.tokens == 0) &&
+        (!('real_balance' in request.resource.data) || request.resource.data.real_balance == 0)
+      );
       allow update: if isAdmin() || (
         isOwner(uid) &&
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'real_balance']))
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'real_balance', 'tokens']))
       );
       allow delete: if isAdmin();
 
@@ -44,13 +48,7 @@ service cloud.firestore {
 
     match /prizes/{prizeId} {
       allow read: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        signedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity']) &&
-        request.resource.data.quantity == resource.data.quantity - 1 &&
-        request.resource.data.quantity >= 0
-      );
+      allow create, update, delete: if isAdmin();
     }
 
     match /sponsors/{sponsorId} {
@@ -61,7 +59,7 @@ service cloud.firestore {
     match /token_transactions/{transactionId} {
       allow read: if signedIn() &&
         (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if isAdmin();
       allow update, delete: if false;
     }
 
@@ -74,8 +72,7 @@ service cloud.firestore {
     match /redemptions/{redemptionId} {
       allow read: if signedIn() &&
         (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if isAdmin();
+      allow create, update: if isAdmin();
       allow delete: if false;
     }
 
@@ -120,13 +117,42 @@ service cloud.firestore {
     }
 
     match /boloes/{bolaoId} {
-      allow read, create: if signedIn();
-      allow update: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAdmin() ||
+        (signedIn() && resource.data.creatorId == request.auth.uid) ||
+        (
+          signedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantsCount']) &&
+          request.resource.data.participantsCount == resource.data.participantsCount + 1
+        );
       allow delete: if isAdmin() || (signedIn() && resource.data.creatorId == request.auth.uid);
 
-      match /{subcollection=**} {
-        allow read, write: if signedIn();
+      match /participants/{participantId} {
+        allow read: if signedIn();
+        allow create: if signedIn() &&
+          participantId == request.auth.uid &&
+          request.resource.data.userId == request.auth.uid &&
+          (
+            !('paymentStatus' in request.resource.data) ||
+            request.resource.data.paymentStatus == 'pending' ||
+            get(/databases/$(database)/documents/boloes/$(bolaoId)).data.entryFee in ['0', '0,00', '0.00', 0]
+          );
+        allow update: if isAdmin() ||
+          (signedIn() && get(/databases/$(database)/documents/boloes/$(bolaoId)).data.creatorId == request.auth.uid) ||
+          (
+            signedIn() &&
+            participantId == request.auth.uid &&
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus', 'userId'])
+          );
+        allow delete: if isAdmin() ||
+          (signedIn() && get(/databases/$(database)/documents/boloes/$(bolaoId)).data.creatorId == request.auth.uid) ||
+          (signedIn() && participantId == request.auth.uid);
       }
+    }
+
+    match /football_cache/{cacheId} {
+      allow read, write: if false;
     }
 
     match /support_tickets/{ticketId} {

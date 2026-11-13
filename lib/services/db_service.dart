@@ -39,25 +39,15 @@ class DbService {
     await _db.collection('users').doc(uid).update(data);
   }
 
-  Future<void> addTokens(String uid, int amount) async {
-    await _db.collection('users').doc(uid).update({
-      'tokens': FieldValue.increment(amount),
-    });
-  }
-
-  Future<void> addTokenTransaction(
-    String uid,
-    int amount,
-    String type,
-    String description,
-  ) async {
-    await _db.collection('token_transactions').add({
-      'uid': uid,
-      'amount': amount,
-      'type': type,
-      'description': description,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  Future<int> claimAdReward() async {
+    final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('claimAdReward');
+    final result = await callable.call();
+    final data = Map<String, dynamic>.from(result.data as Map);
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Erro ao resgatar recompensa.');
+    }
+    return (data['amount'] as num?)?.toInt() ?? 250;
   }
 
   Future<void> markWatchingMatch({
@@ -94,57 +84,26 @@ class DbService {
     Map<String, dynamic> redemptionData,
     String prizeName,
   ) async {
-    await _db.runTransaction((transaction) async {
-      final userRef = _db.collection('users').doc(uid);
-      final snapshot = await transaction.get(userRef);
+    final prizeId = redemptionData['prizeId']?.toString();
+    if (prizeId == null || prizeId.isEmpty) {
+      throw Exception('ID do prêmio ausente.');
+    }
 
-      if (!snapshot.exists) {
-        throw Exception("Usuário não encontrado.");
-      }
-
-      final currentTokens = snapshot.data()?['tokens'] as int? ?? 0;
-      if (currentTokens < cost) {
-        throw Exception("Saldo insuficiente.");
-      }
-
-      // Verificar estoque do prêmio se prizeId for informado
-      final prizeId = redemptionData['prizeId'];
-      if (prizeId != null) {
-        final prizeRef = _db.collection('prizes').doc(prizeId.toString());
-        final prizeSnap = await transaction.get(prizeRef);
-        if (prizeSnap.exists) {
-          final qty = (prizeSnap.data()?['quantity'] as num?)?.toInt() ?? -1;
-          if (qty == 0) {
-            throw Exception("Este prêmio já está esgotado.");
-          } else if (qty > 0) {
-            final newQty = qty - 1;
-            final Map<String, dynamic> updates = {'quantity': newQty};
-            if (newQty == 0) {
-              updates['active'] = false;
-              updates['closedAt'] = FieldValue.serverTimestamp();
-            }
-            transaction.update(prizeRef, updates);
-          }
-        }
-      }
-
-      transaction.update(userRef, {'tokens': currentTokens - cost});
-
-      final redemptionRef = _db.collection('redemptions').doc();
-      transaction.set(redemptionRef, {
-        ...redemptionData,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      final txRef = _db.collection('token_transactions').doc();
-      transaction.set(txRef, {
-        'uid': uid,
-        'amount': -cost,
-        'type': 'prize_redemption',
-        'description': 'Resgate de Prêmio: $prizeName',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    final callable = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('redeemPrize');
+    final result = await callable.call({
+      'prizeId': prizeId,
+      'prizeName': prizeName,
+      'userName': redemptionData['userName'],
+      'userEmail': redemptionData['userEmail'],
+      'userPhone': redemptionData['userPhone'],
+      'userCpf': redemptionData['userCpf'],
+      'address': redemptionData['address'],
     });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Erro ao resgatar prêmio.');
+    }
   }
 
   Stream<List<Map<String, dynamic>>> getUserScratchHistory(String uid) {
@@ -152,6 +111,7 @@ class DbService {
         .collection('scratch_history')
         .where('uid', isEqualTo: uid)
         .orderBy('date', descending: true)
+        .limit(50)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
@@ -163,6 +123,11 @@ class DbService {
   }
 
   Future<Map<String, dynamic>> getApiKeys() async {
+    final secretSnap =
+        await _db.collection('private_settings').doc('secrets').get();
+    if (secretSnap.exists && secretSnap.data()!.containsKey('api_keys')) {
+      return secretSnap.data()!['api_keys'] as Map<String, dynamic>;
+    }
     final docSnap = await _db.collection('settings').doc('general').get();
     if (docSnap.exists) {
       final data = docSnap.data()!;

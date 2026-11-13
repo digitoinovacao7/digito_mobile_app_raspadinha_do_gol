@@ -1,14 +1,17 @@
 import 'dart:developer';
 import 'dart:async';
-import 'package:dio/dio.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/match_state.dart';
 import '../models/league_info.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FootballService {
-  final Dio _dio = Dio();
-  String? _apiKey;
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'southamerica-east1');
   Timer? _pollingTimer;
+
+  // Cache em memória de curta duração para evitar chamadas repetidas na mesma sessão/tela
+  final Map<String, _CachedFixtures> _memoryCache = {};
+  final Map<String, Future<List<dynamic>>> _inFlight = {};
 
   // Stream para emitir atualizações do jogo em tempo real
   final StreamController<MatchState> _matchStreamController =
@@ -40,36 +43,47 @@ class FootballService {
     return namesById[id] ?? fallback;
   }
 
-  Future<void> _initApiKey() async {
-    try {
-      final docSnap = await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('general')
-          .get();
-      if (!docSnap.exists) {
-        log('[FootballService] ⚠️ Documento settings/general NÃO EXISTE no Firestore!');
-        return;
-      }
-      final data = docSnap.data()!;
-      final keys = data['api_keys'] as Map<String, dynamic>? ?? {};
+  Future<List<dynamic>> _callFixturesProxy(
+    Map<String, dynamic> payload, {
+    Duration ttl = const Duration(seconds: 60),
+  }) async {
+    final sortedKeys = payload.keys.toList()..sort();
+    final cacheKey = sortedKeys.map((k) => '$k=${payload[k]}').join('&');
 
-      _apiKey = keys['api_football']?.toString() ??
-          data['api_football_key']?.toString() ??
-          data['api_football']?.toString();
-
-      if (_apiKey != null && _apiKey!.isNotEmpty) {
-        _dio.options.headers = {'x-apisports-key': _apiKey!};
-        log('[FootballService] ✅ API-Football key carregada (${_apiKey!.length} chars)');
-      } else {
-        log('[FootballService] ❌ Key api_football ausente ou vazia no Firestore!');
-      }
-    } catch (e) {
-      log('[FootballService] 💥 Erro ao carregar config da API: $e');
+    final cached = _memoryCache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.fetchedAt) < ttl) {
+      return cached.data;
     }
+
+    final existing = _inFlight[cacheKey];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = () async {
+      try {
+        final callable = _functions.httpsCallable('getFootballFixtures');
+        final result = await callable.call(payload);
+        final data = result.data;
+        if (data is Map && data['success'] == true && data['response'] is List) {
+          final list = List<dynamic>.from(data['response'] as List);
+          _memoryCache[cacheKey] = _CachedFixtures(list, DateTime.now());
+          return list;
+        }
+        return <dynamic>[];
+      } catch (e) {
+        log('[FootballService] Erro ao consultar getFootballFixtures: $e');
+        return <dynamic>[];
+      } finally {
+        _inFlight.remove(cacheKey);
+      }
+    }();
+
+    _inFlight[cacheKey] = future;
+    return future;
   }
 
   Future<List<LeagueInfo>> getPopularLeagues() async {
-    await _initApiKey();
     final today = DateTime.now();
     int season = today.year;
 
@@ -154,65 +168,44 @@ class FootballService {
         .toList();
   }
 
-  // Busca as ligas que tem jogos hoje via API-Football
+  // Busca as ligas que tem jogos hoje via proxy seguro com cache
   Future<List<LeagueInfo>> getActiveLeaguesForToday() async {
-    await _initApiKey();
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      log('[FootballService] ⚠️ getActiveLeaguesForToday: sem API key.');
-      return [];
-    }
-
     final today = DateTime.now();
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
-    try {
-      final response = await _dio.get(
-        'https://v3.football.api-sports.io/fixtures',
-        queryParameters: {'date': dateStr, 'timezone': 'America/Sao_Paulo'},
-      );
+    final matches = await _callFixturesProxy({'date': dateStr});
+    if (matches.isEmpty) return [];
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['response'] != null) {
-          final Set<int> uniqueIds = {};
-          final List<LeagueInfo> leagues = [];
-          for (var match in data['response']) {
-            final leagueData = match['league'];
-            final leagueId = _toInt(leagueData['id']);
-            if (!uniqueIds.contains(leagueId)) {
-              uniqueIds.add(leagueId);
-              leagues.add(
-                LeagueInfo(
-                  id: leagueId,
-                  name: _friendlyLeagueName(
-                    leagueId,
-                    leagueData['name']?.toString() ?? '',
-                  ),
-                  logoUrl: leagueData['logo']?.toString(),
-                  season: _toInt(
-                    leagueData['season'],
-                    fallback: DateTime.now().year,
-                  ),
-                ),
-              );
-            }
-          }
-          return leagues;
-        }
+    final Set<int> uniqueIds = {};
+    final List<LeagueInfo> leagues = [];
+    for (var match in matches) {
+      final leagueData = match['league'];
+      if (leagueData is! Map) continue;
+      final leagueId = _toInt(leagueData['id']);
+      if (!uniqueIds.contains(leagueId)) {
+        uniqueIds.add(leagueId);
+        leagues.add(
+          LeagueInfo(
+            id: leagueId,
+            name: _friendlyLeagueName(
+              leagueId,
+              leagueData['name']?.toString() ?? '',
+            ),
+            logoUrl: leagueData['logo']?.toString(),
+            season: _toInt(
+              leagueData['season'],
+              fallback: DateTime.now().year,
+            ),
+          ),
+        );
       }
-      return [];
-    } catch (e) {
-      log('Erro ao buscar ligas ativas (API-Football): $e');
-      return [];
     }
+    return leagues;
   }
 
   // Busca os jogos de hoje para uma liga específica
   Future<List<dynamic>> getMatchesForLeague(int leagueId, {int? season}) async {
-    await _initApiKey();
-    if (_apiKey == null || _apiKey!.isEmpty) return [];
-
     final today = DateTime.now();
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
@@ -225,94 +218,60 @@ class FootballService {
       }
     }
 
-    try {
-      final response = await _dio.get(
-        'https://v3.football.api-sports.io/fixtures',
-        queryParameters: {
-          'league': leagueId,
-          'season': resolvedSeason,
-          'date': dateStr,
-          'timezone': 'America/Sao_Paulo',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['response'] != null) {
-          return data['response'] as List<dynamic>;
-        }
-      }
-      return [];
-    } catch (e) {
-      log('Erro ao buscar jogos da liga (API-Football): $e');
-      return [];
-    }
+    return _callFixturesProxy({
+      'leagueId': leagueId,
+      'season': resolvedSeason,
+      'date': dateStr,
+    });
   }
 
   // --- FEATURED MATCHES ---
   Future<List<dynamic>> getFeaturedMatchesForToday() async {
-    await _initApiKey();
-    if (_apiKey == null || _apiKey!.isEmpty) return [];
-
     final today = DateTime.now();
     final dateStr =
         "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
-    try {
-      final response = await _dio.get(
-        'https://v3.football.api-sports.io/fixtures',
-        queryParameters: {'date': dateStr, 'timezone': 'America/Sao_Paulo'},
-      );
+    final matches = await _callFixturesProxy({'date': dateStr});
+    if (matches.isEmpty) return [];
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['response'] != null) {
-          final popular = await getPopularLeagues();
-          final popularIds = popular.map((l) => l.id).toSet();
+    final popular = await getPopularLeagues();
+    final popularIds = popular.map((l) => l.id).toSet();
 
-          final matches = data['response'] as List<dynamic>;
-          final mainMatches = matches
-              .where((m) => popularIds.contains(_toInt(m['league']?['id'])))
-              .toList();
+    final mainMatches = matches
+        .where((m) => popularIds.contains(_toInt(m['league']?['id'])))
+        .toList();
 
-          // Priority: Live matches first
-          mainMatches.sort((a, b) {
-            final sA = a['fixture']['status']['short'];
-            final sB = b['fixture']['status']['short'];
-            final liveStatuses = ['1H', '2H', 'HT', 'ET', 'P'];
-            if (liveStatuses.contains(sA) && !liveStatuses.contains(sB)) {
-              return -1;
-            }
-            if (liveStatuses.contains(sB) && !liveStatuses.contains(sA)) {
-              return 1;
-            }
-            return 0;
-          });
-          final featured = mainMatches.take(5).toList();
-          for (final match in featured) {
-            final league = match['league'];
-            if (league is Map) {
-              final leagueId = _toInt(league['id']);
-              league['name'] = _friendlyLeagueName(
-                leagueId,
-                league['name']?.toString() ?? '',
-              );
-            }
-          }
-          return featured;
-        }
+    // Priority: Live matches first
+    mainMatches.sort((a, b) {
+      final sA = a['fixture']?['status']?['short'];
+      final sB = b['fixture']?['status']?['short'];
+      final liveStatuses = ['1H', '2H', 'HT', 'ET', 'P'];
+      if (liveStatuses.contains(sA) && !liveStatuses.contains(sB)) {
+        return -1;
       }
-      return [];
-    } catch (e) {
-      log('Erro ao buscar destaques (API-Football): $e');
-      return [];
+      if (liveStatuses.contains(sB) && !liveStatuses.contains(sA)) {
+        return 1;
+      }
+      return 0;
+    });
+
+    final featured = mainMatches.take(5).toList();
+    for (final match in featured) {
+      final league = match['league'];
+      if (league is Map) {
+        final leagueId = _toInt(league['id']);
+        league['name'] = _friendlyLeagueName(
+          leagueId,
+          league['name']?.toString() ?? '',
+        );
+      }
     }
+    return featured;
   }
 
   // Polling para partida ao vivo
   Future<void> startPollingLiveMatch(int fixtureId) async {
     stopPolling();
-    await _initApiKey();
 
     Future<void>.delayed(Duration.zero, () async {
       await _fetchFixtureStatus(fixtureId);
@@ -329,59 +288,46 @@ class FootballService {
   }
 
   Future<void> _fetchFixtureStatus(int fixtureId) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      log('[FootballService] ⚠️ _fetchFixtureStatus: sem API key.');
-      _matchStreamController.add(
-        MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''),
-      );
-      return;
-    }
-
     try {
-      final response = await _dio.get(
-        'https://v3.football.api-sports.io/fixtures',
-        queryParameters: {'id': fixtureId, 'timezone': 'America/Sao_Paulo'},
+      final response = await _callFixturesProxy(
+        {'fixtureId': fixtureId},
+        ttl: const Duration(seconds: 20),
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['response'] != null && data['response'].isNotEmpty) {
-          final fixtureData = data['response'][0];
+      if (response.isNotEmpty) {
+        final fixtureData = response[0];
 
-          final String status =
-              fixtureData['fixture']['status']['short'] ?? 'NS';
-          final int elapsed = fixtureData['fixture']['status']['elapsed'] ?? 0;
-          final int homeScore = fixtureData['goals']['home'] ?? 0;
-          final int awayScore = fixtureData['goals']['away'] ?? 0;
+        final String status =
+            fixtureData['fixture']?['status']?['short']?.toString() ?? 'NS';
+        final int elapsed = _toInt(fixtureData['fixture']?['status']?['elapsed']);
+        final int homeScore = _toInt(fixtureData['goals']?['home']);
+        final int awayScore = _toInt(fixtureData['goals']?['away']);
 
-          final String homeTeam = fixtureData['teams']['home']['name'];
-          final String awayTeam = fixtureData['teams']['away']['name'];
+        final String homeTeam =
+            fixtureData['teams']?['home']?['name']?.toString() ?? '';
+        final String awayTeam =
+            fixtureData['teams']?['away']?['name']?.toString() ?? '';
 
-          MatchEventType triggerEvent = MatchEventType.none;
-          if (status == 'HT') {
-            triggerEvent = MatchEventType.halftime;
-          } else if (status == 'FT') {
-            triggerEvent = MatchEventType.fulltime;
-          }
-
-          final matchState = MatchState(
-            fixtureId: fixtureId,
-            homeTeam: homeTeam,
-            awayTeam: awayTeam,
-            homeScore: homeScore,
-            awayScore: awayScore,
-            status: status,
-            elapsed: elapsed,
-            lastTriggeredEvent: triggerEvent,
-            isScratchUnlocked: triggerEvent != MatchEventType.none,
-          );
-
-          _matchStreamController.add(matchState);
-        } else {
-          _matchStreamController.add(
-            MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''),
-          );
+        MatchEventType triggerEvent = MatchEventType.none;
+        if (status == 'HT') {
+          triggerEvent = MatchEventType.halftime;
+        } else if (status == 'FT') {
+          triggerEvent = MatchEventType.fulltime;
         }
+
+        final matchState = MatchState(
+          fixtureId: fixtureId,
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          homeScore: homeScore,
+          awayScore: awayScore,
+          status: status,
+          elapsed: elapsed,
+          lastTriggeredEvent: triggerEvent,
+          isScratchUnlocked: triggerEvent != MatchEventType.none,
+        );
+
+        _matchStreamController.add(matchState);
       } else {
         _matchStreamController.add(
           MatchState(fixtureId: -1, homeTeam: '', awayTeam: ''),
@@ -399,4 +345,10 @@ class FootballService {
     stopPolling();
     _matchStreamController.close();
   }
+}
+
+class _CachedFixtures {
+  final List<dynamic> data;
+  final DateTime fetchedAt;
+  _CachedFixtures(this.data, this.fetchedAt);
 }

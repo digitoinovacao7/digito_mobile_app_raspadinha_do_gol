@@ -146,53 +146,56 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _loadSettings() async {
     try {
-      final docSnap = await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('general')
-          .get();
+      final results = await Future.wait([
+        FirebaseFirestore.instance.collection('settings').doc('general').get(),
+        FirebaseFirestore.instance.collection('private_settings').doc('secrets').get(),
+      ]);
+      final docSnap = results[0];
+      final secretSnap = results[1];
 
-      if (docSnap.exists) {
-        final data = docSnap.data() ?? {};
+      final data = docSnap.exists ? (docSnap.data() ?? {}) : <String, dynamic>{};
+      final secretData = secretSnap.exists ? (secretSnap.data() ?? {}) : <String, dynamic>{};
 
-        final apiKeys = (data['api_keys'] as Map<String, dynamic>?) ?? {};
+      final legacyApiKeys = (data['api_keys'] as Map<String, dynamic>?) ?? {};
+      final secretApiKeys = (secretData['api_keys'] as Map<String, dynamic>?) ?? {};
+      final apiKeys = {...legacyApiKeys, ...secretApiKeys};
 
-        _apiFootballController.text =
-            apiKeys['api_football']?.toString() ??
-            data['api_football_key']?.toString() ??
-            data['api_football']?.toString() ??
-            '';
-        _mercadoPagoController.text =
-            apiKeys['mercado_pago']?.toString() ??
-            data['mercado_pago_key']?.toString() ??
-            data['mercado_pago']?.toString() ??
-            '';
-        _zApiController.text =
-            apiKeys['z_api']?.toString() ??
-            data['z_api_key']?.toString() ??
-            data['z_api']?.toString() ??
-            '';
-        _geminiApiController.text =
-            apiKeys['gemini']?.toString() ??
-            data['gemini_api_key']?.toString() ??
-            data['gemini_key']?.toString() ??
-            data['gemini']?.toString() ??
-            '';
+      _apiFootballController.text =
+          apiKeys['api_football']?.toString() ??
+          data['api_football_key']?.toString() ??
+          data['api_football']?.toString() ??
+          '';
+      _mercadoPagoController.text =
+          apiKeys['mercado_pago']?.toString() ??
+          data['mercado_pago_key']?.toString() ??
+          data['mercado_pago']?.toString() ??
+          '';
+      _zApiController.text =
+          apiKeys['z_api']?.toString() ??
+          data['z_api_key']?.toString() ??
+          data['z_api']?.toString() ??
+          '';
+      _geminiApiController.text =
+          apiKeys['gemini']?.toString() ??
+          secretData['gemini_api_key']?.toString() ??
+          data['gemini_api_key']?.toString() ??
+          data['gemini_key']?.toString() ??
+          data['gemini']?.toString() ??
+          '';
 
-        if (data.containsKey('economy')) {
-          final economy = data['economy'] as Map<String, dynamic>;
-          _scratchcardCostController.text =
-              economy['scratchcard_token_cost']?.toString() ?? '1000';
-          _quizRewardController.text =
-              economy['quiz_reward']?.toString() ?? '250';
-          _dailyQuizLimitController.text =
-              economy['daily_quiz_limit']?.toString() ?? '3';
-        }
+      if (data.containsKey('economy')) {
+        final economy = data['economy'] as Map<String, dynamic>;
+        _scratchcardCostController.text =
+            economy['scratchcard_token_cost']?.toString() ?? '1000';
+        _quizRewardController.text =
+            economy['quiz_reward']?.toString() ?? '250';
+        _dailyQuizLimitController.text =
+            economy['daily_quiz_limit']?.toString() ?? '3';
+      }
 
-        if (data.containsKey('prize_rules')) {
-          _globalWinChanceController.text =
-              data['prize_rules']['global_win_chance']?.toString() ?? '10';
-        }
-
+      if (data.containsKey('prize_rules')) {
+        _globalWinChanceController.text =
+            data['prize_rules']['global_win_chance']?.toString() ?? '10';
       }
 
 
@@ -242,29 +245,38 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('general')
-          .set({
-            'active_football_api': 'api_football',
-            'api_keys': {
-              'api_football': _apiFootballController.text,
-              'mercado_pago': _mercadoPagoController.text,
-              'z_api': _zApiController.text,
-              'gemini': _geminiApiController.text,
-            },
-            'economy': {
-              'scratchcard_token_cost':
-                  int.tryParse(_scratchcardCostController.text) ?? 1000,
-              'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
-              'daily_quiz_limit':
-                  int.tryParse(_dailyQuizLimitController.text) ?? 3,
-            },
-            'prize_rules': {
-              'global_win_chance':
-                  int.tryParse(_globalWinChanceController.text) ?? 10,
-            },
-          }, SetOptions(merge: true));
+      await Future.wait([
+        FirebaseFirestore.instance
+            .collection('private_settings')
+            .doc('secrets')
+            .set({
+              'api_keys': {
+                'api_football': _apiFootballController.text.trim(),
+                'mercado_pago': _mercadoPagoController.text.trim(),
+                'z_api': _zApiController.text.trim(),
+                'gemini': _geminiApiController.text.trim(),
+              },
+            }, SetOptions(merge: true)),
+        FirebaseFirestore.instance
+            .collection('settings')
+            .doc('general')
+            .set({
+              'active_football_api': 'api_football',
+              'api_keys': FieldValue.delete(),
+              'gemini_api_key': FieldValue.delete(),
+              'economy': {
+                'scratchcard_token_cost':
+                    int.tryParse(_scratchcardCostController.text) ?? 1000,
+                'quiz_reward': int.tryParse(_quizRewardController.text) ?? 250,
+                'daily_quiz_limit':
+                    int.tryParse(_dailyQuizLimitController.text) ?? 3,
+              },
+              'prize_rules': {
+                'global_win_chance':
+                    int.tryParse(_globalWinChanceController.text) ?? 10,
+              },
+            }, SetOptions(merge: true)),
+      ]);
 
 
 

@@ -2311,7 +2311,10 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                 setModalState(() => isJoining = true);
                                 try {
                                   final user = ref.read(currentUserProvider);
-                                  final userId = user?.id ?? FirebaseFirestore.instance.app.options.projectId;
+                                  final userId = user?.id;
+                                  if (userId == null || userId.isEmpty) {
+                                    throw Exception('Faça login para participar do bolão.');
+                                  }
                                   final participantRef = _firestore
                                       .collection('boloes')
                                       .doc(bolaoId)
@@ -2326,14 +2329,6 @@ class _BolaoScreenState extends ConsumerState<BolaoScreen>
                                   if (isNewParticipant) {
                                     await _firestore.collection('boloes').doc(bolaoId).update({
                                       'participantsCount': FieldValue.increment(1),
-                                    });
-
-                                    await _firestore.collection('token_transactions').add({
-                                      'uid': userId,
-                                      'amount': entryFee,
-                                      'type': 'bolao_entry_pix',
-                                      'description': 'Entrada Bolão: $name',
-                                      'createdAt': FieldValue.serverTimestamp(),
                                     });
                                   }
 

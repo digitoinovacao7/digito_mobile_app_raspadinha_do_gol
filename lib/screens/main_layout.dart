@@ -250,28 +250,30 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         debugPrint('User earned reward: ${reward.amount} ${reward.type}');
         final user = ref.read(currentUserProvider);
         if (user != null) {
-          int amount = reward.amount.toInt();
-          if (amount <= 1) amount = 250;
+          try {
+            final amount = await DbService().claimAdReward();
 
-          await DbService().addTokens(user.id, amount);
-          await DbService().addTokenTransaction(
-            user.id,
-            amount,
-            'rewarded_ad',
-            'Vídeo Premiado',
-          );
-
-          ref.read(currentUserProvider.notifier).state = user.copyWith(
-            tokens: user.tokens + amount,
-          );
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('🎉 Você ganhou $amount Tokens!'),
-                backgroundColor: AppTheme.primaryGreen,
-              ),
+            ref.read(currentUserProvider.notifier).state = user.copyWith(
+              tokens: user.tokens + amount,
             );
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('🎉 Você ganhou $amount Tokens!'),
+                  backgroundColor: AppTheme.primaryGreen,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Não foi possível creditar o vídeo: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
         }
       },
